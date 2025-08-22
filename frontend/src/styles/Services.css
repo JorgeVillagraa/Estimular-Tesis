@@ -1,0 +1,73 @@
+.services-section {
+  background: #fff;
+  padding: 3rem 1rem;
+  text-align: center;
+  
+}
+
+.services-title {
+  color: #3FAE2A; /* verde referencia */
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 2.5rem;
+}
+
+.services-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4rem; /* espacio amplio como en la imagen */
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.service-item {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: #fff; /* aseguramos que el fondo sea blanco */
+  border-radius: 12px; /* esquinas redondeadas */
+  padding: 1rem; /* un poquito de espacio interno */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* sombra suave */
+  transition: transform 0.3s ease, box-shadow 0.3s ease; /* efecto hover */
+}
+
+.service-icon {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-icon.blue {
+  background: transparent;
+}
+.service-icon.orange {
+  background: transparent;
+}
+.service-icon.red {
+  background: transparent;
+}
+
+.service-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #222;
+}
+
+.service-desc {
+  font-size: 1rem;
+  color: #555;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .services-list {
+    flex-direction: column;
+    gap: 2.5rem;
+    align-items: center;
+  }
+}
