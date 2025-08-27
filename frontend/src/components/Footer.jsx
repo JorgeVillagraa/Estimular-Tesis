@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import instagramIcon from "../assets/logo_instagram.jpg";
 import facebookIcon from "../assets/logo_facebook.jpg";
 import "../styles/Footer.css";
@@ -17,9 +18,22 @@ export default function Footer() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const [status, setStatus] = useState(null);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("¡Gracias por tu consulta!");
+    setStatus(null);
+    try {
+      const res = await axios.post("http://localhost:3001/api/contact", form);
+      if (res.data.success) {
+        setStatus({ success: true, message: res.data.message });
+        setForm({ nombre: "", apellido: "", email: "", servicio: "", comentario: "" });
+      } else {
+        setStatus({ success: false, message: res.data.message });
+      }
+    } catch (err) {
+      setStatus({ success: false, message: err.response?.data?.message || "Error al enviar la consulta." });
+    }
   };
 
   return (
@@ -35,7 +49,7 @@ export default function Footer() {
           </p>
           <div className="footer-phone-row">
             <span className="footer-phone-icon">📞</span>
-            <span className="footer-phone">4227070 / 3813390033</span>
+            <span className="footer-phone">XXXXXXX / 381 XXX XXXX</span>
           </div>
           <h4 className="footer-social-title">NUESTRAS REDES</h4>
           <div className="footer-social-icons">
@@ -107,9 +121,10 @@ export default function Footer() {
               required
             >
               <option value="">Selecciona una opción</option>
-              <option value="estimulación">Estimulación temprana</option>
+              <option value="evaluacion">Evaluación diagnóstica inicial</option>
               <option value="terapia">Terapia individual</option>
-              <option value="apoyo">Apoyo familiar</option>
+              <option value="disponiblidad">Consultar disponibilidad de turnos</option>
+              <option value="otros">Otros...</option>
             </select>
             <label className="footer-form-label">Comentario</label>
             <textarea
@@ -121,6 +136,11 @@ export default function Footer() {
             <button type="submit" className="footer-form-btn">
               Enviar
             </button>
+            {status && (
+              <div className={status.success ? 'success-message' : 'error-message'}>
+                {status.message}
+              </div>
+            )}
           </form>
         </div>
       </div>
