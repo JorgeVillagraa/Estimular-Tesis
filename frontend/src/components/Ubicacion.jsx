@@ -1,6 +1,6 @@
 import React from "react";
 import '../styles/Ubication.css';
-import empresaImg from '../assets/imagen_prueba1.jpg'; // Cambia por la imagen real si tienes otra
+import empresaImg from '../assets/estimular_ubicacion.jpeg';
 
 export default function Ubicacion() {
   return (

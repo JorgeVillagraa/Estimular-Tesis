@@ -1,0 +1,63 @@
+.barra-lateral {
+  height: 100vh;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-primary, #e91e63);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.barra-lateral__aside {
+  width: 100%;
+  height: 100%;
+  min-height: 110vh;
+  background: var(--color-primary, #e91e63);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.barra-lateral__logo {
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 16px rgba(233,30,99,0.12);
+}
+
+.barra-lateral__marca {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.barra-lateral__frase {
+  font-size: 1.4rem;
+  font-weight: 400;
+  margin-top: 0.5rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 900px) {
+  .barra-lateral__logo {
+    width: 140px;
+    height: 140px;
+  }
+  .barra-lateral__marca {
+    font-size: 2rem;
+  }
+  .barra-lateral__frase {
+    font-size: 1.1rem;
+  }
+}

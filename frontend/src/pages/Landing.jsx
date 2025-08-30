@@ -1,12 +1,12 @@
 import Hero from '../components/Hero';
-import AboutEstimular from '../components/AboutEstimular';
-import Services from '../components/Services';
-import Ubication from '../components/Ubication';
-import Testimonials from '../components/Testimonials';
-import Gallery from '../components/Gallery';
+import AboutEstimular from '../components/SobreEstimular';
+import Services from '../components/Servicios';
+import Ubication from '../components/Ubicacion';
+import Testimonials from '../components/Testimonios';
+import Gallery from '../components/Galeria';
 import Footer from '../components/Footer';  
 import Navbar from '../components/Navbar';
-import WhatsappButton from '../components/WhatsappButton';
+import WhatsappButton from '../components/BotonWhatsapp';
 
 export default function Landing() {
   return (

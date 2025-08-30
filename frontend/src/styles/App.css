@@ -9,3 +9,9 @@
 html{
     scroll-behavior: smooth;
 }
+
+
+html,body {
+  overflow-y: hidden;
+  overflow-x: hidden;
+}

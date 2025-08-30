@@ -1,7 +1,7 @@
 import {BrowserRouter as Router,Routes,Route} from 'react-router-dom';
 
 import Landing from './pages/Landing';
-import FormularioEntrevista from './pages/FormularioEntrevista';
+import Entrevista from './pages/Entrevista';
 import './styles/App.css'; 
 
 function App() {
@@ -12,7 +12,7 @@ function App() {
         <Routes>
           {/* Rutas publicas */}
           <Route path="/" element={<Landing />} />
-          <Route path="/formulario-entrevista" element={<FormularioEntrevista />} />
+          <Route path="/formulario-entrevista" element={<Entrevista />} />
           
 
         </Routes>
