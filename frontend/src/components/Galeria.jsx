@@ -5,13 +5,25 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/autoplay';
+
+
+import img1 from '../assets/imagen_prueba1.jpg' ;
+import img2 from '../assets/imagen_prueba2.jpg' ;
+import img3 from '../assets/imagen_prueba3.jpg' ;
+
+
+
+
+
+
 import '../styles/Galeria.css';
 
 export default function Gallery() {
   const images = [
-    '/imagen_prueba1.jpg',
-    '/imagen_prueba2.jpg',
-    '/imagen_prueba3.jpg'
+    img1,
+    img2,
+    img3,
+    img1
   ];
 
   return (
