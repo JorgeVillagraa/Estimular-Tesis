@@ -5,14 +5,14 @@
   position: fixed;
   top: 0;
   width: 100%;
-  background: transparent;
+  background: var(--color-transparente);
   transition: background 0.3s ease, box-shadow 0.3s ease;
   z-index: 1000;
 }
 
 .navbar--scrolled {
   background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--color-sombra-navbar);
 }
 
 /* Contenedor interno */
@@ -29,7 +29,7 @@
 .navbar__logo {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #E5007D;
+  color: var(--color-rosa1);
   text-decoration: none;
 }
 
@@ -47,27 +47,28 @@
 
 .navbar__menu a {
   text-decoration: none;
-  color: #333;
+  color: var(--color-text);
   font-weight: 500;
   transition: color 0.2s;
 }
 
 .navbar__menu a:hover {
-  color: #8BC53F;
+  color: var(--color-verde2);
   cursor: pointer;
 }
 
 /* Botón CTA */
 .navbar__cta a {
-  background: #8BC53F;
-  color: #fff;
+  background: var(--color-verde2);
+  color: var(--color-fondo);
   padding: 0.5rem 1rem;
   border-radius: 4px;
   margin-left: 2rem;
 }
 
 .navbar__cta a:hover {
-  background: #7ab233;
+  background: var(--color-verde3);
+  color: var(--color-text);
 }
 
 /* Hamburguesa y toggle */
@@ -85,7 +86,7 @@
 .navbar__hamburger span {
   width: 25px;
   height: 2px;
-  background: #333;
+  background: var(--color-text);
   margin-bottom: 5px;
   border-radius: 2px;
 }
@@ -98,7 +99,7 @@
     right: -100%;
     width: 220px;
     height: calc(100% - 60px);
-    background: #fff;
+    background: var(--color-fondo);
     flex-direction: column;
     padding: 1rem;
     transition: right 0.3s ease;

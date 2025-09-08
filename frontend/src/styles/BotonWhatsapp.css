@@ -4,10 +4,10 @@
   height: 64px;
   bottom: 32px;
   right: 32px;
-  background-color: #25D366;
-  color: #fff;
+  background-color: var(--color-verde3);
+  color: var(--color-fondo);
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(37,211,102,0.18);
+  box-shadow: 0 4px 16px var(--color-sombra-whatsapp);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -22,6 +22,6 @@
 }
 
 .whatsapp_float:hover {
-  box-shadow: 0 8px 24px rgba(37,211,102,0.28);
+  box-shadow: 0 8px 24px var(--color-sombra-whatsapp-hover);
   transform: scale(1.08);
 }

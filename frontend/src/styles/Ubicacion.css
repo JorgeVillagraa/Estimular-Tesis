@@ -24,7 +24,7 @@
   width: 100%;
   max-width: 320px;
   border-radius: 14px;
-  box-shadow: 0 4px 16px rgba(233,30,99,0.10);
+  box-shadow: 0 4px 16px var(--color-sombra-rosa1-10);
   border: 3px solid var(--color-primary);
   object-fit: cover;
 }
@@ -35,7 +35,7 @@
 }
 
 .ubicacion-title {
-  color: var(--color-primary);
+  color: var(--color-rosa2);
   font-size: 1.7rem;
   font-weight: bold;
   margin-bottom: 1rem;
@@ -43,7 +43,7 @@
 
 .ubicacion-desc {
   font-weight: bold;
-  color: black;
+  color: var(--color-negro);
   font-size: 1.15rem;
   margin-bottom: 1.2rem;
   

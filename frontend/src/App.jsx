@@ -2,7 +2,6 @@ import {BrowserRouter as Router,Routes,Route} from 'react-router-dom';
 
 import Landing from './pages/Landing';
 import Entrevista from './pages/Entrevista';
-import './styles/App.css'; 
 
 function App() {
 
@@ -13,8 +12,6 @@ function App() {
           {/* Rutas publicas */}
           <Route path="/" element={<Landing />} />
           <Route path="/formulario-entrevista" element={<Entrevista />} />
-          
-
         </Routes>
       </Router>
     </div>

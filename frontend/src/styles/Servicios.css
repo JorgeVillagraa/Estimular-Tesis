@@ -1,12 +1,11 @@
 .services-section {
-  background: #fff;
+  background: var(--color-fondo);
   padding: 3rem 1rem;
   text-align: center;
-  
 }
 
 .services-title {
-  color: #3FAE2A; /* verde referencia */
+  color: var(--color-verde2);
   font-size: 2.4rem;
   font-weight: 700;
   margin-bottom: 2.5rem;
@@ -16,7 +15,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 4rem; /* espacio amplio como en la imagen */
+  gap: 4rem;
   max-width: 1200px;
   margin: 0 auto;
   transition: all 0.4s cubic-bezier(.4,0,.2,1);
@@ -28,10 +27,10 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background: #fff; /* aseguramos que el fondo sea blanco */
-  border-radius: 12px; /* esquinas redondeadas */
-  padding: 1rem; /* un poquito de espacio interno */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* sombra suave */
+  background: var(--color-fondo);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px var(--color-sombra-servicio);
   transition: transform 0.4s cubic-bezier(.4,0,.2,1), box-shadow 0.4s, flex 0.4s, opacity 0.4s;
   cursor: pointer;
   flex: 1;
@@ -41,14 +40,14 @@
 
 .service-item:hover {
   transform: translateY(-6px) scale(1.03);
-  box-shadow: 0 8px 24px rgba(63,174,42,0.12);
+  box-shadow: 0 8px 24px var(--color-sombra-servicio-hover);
 }
 
 .service-item--active {
   flex: 2.5;
   z-index: 2;
   transform: scale(1.08);
-  box-shadow: 0 8px 32px rgba(63,174,42,0.18);
+  box-shadow: 0 8px 32px var(--color-sombra-servicio-active);
 }
 
 .service-item--hidden {
@@ -58,15 +57,15 @@
   transform: scale(0.8);
 }
 
-.service-desc{
+.service-desc {
   list-style: none;
   padding: 0;
   margin: 1rem 0 0 0;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  
 }
+
 .service-icon {
   margin-bottom: 1rem;
   display: flex;
@@ -74,25 +73,23 @@
   justify-content: center;
 }
 
-
 .service-icon {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #e3f2fd;
-  box-shadow: 0 2px 8px rgba(0,153,229,0.08);
+  background: var(--color-azul2);
+  box-shadow: 0 2px 8px var(--color-sombra-icono);
   transition: box-shadow 0.3s;
 }
 .service-icon.blue {
-  background: #e3f2fd;
-  box-shadow: 0 2px 8px rgba(0,153,229,0.18);
+  background: var(--color-azul2);
+  box-shadow: 0 2px 8px var(--color-sombra-icono-blue);
 }
 .service-icon.orange {
-  background: #fff9c4;
-  box-shadow: 0 2px 8px rgba(255,127,39,0.18);
+  background: var(--color-amarillo2);
+  box-shadow: 0 2px 8px var(--color-sombra-icono-orange);
 }
 .service-icon.red {
-  background: #ffe0e0;
-  box-shadow: 0 2px 8px rgba(229,57,53,0.18);
+  background: var(--color-rojo2);
+  box-shadow: 0 2px 8px var(--color-sombra-icono-red);
 }
-

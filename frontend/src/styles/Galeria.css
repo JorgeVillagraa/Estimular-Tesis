@@ -1,5 +1,5 @@
 .gallery-section {
-  background: #fff;
+  background: var(--color-fondo);
   padding: 3rem 1rem;
   text-align: center;
 }
@@ -7,7 +7,7 @@
 .gallery-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #E53935; /* rojo referencia */
+  color: var(--color-rojo1);
   margin-bottom: 2.5rem;
 }
 
@@ -21,7 +21,7 @@
   height: 220px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px var(--color-sombra-galeria);
 }
 
 .gallery-item img {
@@ -32,11 +32,11 @@
 
 /* Swiper pagination */
 .swiper-pagination-bullet {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-sombra-paginacion);
   opacity: 1;
 }
 .swiper-pagination-bullet-active {
-  background: #E53935; /* activo en rojo */
+  background: var(--color-rojo1);
 }
 
 @media (max-width: 768px) {

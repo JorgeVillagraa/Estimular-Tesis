@@ -1,9 +1,9 @@
 /* Estilos para ProfesionalesInfo */
 .service-profesionales {
   margin-top: 2rem;
-  background: #fff;
+  background: var(--color-fondo);
   border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(233,30,99,0.10);
+  box-shadow: 0 8px 32px var(--color-sombra-footer);
   padding: 2rem 1.5rem 1.5rem 1.5rem;
   width: 100%;
   max-width: 600px;
@@ -15,9 +15,9 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  background: #fff;
+  background: var(--color-fondo);
   border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(233,30,99,0.10);
+  box-shadow: 0 8px 32px var(--color-sombra-footer);
   padding: 2rem 1.5rem 1.5rem 1.5rem;
   position: relative;
   display: flex;
@@ -35,8 +35,8 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--color-rosa1);
+  color: var(--color-fondo);
   border: none;
   border-radius: 50%;
   width: 36px;
@@ -47,11 +47,11 @@
   z-index: 2;
 }
 .service-profesionales__close:hover {
-  background: var(--color-secondary);
+  background: var(--color-rosa2);
 }
 
 .service-profesionales__title {
-  color: #8BC53F; 
+  color: var(--color-verde2);
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 1.2rem;
@@ -72,9 +72,10 @@
   align-items: center;
   border-radius: 12px;
   padding: 1rem 1.2rem;
-  box-shadow: 0 2px 8px rgba(233,30,99,0.08);
+  box-shadow: 0 2px 8px var(--color-sombra-footer-hover);
   min-width: 220px;
   max-width: 240px;
+  background: var(--color-fondo);
 }
 
 .service-profesionales__foto {
@@ -82,14 +83,14 @@
   height: 70px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--color-primary);
-  background: #fff;
+  border: 3px solid var(--color-rosa1);
+  background: var(--color-fondo);
   margin-bottom: 0.7rem;
 }
 
 .service-profesionales__info h3 {
   margin: 0 0 0.3rem 0;
-  color: #E91E63;
+  color: var(--color-rosa2);
   font-size: 1.1rem;
   text-align: center;
 }

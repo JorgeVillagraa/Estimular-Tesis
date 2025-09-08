@@ -1,23 +1,85 @@
+
 :root {
+  /* Rosas */
+  --color-rosa1: #e5007d;
+  --color-rosa2: #e91e63;
 
-  --color-rosa1: #E5007D;
-  --color-rosa2: #e91e63; 
+  /* Rojos */
+  --color-rojo1: #e53935;
+  --color-rojo2: #ffe0e0;
 
-  --color-verde1: #4caf50; /* Verde (tronco/hojas) */
+  /* Verdes */
+  --color-verde1: #4caf50; /* Tronco/hojas */
+  --color-verde2: #8bc53f;
+  --color-verde3: #25d366; /* WhatsApp */
 
+  /* Amarillos */
+  --color-amarillo1: #ffeb3b;
+  --color-amarillo2: #fff9c4;
+
+  /* Azules */
+  --color-azul2: #e3f2fd;
   --color-accent-blue: #2196f3;
-  --color-accent-yellow: #ffeb3b;
+
+  /* Naranjas */
+  --color-naranja1: #ff9f1c;
   --color-accent-orange: #ff9800;
+
+  /* Morados */
   --color-accent-purple: #9c27b0;
 
+  /* Sombras generales */
+  --color-sombra-galeria: rgba(0, 0, 0, 0.08);
+  --color-sombra-paginacion: rgba(0, 0, 0, 0.3);
+  --color-sombra-navbar: rgba(0, 0, 0, 0.1);
+  --color-sombra-footer: rgba(233, 30, 99, 0.1);
+  --color-sombra-footer-hover: rgba(233, 30, 99, 0.18);
+  --color-sombra-footer-bg: rgba(0, 0, 0, 0.08);
+  --color-sombra-servicio: rgba(0, 0, 0, 0.1);
+  --color-sombra-servicio-hover: rgba(63, 174, 42, 0.12);
+  --color-sombra-servicio-active: rgba(63, 174, 42, 0.18);
+  --color-sombra-icono: rgba(0, 153, 229, 0.08);
+  --color-sombra-icono-blue: rgba(0, 153, 229, 0.18);
+  --color-sombra-icono-orange: rgba(255, 127, 39, 0.18);
+  --color-sombra-icono-red: rgba(229, 57, 53, 0.18);
+  --color-sombra-sidebar-logo: rgba(233, 30, 99, 0.12);
+  --color-sombra-whatsapp: rgba(37, 211, 102, 0.18);
+  --color-sombra-whatsapp-hover: rgba(37, 211, 102, 0.28);
 
-  
-
-  --color-bg: #ffffff;
+  /* Fondo y texto */
+  --color-fondo: #ffffff;
   --color-text: #333333;
-
   --color-muted: #f5f5f5;
   --color-border: #dddddd;
+  --color-gris-label: #888;
 
+  /* Extras para gradientes, sombras y transparencias */
+  --color-blanco-translucido-95: rgba(255,255,255,0.95);
+  --color-blanco-translucido-70: rgba(255,255,255,0.7);
+  --color-blanco-translucido-10: rgba(255,255,255,0.1);
+  --color-sombra-rosa1-10: rgba(233,30,99,0.10);
+  --color-negro: #000;
+  --color-transparente: transparent;
 }
 
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html{
+    scroll-behavior: smooth;
+}
+
+
+textarea{
+  resize:none
+}
+
+
+html,body {
+  overflow-x: hidden;
+}
