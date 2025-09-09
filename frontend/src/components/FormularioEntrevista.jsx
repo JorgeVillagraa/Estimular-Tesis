@@ -1,4 +1,3 @@
-import React from "react";
 import "../styles/FormularioEntrevista.css";
 
 export default function FormularioEntrevista() {

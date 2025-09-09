@@ -78,6 +78,15 @@
   background: var(--color-fondo);
 }
 
+.service-profesionales__item:hover {
+  /* Acercar Tarjeta ZOOM */
+  box-shadow: 0 4px 50px var(--color-sombra-footer);
+  transform: scale(1.20);
+  transition: transform 0.3s, box-shadow 0.3s;
+  
+
+}
+
 .service-profesionales__foto {
   width: 70px;
   height: 70px;

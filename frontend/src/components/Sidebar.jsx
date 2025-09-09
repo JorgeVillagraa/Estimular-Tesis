@@ -13,7 +13,7 @@ export default function Sidebar() {
         />
         <h1 className="barra-lateral__marca">ESTIMULAR</h1>
         <h2 className="barra-lateral__frase">
-          Cada niño merece<br />ser escuchado
+          "Cada niño es un mundo por descubrir"
         </h2>
       </aside>
     </div>

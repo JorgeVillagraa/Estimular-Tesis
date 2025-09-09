@@ -26,17 +26,17 @@
 }
 
 .barra-lateral__logo {
-  width: 220px;
-  height: 220px;
+  width: 300px;
+  height: 300px;
   object-fit: contain;
   border-radius: 50%;
   background: var(--color-fondo);
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   box-shadow: 0 4px 16px var(--color-sombra-sidebar-logo);
 }
 
 .barra-lateral__marca {
-  font-size: 2.5rem;
+  font-size: 3.2rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   letter-spacing: 1px;

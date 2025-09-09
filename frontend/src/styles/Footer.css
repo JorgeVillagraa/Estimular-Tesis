@@ -58,16 +58,17 @@
 }
 .footer-phone-icon {
   font-size: 1.3rem;
+  background-color: var(--color-fondo);
 }
 .footer-social-title {
   font-size: 1.15rem;
   font-weight: 600;
-  margin-bottom: 0.7rem;
   color: var(--color-fondo);
 }
 .footer-social-icons {
   display: flex;
-  gap: 1.2rem;
+  gap: 1rem;
+
 }
 .footer-icon {
   background: var(--color-transparente);
@@ -158,6 +159,32 @@
   color: var(--color-fondo);
   font-size: 1rem;
   margin: 0;
+}
+
+
+/* Preguntas Frecuentes */
+
+#footer-preguntas-titulo{
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-fondo);
+  margin-bottom: 1rem;
+}
+
+
+.footer-pregunta{
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+
+}
+
+.footer-respuesta{
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--color-gris);
+  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 900px) {
