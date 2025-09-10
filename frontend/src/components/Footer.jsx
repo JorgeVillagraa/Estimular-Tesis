@@ -61,17 +61,14 @@ export default function Footer() {
         <div className="footer-left">
           <button className="footer-contact-btn">CONTACTO</button>
           <p className="footer-desc">
-            Ponete en contacto con nosotros, te asesoramos ante cualquier
-            inquietud,
-            <br />
-            nos podés encontrar en
+            Para más información, consultas o turnos, te asesoramos ante cualquier
+            inquietud, nos podés encontrar en :
           </p>
           <div className="footer-phone-row">
             <span className="footer-phone-icon">📞</span>
             <span className="footer-phone">{telefono} </span>
-          </div>
-          <h4 className="footer-social-title">NUESTRAS REDES</h4>
-          <div className="footer-social-icons">
+
+             <div className="footer-social-icons">
             <a
               href="https://facebook.com"
               target="_blank"
@@ -99,11 +96,10 @@ export default function Footer() {
               />
             </a>
           </div>
-
-          {/* AGREGAR ESTILOS */}
-
+          </div>
+         
           <section aria-labelledby="footer-preguntas">
-            <h2 id="footer-preguntas-titulo">Preguntas Frecuentes</h2>
+            <h2 id="footer-preguntas-titulo">PREGUNTAS FRECUENTES</h2>
 
             <div className="footer-preguntas-lista">
               <details className="footer-detalles">
@@ -122,9 +118,11 @@ export default function Footer() {
                 <p className="footer-respuesta">
                   Podes solicitar a traves de un formulario con datos basicos del pacientes y responsable.
                   <br />
-                  <Link to="/formulario-entrevista">En este enlace</Link>
-
-                  <br />
+                  {/* ENLACE CON NOMBRE ENLACE DE ENTREVISTA */}
+                  <div className="footer-enlace-entrevista">
+                     <Link to="/formulario-entrevista">EN ESTE ENLACE</Link>
+                  </div>
+                 
                   El equipo se pondrá en contacto para coordinar la primera entrevista.
                 </p>
               </details>
@@ -154,7 +152,7 @@ export default function Footer() {
                   ¿Dónde están ubicados?
                 </summary>
                 <p className="footer-respuesta">
-                  Estamos ubicados en [dirección], en el centro de la ciudad,
+                  Estamos ubicados en Las Piedras 312, en el centro de la ciudad,
                   con fácil acceso en transporte público.
                 </p>
               </details>
