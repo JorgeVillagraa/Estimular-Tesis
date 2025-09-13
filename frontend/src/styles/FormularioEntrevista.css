@@ -116,6 +116,7 @@
 @media (max-width: 900px) {
   .entrevista__layout {
     flex-direction: column;
+    min-height: 100vh;
   }
   .barra-lateral,
   .entrevista__formulario {
@@ -123,12 +124,51 @@
     min-width: 0;
     width: 100vw;
     padding: 0 1rem;
+    height: auto;
+  }
+  .barra-lateral {
+    min-width: 0;
+    height: auto;
+    padding: 2rem 1rem 1rem 1rem;
+    justify-content: flex-start;
   }
   .entrevista__formulario {
     align-items: center;
     padding: 2rem 1rem;
+    min-height: auto;
   }
   .entrevista__form {
     max-width: 100vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .entrevista__titulo {
+    font-size: 2rem;
+    margin-top: 1rem;
+  }
+  .entrevista__subtitulo {
+    font-size: 1rem;
+    margin-bottom: 1.2rem;
+  }
+  .entrevista__formulario {
+    padding: 1rem 0.5rem;
+  }
+  .entrevista__form {
+    gap: 0.8rem;
+    max-width: 100vw;
+  }
+  .entrevista__input {
+    font-size: 1rem;
+    padding: 0.8rem 0.7rem;
+  }
+  .entrevista__boton {
+    font-size: 1.1rem;
+    padding: 0.8rem 0;
+    margin-top: 1rem;
+  }
+  .entrevista__terminos-container {
+    font-size: 0.95rem;
+    gap: 0.4rem;
   }
 }

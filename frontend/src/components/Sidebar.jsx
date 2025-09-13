@@ -11,10 +11,12 @@ export default function Sidebar() {
           alt="Logo Estimular"
           className="barra-lateral__logo"
         />
-        <h1 className="barra-lateral__marca">ESTIMULAR</h1>
-        <h2 className="barra-lateral__frase">
-          "Cada niño es un mundo por descubrir"
-        </h2>
+        <div className="barra-lateral__info">
+          <h1 className="barra-lateral__marca">ESTIMULAR</h1>
+          <h2 className="barra-lateral__frase">
+            "Cada niño es un mundo por descubrir"
+          </h2>
+        </div>
       </aside>
     </div>
   );
