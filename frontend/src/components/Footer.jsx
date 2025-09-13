@@ -4,6 +4,9 @@ import axios from "axios";
 import instagramIcon from "../assets/logo_instagram.jpg";
 import facebookIcon from "../assets/logo_facebook.jpg";
 
+//  React Icons
+import {FaPhoneAlt} from "react-icons/fa";
+
 
 import { profesionales } from "../constants/profesionales";
 
@@ -64,10 +67,8 @@ export default function Footer() {
             Para más información, consultas o turnos, te asesoramos ante cualquier
             inquietud, nos podés encontrar en :
           </p>
+          
           <div className="footer-phone-row">
-            <span className="footer-phone-icon">📞</span>
-            <span className="footer-phone">{telefono} </span>
-
              <div className="footer-social-icons">
             <a
               href="https://facebook.com"
@@ -96,6 +97,9 @@ export default function Footer() {
               />
             </a>
           </div>
+            <span><FaPhoneAlt/></span>
+            <span className="footer-phone">{telefono} </span>
+            
           </div>
          
           <section aria-labelledby="footer-preguntas">

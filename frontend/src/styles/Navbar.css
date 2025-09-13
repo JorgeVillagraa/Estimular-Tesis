@@ -86,7 +86,7 @@
 .navbar__hamburger span {
   width: 25px;
   height: 2px;
-  background: var(--color-text);
+  background: var(--color-rosa2);
   margin-bottom: 5px;
   border-radius: 2px;
 }

@@ -57,10 +57,7 @@
   font-weight: bold;
   font-size: 1.1rem;
 }
-.footer-phone-icon {
-  font-size: 1.3rem;
-  background-color: var(--color-fondo);
-}
+
 .footer-social-title {
   font-size: 1.15rem;
   font-weight: 600;
@@ -174,30 +171,6 @@
 }
 
 
-details summary{
-  list-style: none;
-  cursor:pointer;
-  position:relative;
-  padding-left:25px;
-}
-
-/* Pseudo-elemento con tu imagen */
-details summary::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;       /* ancho de tu imagen */
-  height: 20px;      /* alto de tu imagen */
-  background-image: url('../assets/logo_estimular.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  transition: transform 0.2s;
-}
-
-
-
 .footer-pregunta{
   font-size: 1.1rem;
   font-weight: 600;
@@ -206,11 +179,9 @@ details summary::before {
 }
 
 .footer-pregunta::marker{
-
-  color: var(--color-rosa2);
+  color: var(--color-fondo);
   font-size: 1.2rem;
-  
-
+  font-weight: bold;
 }
 
 .footer-respuesta{
@@ -238,6 +209,49 @@ details summary::before {
   .footer-right {
     min-width: 0;
   }
+}
 
-  
+@media (max-width: 600px) {
+  .footer {
+    padding: 2rem 0.5rem 0.5rem 0.5rem;
+  }
+  .footer-content {
+    gap: 1.2rem;
+    padding: 0;
+  }
+  .footer-left,
+  .footer-right {
+    min-width: 100%;
+    padding: 1rem 0.5rem;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .footer-right {
+    padding: 1.2rem 0.7rem;
+  }
+  .footer-form-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .footer-social-icons {
+    gap: 0.7rem;
+  }
+  .footer-img-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .footer-bottom {
+    padding-top: 0.7rem;
+    font-size: 0.95rem;
+  }
+  #footer-preguntas-titulo {
+    font-size: 1.1rem;
+    margin-bottom: 0.7rem;
+  }
+  .footer-pregunta {
+    font-size: 1rem;
+  }
+  .footer-respuesta {
+    font-size: 0.95rem;
+  }
 }
