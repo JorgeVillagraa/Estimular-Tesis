@@ -4,6 +4,9 @@ import "../styles/ProfesionalesInfo.css";
 export default function ProfesionalesInfo({ onClose }) {
 
 
+
+// Detect mobile vs desktop
+
   const contactarProfesional = (id) => {
     return () => {
 
@@ -23,8 +26,13 @@ export default function ProfesionalesInfo({ onClose }) {
         console.log(telefonoFormateado);
 
         // Crea el enlace de WhatsApp
-        const enlaceWhatsApp = `https://wa.me/${telefonoFormateado}?text=${encodeURIComponent(mensaje)}`;
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+
+        // Si esta en dispositivo móvil, abre la app de WhatsApp, sino abre WhatsApp Web
+        const enlaceWhatsApp = isMobile
+          ? `https://wa.me/${telefonoFormateado}?text=${encodeURIComponent(mensaje)}&app_absent=1`
+          : `https://web.whatsapp.com/send/?phone=${telefonoFormateado}&text=${encodeURIComponent(mensaje)}`;
 
         // Abre el enlace en una nueva pestaña
         window.open(enlaceWhatsApp, '_blank');

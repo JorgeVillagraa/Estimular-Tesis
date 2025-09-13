@@ -16,15 +16,39 @@ export default function FormularioEntrevista() {
           placeholder="Nombre completo del niño/a"
           required
         />
+        {/* <div className="entrevista__input-fecha">
+          <input
+            className="entrevista__input"
+            type="date"
+            name="fecha_nacimiento"
+            placeholder="Fecha de nacimiento del niño/a en dia/mes/año"
+            required
+          />
+        </div> */
         <div className="entrevista__input-fecha">
           <input
             className="entrevista__input"
             type="text"
             name="fecha_nacimiento"
-            placeholder="Fecha de nacimiento del niño/a en dia/mes/año"
+            placeholder="dia"
+            required
+          />
+                    <input
+            className="entrevista__input"
+            type="text"
+            name="fecha_nacimiento"
+            placeholder="mes"
+            required
+          />
+                    <input
+            className="entrevista__input"
+            type="text"
+            name="fecha_nacimiento"
+            placeholder="ano"
             required
           />
         </div>
+        }
         <input
           className="entrevista__input"
           type="text"
