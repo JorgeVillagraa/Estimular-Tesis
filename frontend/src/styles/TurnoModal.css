@@ -127,6 +127,13 @@
 }
 .btn-pending:hover { background-color: #616161; }
 
+.btn-view-payments {
+  background-color: #673ab7; /* Morado */
+  color: white;
+  grid-column: 1 / -1; /* Ocupa todo el ancho */
+}
+.btn-view-payments:hover { background-color: #512da8; }
+
 .modal-actions-grid button:disabled {
   background-color: #e0e0e0;
   color: #9e9e9e;

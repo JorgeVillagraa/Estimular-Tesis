@@ -3,7 +3,7 @@ import moment from 'moment';
 import axios from 'axios';
 import './../styles/TurnoModal.css';
 
-export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesionalId }) {
+export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, loggedInProfesionalId }) {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -68,6 +68,7 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
                 <button className="btn-no-show" onClick={createStatusHandler('no_presento')} disabled={turno.estado === 'no_presento'}>No se Presentó</button>
                 <button className="btn-pending" onClick={createStatusHandler('pendiente')} disabled={turno.estado === 'pendiente'}>Pendiente</button>
                 <button className="btn-cancel" onClick={createStatusHandler('cancelado')} disabled={turno.estado === 'cancelado'}>Cancelar</button>
+                <button className="btn-view-payments" onClick={() => onOpenPagos(event)}>Ver Pagos</button>
               </div>
 
               <h3>Reagendar</h3>

@@ -141,6 +141,11 @@ export default function TurnosGrid() {
     setSelectedEvent(null);
   };
 
+  const handleOpenPagos = (turnoEvent) => {
+    setSelectedEvent(null);
+    setTurnoForPago(turnoEvent.data);
+  };
+
   const handleClosePagoModal = () => {
     setTurnoForPago(null);
   };
@@ -189,12 +194,13 @@ export default function TurnosGrid() {
           event={selectedEvent} 
           onClose={handleCloseModal}
           onUpdate={handleEventAction}
+          onOpenPagos={handleOpenPagos}
           loggedInProfesionalId={loggedInProfesionalId}
         />
       )}
       {turnoForPago && (
         <PagoModal
-          turno={turnoForPago.data}
+          turno={turnoForPago}
           onClose={handleClosePagoModal}
         />
       )}
