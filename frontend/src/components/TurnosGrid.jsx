@@ -6,8 +6,9 @@ import axios from 'axios';
 
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
-import '../styles/Turnos.css';
+import '../styles/Turnos.css'; // Importar los estilos personalizados
 
+import TurnoModal from './TurnoModal';
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -54,6 +55,7 @@ export default function TurnosGrid() {
   const [events, setEvents] = useState([]);
   const [consultorios, setConsultorios] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const loggedInProfesionalId = 1; // Hardcoded for demonstration
 
   // Datos de turnos
@@ -92,35 +94,52 @@ export default function TurnosGrid() {
     fetchTurnos(currentDate);
   }, [currentDate, fetchTurnos]);
 
-  // Callbacks para drag and drop
   const handleEventDrop = useCallback(async ({ event, start, end, resourceId }) => {
     try {
       await axios.put(`http://localhost:3001/api/turnos/${event.id}`, {
         inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
         fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
         consultorio_id: resourceId
-      });
+      }, { headers: { 'X-User-ID': loggedInProfesionalId } });
       fetchTurnos(currentDate);
     } catch (error) {
       console.error("Error updating turno:", error);
+      alert('Error al mover el turno: ' + (error.response?.data?.message || error.message));
+      fetchTurnos(currentDate);
+      fetchTurnos(currentDate);
     }
-  }, [currentDate, fetchTurnos]);
+  }, [currentDate, fetchTurnos, loggedInProfesionalId]);
 
   const handleEventResize = useCallback(async ({ event, start, end }) => {
     try {
       await axios.put(`http://localhost:3001/api/turnos/${event.id}`, {
         inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
         fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
-      });
+      }, { headers: { 'X-User-ID': loggedInProfesionalId } });
       fetchTurnos(currentDate);
     } catch (error) {
       console.error("Error updating turno:", error);
+      alert('Error al redimensionar el turno: ' + (error.response?.data?.message || error.message));
+      fetchTurnos(currentDate);
+      fetchTurnos(currentDate);
     }
-  }, [currentDate, fetchTurnos]);
+  }, [currentDate, fetchTurnos, loggedInProfesionalId]);
 
   const handleNavigate = (newDate) => {
     setCurrentDate(newDate);
   };
+
+  const handleSelectEvent = (event) => {
+    setSelectedEvent(event);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedEvent(null);
+  };
+
+  const isEventDraggable = useCallback((event) => {
+    return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+  }, [loggedInProfesionalId]);
 
   return (
     <div className="turnos-grid-container">
@@ -129,6 +148,7 @@ export default function TurnosGrid() {
         events={events}
         date={currentDate}
         onNavigate={handleNavigate}
+        onSelectEvent={handleSelectEvent}
         defaultView="day"
         views={['day']}
         resources={consultorios}
@@ -138,8 +158,13 @@ export default function TurnosGrid() {
         endAccessor="end"
         onEventDrop={handleEventDrop}
         onEventResize={handleEventResize}
-        resizable
+        draggableAccessor={isEventDraggable}
+        resizableAccessor={isEventDraggable}
         selectable
+        step={15}
+        timeslots={2}
+        min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
+        max={moment(currentDate).set({ h: 20, m: 0 }).toDate()}
         step={15}
         timeslots={2}
         min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
@@ -150,6 +175,14 @@ export default function TurnosGrid() {
           event: (props) => <CustomEvent {...props} loggedInProfesionalId={loggedInProfesionalId} />
         }}
       />
+      {selectedEvent && (
+        <TurnoModal 
+          event={selectedEvent} 
+          onClose={handleCloseModal}
+          onUpdate={() => fetchTurnos(currentDate)}
+          loggedInProfesionalId={loggedInProfesionalId}
+        />
+      )}
     </div>
   );
 }

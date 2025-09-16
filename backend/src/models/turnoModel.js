@@ -83,7 +83,27 @@ async function updateTurno(turnoId, data) {
   return result;
 }
 
+
+
+
+
+
+async function getTurnoById(turnoId) {
+  const sql = `
+    SELECT 
+        t.*,
+        GROUP_CONCAT(tp.profesional_id) AS profesional_ids
+    FROM turnos t
+    LEFT JOIN turno_profesionales tp ON t.id = tp.turno_id
+    WHERE t.id = ?
+    GROUP BY t.id;
+  `;
+  const [rows] = await pool.query(sql, [turnoId]);
+  return rows[0] || null;
+}
+
 module.exports = {
   getTurnosByDate,
   updateTurno,
+  getTurnoById,
 };
