@@ -59,7 +59,7 @@ export default function TurnosGrid() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [turnoForPago, setTurnoForPago] = useState(null);
-  const loggedInProfesionalId = 1; // Hardcoded for demonstration
+  const loggedInProfesionalId = 1; // Hardcoded
 
   // Datos de turnos
   const fetchTurnos = useCallback(async (date) => {
@@ -103,10 +103,10 @@ export default function TurnosGrid() {
         headers: { 'X-User-ID': loggedInProfesionalId }
       });
       fetchTurnos(currentDate);
-      setSelectedEvent(null); // Cierra el modal de turno
+      setSelectedEvent(null);
       
       if (openPaymentModal) {
-        setTurnoForPago(turno); // Abre el modal de pago
+        setTurnoForPago(turno);
       }
     } catch (error) {
       console.error("Error updating turno:", error);

@@ -23,7 +23,7 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
     const originalDate = moment(event.start).format('YYYY-MM-DD');
     const newStart = moment(`${originalDate} ${startTime}`).format('YYYY-MM-DD HH:mm:ss');
     const newEnd = moment(`${originalDate} ${endTime}`).format('YYYY-MM-DD HH:mm:ss');
-    // Llama a la función onUpdate del padre con los datos correctos
+
     onUpdate(event, { inicio: newStart, fin: newEnd });
   };
 
@@ -34,7 +34,7 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
   const createStatusHandler = (status, openPaymentModal = false) => () => {
     const message = `¿Está seguro de que desea cambiar el estado a ${status.toUpperCase()}?`;
     if (window.confirm(message)) {
-      // Llama a la función onUpdate del padre con los datos correctos
+
       onUpdate(event, { estado: status }, openPaymentModal);
     }
   };

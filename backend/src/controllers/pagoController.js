@@ -1,8 +1,8 @@
 const pagoModel = require('../models/pagoModel');
 
-/**
- * Maneja la solicitud para obtener los pagos de un turno.
- */
+
+
+
 async function handleGetPagos(req, res) {
   const { turno_id } = req.query;
   if (!turno_id) {
@@ -17,9 +17,9 @@ async function handleGetPagos(req, res) {
   }
 }
 
-/**
- * Maneja la solicitud para actualizar el estado de un pago.
- */
+
+
+
 async function handleUpdatePago(req, res) {
   const { id } = req.params;
   const { estado, turno_id } = req.body;
@@ -34,7 +34,7 @@ async function handleUpdatePago(req, res) {
       return res.status(404).json({ success: false, message: 'Pago no encontrado.' });
     }
 
-    // Después de actualizar un pago, verificar el estado general del turno
+
     const todosLosPagos = await pagoModel.getPagosByTurnoId(turno_id);
     const todosPagados = todosLosPagos.every(p => p.estado === 'completado');
     const algunoPagado = todosLosPagos.some(p => p.estado === 'completado');

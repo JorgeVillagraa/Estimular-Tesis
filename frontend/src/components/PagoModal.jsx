@@ -11,7 +11,7 @@ export default function PagoModal({ turno, onClose }) {
     setLoading(true);
     try {
       const res = await axios.get(`/api/pagos?turno_id=${turno.id}`);
-      setPagos(res.data.data || []); // Asegurarse de que pagos sea siempre un array
+      setPagos(res.data.data || []);
     } catch (error) {
       console.error("Error fetching pagos:", error);
       alert('No se pudieron cargar los pagos.');
@@ -27,9 +27,9 @@ export default function PagoModal({ turno, onClose }) {
     try {
       await axios.put(`/api/pagos/${pagoId}`, {
         estado: 'completado',
-        turno_id: turno.id // Enviar turno_id para la lógica del backend
+        turno_id: turno.id
       });
-      fetchPagos(); // Recargar la lista de pagos
+      fetchPagos();
     } catch (error) {
       console.error("Error updating pago:", error);
       alert('Error al procesar el pago.');
