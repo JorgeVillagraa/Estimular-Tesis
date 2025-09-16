@@ -30,7 +30,7 @@
   background: var(--color-fondo);
   border-radius: 12px;
   padding: 1rem;
-  box-shadow: 0 4px 12px var(--color-sombra-servicio);
+  box-shadow: 0 4px 12px var(--color-rosa1);
   transition: transform 0.4s cubic-bezier(.4,0,.2,1), box-shadow 0.4s, flex 0.4s, opacity 0.4s;
   cursor: pointer;
   flex: 1;
@@ -40,7 +40,7 @@
 
 .service-item:hover {
   transform: translateY(-6px) scale(1.03);
-  box-shadow: 0 8px 24px var(--color-sombra-servicio-hover);
+  box-shadow: 0 8px 24px var(--color-amarillo1);
 }
 
 .service-item--active {

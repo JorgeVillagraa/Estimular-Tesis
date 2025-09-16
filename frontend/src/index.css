@@ -1,4 +1,9 @@
 
+
+
+
+
+
 :root {
   /* Rosas */
   --color-rosa1: #e5007d;
@@ -64,6 +69,8 @@
 
 
 
+
+
 * {
   margin: 0;
   padding: 0;
@@ -82,4 +89,5 @@ textarea{
 
 html,body {
   overflow-x: hidden;
+  font-family: 'Montserrat', sans-serif;
 }

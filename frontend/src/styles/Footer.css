@@ -173,10 +173,14 @@
 
 .footer-pregunta{
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: bold;
   cursor: pointer;
   margin-bottom: 0.5rem;
+  list-style-type: disc;
+  text-decoration : none ;
+  color: var(--color-amarillo1);
 }
+
 
 .footer-pregunta::marker{
   color: var(--color-fondo);
@@ -188,8 +192,13 @@
   font-size: 1rem;
   line-height: 1.5;
   color: var(--color-gris);
+  margin-left: 1.2rem;
   margin-bottom: 0.5rem;
+
 }
+
+
+
 
 .footer-enlace-entrevista{
   margin-top: 0.5rem;

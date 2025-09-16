@@ -61,6 +61,8 @@ export default function Footer() {
   return (
     <footer id="contact" className="footer">
       <div className="footer-content">
+
+        {/* ================================= */}
         <div className="footer-left">
           <button className="footer-contact-btn">CONTACTO</button>
           <p className="footer-desc">
@@ -102,6 +104,8 @@ export default function Footer() {
             
           </div>
          
+
+         {/* ========================== */}
           <section aria-labelledby="footer-preguntas">
             <h2 id="footer-preguntas-titulo">PREGUNTAS FRECUENTES</h2>
 
@@ -121,8 +125,6 @@ export default function Footer() {
                 </summary>
                 <p className="footer-respuesta">
                   Podes solicitar a traves de un formulario con datos basicos del pacientes y responsable.
-                  <br />
-                  {/* ENLACE CON NOMBRE ENLACE DE ENTREVISTA */}
                   <div className="footer-enlace-entrevista">
                      <Link to="/formulario-entrevista">EN ESTE ENLACE</Link>
                   </div>
@@ -162,8 +164,10 @@ export default function Footer() {
               </details>
             </div>
           </section>
+          {/* ========================== */}
         </div>
 
+        {/* ================================= */}
         <div className="footer-right">
           <form className="footer-form" onSubmit={handleSubmit}>
             <div className="footer-form-row">
@@ -174,6 +178,7 @@ export default function Footer() {
                   name="nombre"
                   value={form.nombre}
                   onChange={handleChange}
+                  placeholder= "Juan"
                   required
                 />
               </div>
@@ -184,6 +189,7 @@ export default function Footer() {
                   name="apellido"
                   value={form.apellido}
                   onChange={handleChange}
+                  placeholder= "Perez"  
                   required
                 />
               </div>
@@ -194,6 +200,7 @@ export default function Footer() {
               name="email"
               value={form.email}
               onChange={handleChange}
+              placeholder="juanperez@gmail.com"
               required
             />
             <label className="footer-form-label">Interesado en</label>
@@ -217,7 +224,9 @@ export default function Footer() {
               value={form.comentario}
               onChange={handleChange}
               rows={4}
+              placeholder="Hola estoy interesado en..."
             />
+            <p style={{color:"red", textAlign:"right"}} className=" maximo-caracteres-label"> Max 250 caracteres </p>
             <button type="submit" className="footer-form-btn">
               Enviar
             </button>
@@ -230,6 +239,8 @@ export default function Footer() {
             )}
           </form>
         </div>
+        {/* ================================= */}
+
       </div>
       <div className="footer-bottom">
         <p>© {currentYear} Estimular. Todos los derechos reservados.</p>

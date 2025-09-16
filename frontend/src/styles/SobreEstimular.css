@@ -38,6 +38,10 @@
   margin: 0;
 }
 
+.contenido-sobre-estimular li{
+  font-weight: bold;
+}
+
 .titulo-sobre-estimular {
   font-size: 2rem;
   font-weight: 700;
