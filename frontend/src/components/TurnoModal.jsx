@@ -4,13 +4,13 @@ import axios from 'axios';
 import './../styles/TurnoModal.css';
 
 export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesionalId }) {
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
 
   useEffect(() => {
     if (event) {
-      setStart(moment(event.start).format('YYYY-MM-DDTHH:mm'));
-      setEnd(moment(event.end).format('YYYY-MM-DDTHH:mm'));
+      setStartTime(moment(event.start).format('HH:mm'));
+      setEndTime(moment(event.end).format('HH:mm'));
     }
   }, [event]);
 
@@ -19,33 +19,23 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
   const { data: turno } = event;
   const isMyEvent = turno.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
 
-  const makeUpdateRequest = async (data) => {
-    try {
-      await axios.put(`http://localhost:3001/api/turnos/${event.id}`, data, {
-        headers: { 'X-User-ID': loggedInProfesionalId }
-      });
-      onUpdate(); // Recarga los eventos en el calendario
-      onClose(); // Cierra el modal
-    } catch (error) {
-      console.error("Error updating turno:", error);
-      alert('Error al actualizar el turno: ' + (error.response?.data?.message || error.message));
-    }
+  const handleTimeSave = () => {
+    const originalDate = moment(event.start).format('YYYY-MM-DD');
+    const newStart = moment(`${originalDate} ${startTime}`).format('YYYY-MM-DD HH:mm:ss');
+    const newEnd = moment(`${originalDate} ${endTime}`).format('YYYY-MM-DD HH:mm:ss');
+    // Llama a la función onUpdate del padre con los datos correctos
+    onUpdate(event, { inicio: newStart, fin: newEnd });
   };
 
-  const handleSave = () => {
-    makeUpdateRequest({
-      inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
-      fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
-    });
+  const handleChangeDay = () => {
+    alert('Funcionalidad para cambiar el día no implementada aún.');
   };
 
-  const handleConfirm = () => {
-    makeUpdateRequest({ estado: 'confirmado' });
-  };
-
-  const handleCancel = () => {
-    if (window.confirm('¿Está seguro de que desea cancelar este turno?')) {
-      makeUpdateRequest({ estado: 'cancelado' });
+  const createStatusHandler = (status, openPaymentModal = false) => () => {
+    const message = `¿Está seguro de que desea cambiar el estado a ${status.toUpperCase()}?`;
+    if (window.confirm(message)) {
+      // Llama a la función onUpdate del padre con los datos correctos
+      onUpdate(event, { estado: status }, openPaymentModal);
     }
   };
 
@@ -71,20 +61,25 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
         <div className="modal-body">
           {isMyEvent ? (
             <>
-              <h3>Acciones Rápidas</h3>
-              <div className="modal-actions">
-                {turno.estado !== 'confirmado' && <button className="btn-confirm" onClick={handleConfirm}>Confirmar Turno</button>}
-                {turno.estado !== 'cancelado' && <button className="btn-cancel" onClick={handleCancel}>Cancelar Turno</button>}
+              <h3>Cambiar Estado</h3>
+              <div className="modal-actions-grid">
+                <button className="btn-confirm" onClick={createStatusHandler('confirmado')} disabled={turno.estado === 'confirmado'}>Confirmar</button>
+                <button className="btn-asistencia" onClick={createStatusHandler('completado', true)} disabled={turno.estado === 'completado'}>Asistencia</button>
+                <button className="btn-no-show" onClick={createStatusHandler('no_presento')} disabled={turno.estado === 'no_presento'}>No se Presentó</button>
+                <button className="btn-pending" onClick={createStatusHandler('pendiente')} disabled={turno.estado === 'pendiente'}>Pendiente</button>
+                <button className="btn-cancel" onClick={createStatusHandler('cancelado')} disabled={turno.estado === 'cancelado'}>Cancelar</button>
               </div>
 
               <h3>Reagendar</h3>
-              <div className="modal-form">
-                <label>Inicio</label>
-                <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} />
-                <label>Fin</label>
-                <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} />
-                <button className="btn-save" onClick={handleSave}>Guardar Cambios</button>
+              <div className="modal-form-inline">
+                <div className="time-inputs">
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                  <span>-</span>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                </div>
+                <button className="btn-save" onClick={handleTimeSave}>Guardar Hora</button>
               </div>
+              <button className="btn-change-day" onClick={handleChangeDay}>Cambiar Día</button>
             </>
           ) : (
             <p>No tiene permisos para modificar este turno.</p>
@@ -94,3 +89,4 @@ export default function TurnoModal({ event, onClose, onUpdate, loggedInProfesion
     </div>
   );
 }
+

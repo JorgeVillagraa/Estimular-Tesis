@@ -1,0 +1,70 @@
+/* PagoModal.css */
+
+.pago-modal-content {
+  background: var(--color-fondo);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 600px;
+  position: relative;
+}
+
+.pago-modal-header h2 {
+  color: var(--color-rosa2);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.pago-list {
+  list-style: none;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.pago-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  background-color: #f9f9f9;
+}
+
+.pago-item.pagado {
+  background-color: #e8f5e9; /* Verde claro */
+  text-decoration: line-through;
+  color: #888;
+}
+
+.pago-details span {
+  margin-right: 1rem;
+  font-weight: 500;
+}
+
+.pago-details .moneda {
+  font-weight: normal;
+  color: #777;
+}
+
+.btn-pay {
+  background-color: var(--color-verde2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-pay:hover {
+  background-color: #7ab835;
+}
+
+.no-pagos {
+  text-align: center;
+  padding: 2rem;
+  color: #777;
+}

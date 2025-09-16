@@ -9,6 +9,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import '../styles/Turnos.css'; // Importar los estilos personalizados
 
 import TurnoModal from './TurnoModal';
+import PagoModal from './PagoModal';
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -24,6 +25,7 @@ const CustomEvent = ({ event, loggedInProfesionalId }) => {
     <div className={eventStyle}>
       <strong>{event.title}</strong>
       <p style={{ margin: 0, fontSize: '0.9em' }}>{event.data.profesional_nombres}</p>
+      <p style={{ margin: '2px 0 0', fontSize: '0.8em', opacity: 0.8 }}>{moment(event.start).format('HH:mm')}</p>
     </div>
   );
 };
@@ -56,6 +58,7 @@ export default function TurnosGrid() {
   const [consultorios, setConsultorios] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [turnoForPago, setTurnoForPago] = useState(null);
   const loggedInProfesionalId = 1; // Hardcoded for demonstration
 
   // Datos de turnos
@@ -74,7 +77,7 @@ export default function TurnosGrid() {
       }));
       setEvents(formattedEvents);
 
-      if (consultorios.length === 0) {
+      if (consultorios.length === 0 && res.data.data.length > 0) {
         const resources = res.data.data.reduce((acc, turno) => {
           if (!acc.some(c => c.resourceId === turno.consultorio_id)) {
             acc.push({ resourceId: turno.consultorio_id, resourceTitle: turno.consultorio_nombre });
@@ -88,42 +91,43 @@ export default function TurnosGrid() {
     } catch (error) {
       console.error("Error fetching turnos:", error);
     }
-  }, [consultorios]);
+  }, [consultorios.length]);
 
   useEffect(() => {
     fetchTurnos(currentDate);
   }, [currentDate, fetchTurnos]);
 
-  const handleEventDrop = useCallback(async ({ event, start, end, resourceId }) => {
+  const handleEventAction = useCallback(async (turno, data, openPaymentModal = false) => {
     try {
-      await axios.put(`http://localhost:3001/api/turnos/${event.id}`, {
-        inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
-        fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
-        consultorio_id: resourceId
-      }, { headers: { 'X-User-ID': loggedInProfesionalId } });
+      await axios.put(`http://localhost:3001/api/turnos/${turno.id}`, data, {
+        headers: { 'X-User-ID': loggedInProfesionalId }
+      });
       fetchTurnos(currentDate);
+      setSelectedEvent(null); // Cierra el modal de turno
+      
+      if (openPaymentModal) {
+        setTurnoForPago(turno); // Abre el modal de pago
+      }
     } catch (error) {
       console.error("Error updating turno:", error);
-      alert('Error al mover el turno: ' + (error.response?.data?.message || error.message));
-      fetchTurnos(currentDate);
-      fetchTurnos(currentDate);
+      alert('Error al actualizar el turno: ' + (error.response?.data?.message || error.message));
     }
   }, [currentDate, fetchTurnos, loggedInProfesionalId]);
 
+  const handleEventDrop = useCallback(async ({ event, start, end, resourceId }) => {
+    handleEventAction(event, {
+      inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
+      fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
+      consultorio_id: resourceId
+    });
+  }, [handleEventAction]);
+
   const handleEventResize = useCallback(async ({ event, start, end }) => {
-    try {
-      await axios.put(`http://localhost:3001/api/turnos/${event.id}`, {
-        inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
-        fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
-      }, { headers: { 'X-User-ID': loggedInProfesionalId } });
-      fetchTurnos(currentDate);
-    } catch (error) {
-      console.error("Error updating turno:", error);
-      alert('Error al redimensionar el turno: ' + (error.response?.data?.message || error.message));
-      fetchTurnos(currentDate);
-      fetchTurnos(currentDate);
-    }
-  }, [currentDate, fetchTurnos, loggedInProfesionalId]);
+    handleEventAction(event, {
+      inicio: moment(start).format('YYYY-MM-DD HH:mm:ss'),
+      fin: moment(end).format('YYYY-MM-DD HH:mm:ss'),
+    });
+  }, [handleEventAction]);
 
   const handleNavigate = (newDate) => {
     setCurrentDate(newDate);
@@ -137,9 +141,17 @@ export default function TurnosGrid() {
     setSelectedEvent(null);
   };
 
+  const handleClosePagoModal = () => {
+    setTurnoForPago(null);
+  };
+
   const isEventDraggable = useCallback((event) => {
     return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
   }, [loggedInProfesionalId]);
+
+  const formats = {
+    timeGutterFormat: 'HH:mm',
+  };
 
   return (
     <div className="turnos-grid-container">
@@ -165,10 +177,7 @@ export default function TurnosGrid() {
         timeslots={2}
         min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
         max={moment(currentDate).set({ h: 20, m: 0 }).toDate()}
-        step={15}
-        timeslots={2}
-        min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
-        max={moment(currentDate).set({ h: 20, m: 0 }).toDate()}
+        formats={formats}
         components={{
           toolbar: CustomToolbar,
           timeSlotWrapper: TimeSlotWrapper,
@@ -179,8 +188,14 @@ export default function TurnosGrid() {
         <TurnoModal 
           event={selectedEvent} 
           onClose={handleCloseModal}
-          onUpdate={() => fetchTurnos(currentDate)}
+          onUpdate={handleEventAction}
           loggedInProfesionalId={loggedInProfesionalId}
+        />
+      )}
+      {turnoForPago && (
+        <PagoModal
+          turno={turnoForPago.data}
+          onClose={handleClosePagoModal}
         />
       )}
     </div>
