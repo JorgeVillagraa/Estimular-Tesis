@@ -84,19 +84,10 @@ export default function FormularioEntrevista() {
           const checkbox = document.getElementById('aceptar_terminos');
           checkbox.checked = !checkbox.checked;
         }}
-        
-        
-        
-        
-        
-        
         >
           Acepto los términos y condiciones
         </label>
-
         </div>
-      
-      
         <button type="submit" className="entrevista__boton">
           Enviar
         </button>
