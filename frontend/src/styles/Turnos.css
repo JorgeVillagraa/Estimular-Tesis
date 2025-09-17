@@ -9,13 +9,33 @@
 
 /* Estilo para los eventos (turnos) */
 .rbc-event {
-  background-color: var(--color-accent-blue); /* Azul de acento */
-  border-color: var(--color-azul2);
-  color: var(--color-fondo);
   border-radius: 6px;
-  padding: 2px 6px; /* Padding reducido */
-  font-size: 0.85em; /* Fuente más pequeña */
+  padding: 2px 6px;
+  font-size: 0.85em;
+  color: var(--color-fondo);
+  border: 1px solid rgba(0,0,0,0.2);
+  background-color: #78909c; /* Color por defecto para pendiente */
 }
+
+/* Colores por estado del turno */
+.rbc-event.event-confirmado {
+  background-color: var(--color-accent-blue);
+}
+.rbc-event.event-completado {
+  background-color: var(--color-verde2);
+}
+.rbc-event.event-pendiente {
+  background-color: #78909c; /* Gris azulado */
+}
+.rbc-event.event-cancelado {
+  background-color: #bdbdbd; /* Gris claro */
+  text-decoration: line-through;
+  color: #757575;
+}
+.rbc-event.event-no_presento {
+  background-color: var(--color-naranja1);
+}
+
 
 /* Evento seleccionado */
 .rbc-event.rbc-selected {

@@ -17,18 +17,13 @@ const DnDCalendar = withDragAndDrop(Calendar);
 
 
 // Renderizar turno
-const CustomEvent = ({ event, loggedInProfesionalId }) => {
-  const isMyEvent = event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
-  const eventStyle = isMyEvent ? 'highlighted-event' : '';
-
-  return (
-    <div className={eventStyle}>
-      <strong>{event.title}</strong>
-      <p style={{ margin: 0, fontSize: '0.9em' }}>{event.data.profesional_nombres}</p>
-      <p style={{ margin: '2px 0 0', fontSize: '0.8em', opacity: 0.8 }}>{moment(event.start).format('HH:mm')}</p>
-    </div>
-  );
-};
+const SimpleEvent = ({ event }) => (
+  <div>
+    <strong>{event.title}</strong>
+    <p style={{ margin: 0, fontSize: '0.9em' }}>{event.data.profesional_nombres}</p>
+    <p style={{ margin: '2px 0 0', fontSize: '0.8em', opacity: 0.8 }}>{moment(event.start).format('HH:mm')}</p>
+  </div>
+);
 
 // Toolbar
 const CustomToolbar = ({ label, onNavigate }) => {
@@ -154,6 +149,13 @@ export default function TurnosGrid() {
     return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
   }, [loggedInProfesionalId]);
 
+  const eventPropGetter = useCallback((event) => {
+    const statusClass = `event-${event.data.estado}`;
+    const isMyEvent = event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+    const highlightClass = isMyEvent ? 'highlighted-event' : '';
+    return { className: `${statusClass} ${highlightClass}` };
+  }, [loggedInProfesionalId]);
+
   const formats = {
     timeGutterFormat: 'HH:mm',
   };
@@ -183,10 +185,11 @@ export default function TurnosGrid() {
         min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
         max={moment(currentDate).set({ h: 20, m: 0 }).toDate()}
         formats={formats}
+        eventPropGetter={eventPropGetter}
         components={{
           toolbar: CustomToolbar,
           timeSlotWrapper: TimeSlotWrapper,
-          event: (props) => <CustomEvent {...props} loggedInProfesionalId={loggedInProfesionalId} />
+          event: SimpleEvent
         }}
       />
       {selectedEvent && (
