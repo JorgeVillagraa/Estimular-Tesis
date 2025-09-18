@@ -20,6 +20,10 @@ export default function Sidebar() {
             Hace mas de 5 años brindando el mejor servicio para vos y para tu familia.
           </h2>
         </div>
+<<<<<<< HEAD
+=======
+      </aside>
+>>>>>>> cca22c0dc88af46340194f8a1bc4eb32a7853512
       <div>
         <InformacionContacto/>
       </div>
