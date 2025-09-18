@@ -1,9 +1,3 @@
-
-
-
-
-
-
 :root {
   /* Rosas */
   --color-rosa1: #e5007d;
@@ -68,23 +62,20 @@
 }
 
 
-
-
-
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+textarea{
+  resize:none
+}
+
 html{
     scroll-behavior: smooth;
 }
 
-
-textarea{
-  resize:none
-}
 
 
 html,body {

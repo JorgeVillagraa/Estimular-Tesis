@@ -1,9 +1,7 @@
-
-
 .barra-lateral {
   flex: 0 0 30vw;
+  height: 100%;
   max-width: 40vw;
-  height: 100vh;
   background: var(--color-rosa1);
   color: var(--color-fondo);
   display: flex;
@@ -12,8 +10,6 @@
   justify-content: space-between;
   padding: 2rem 1rem;
 }
-<<<<<<< HEAD
-=======
 
 .barra-lateral__info {
   display: flex;
@@ -23,14 +19,7 @@
   gap: 0.2rem;
 }
 
->>>>>>> cca22c0dc88af46340194f8a1bc4eb32a7853512
 
-.barra-lateral__aside {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 .barra-lateral__info {
   display: flex;
@@ -39,10 +28,9 @@
   align-items: center;
 }
 
-
 .barra-lateral__logo {
-  width: 420px;
-  height: 420px;
+  width: 200px;
+  height: 200px;
   object-fit: contain;
   border-radius: 50%;
   background: var(--color-fondo);
@@ -54,7 +42,6 @@
   font-weight: bold;
   margin-bottom: 0.5rem;
   letter-spacing: 1px;
-
 }
 
 .barra-lateral__frase {
@@ -65,12 +52,13 @@
   text-align: center;
 }
 
+
+
+
 @media (max-width: 900px) {
-
-
-.barra-lateral {
-    height: auto;
-    min-height: auto;
+  .barra-lateral {
+    height:100vh;
+    min-height: 100%;
     width: 100%;
     padding: 2rem 1rem 1rem 1rem;
     justify-content: flex-start;
@@ -87,5 +75,4 @@
   .barra-lateral__frase {
     display: none;
   }
-
 }
