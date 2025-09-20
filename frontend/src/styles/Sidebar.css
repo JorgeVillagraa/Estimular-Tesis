@@ -2,58 +2,88 @@
   flex: 0 0 30vw;
   height: 100%;
   max-width: 40vw;
-  background: var(--color-rosa1);
+  background: url("../assets/fondo_estimular.png");
+  background-size: cover;
   color: var(--color-fondo);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
   padding: 2rem 1rem;
 }
 
-.barra-lateral__info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.2rem;
-}
-
-
-
-.barra-lateral__info {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
 
 .barra-lateral__logo {
-  width: 200px;
-  height: 200px;
+  width:20rem;
+  height: 20rem;
   object-fit: contain;
   border-radius: 50%;
   background: var(--color-fondo);
   box-shadow: 0 4px 16px var(--color-fondo);
 }
 
-.barra-lateral__marca {
-  font-size: 3.2rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  letter-spacing: 1px;
-}
-
-.barra-lateral__frase {
-  font-size: 1.4rem;
-  font-weight: bold;
-  margin-top: 0.5rem;
-  line-height: 1.5;
+.barra-lateral__logo--placeholder{
+  width:20rem;
+  height: 20rem;
+  border-radius: 50%;
+  background: var(--color-fondo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
   text-align: center;
+  padding: 1rem;
+  box-shadow: 0 4px 16px var(--color-fondo);
+}
+
+.barra-lateral__separador {
+  width: 60%;
+  height: 1px;
+  box-shadow: var(--color-fondo) 0px 0px 8px;
+  margin: 1.5rem 0;
+}
+
+.barra-lateral__slogan{
+  font-size: 2rem;
+  font-style: italic;
+  text-align: center;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  text-shadow: 0 0 8px rgba(0,0,0,0.2);
+}
+
+.btn-logout {
+  margin-top: 3rem;
+  background: rgba(255,255,255,0.14);
+  color: var(--color-fondo);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 12px 40px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: transform .16s ease, background .12s ease, box-shadow .12s ease;
+}
+
+.btn-logout:hover,
+.btn-logout:focus {
+  transform: translateY(-3px);
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  outline: none;
+}
+
+.barra-lateral__footer{
+  margin-top: auto;
 }
 
 
-
+@media (min-height: 720px) {
+  .center-block {
+    justify-content: center;
+    height: 48%;
+  }
+}
 
 @media (max-width: 900px) {
   .barra-lateral {
@@ -72,7 +102,7 @@
   .barra-lateral__marca {
     display: none;
   }
-  .barra-lateral__frase {
+  .slogan, .barra-lateral__frase {
     display: none;
   }
 }
