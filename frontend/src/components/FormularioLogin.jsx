@@ -12,11 +12,12 @@ const FormularioLogin = () => {
     if (value.length <= 15) setDni(value) // Limita a 15 dígitos si quieres
   }
 
-  // Prevención básica de inyección en contraseña
+  // Prevención básica de inyección y bloqueo de emojis/símbolos en contraseña
   const isPasswordSafe = (pwd) => {
     // Bloquea patrones comunes de inyección SQL
     const forbidden = [
-      /('|--|;|\/\*|\*\/|xp_|exec|union|select|insert|delete|update|drop|alter|create|shutdown)/i
+      /('|--|;|\/\*|\*\/|xp_|exec|union|select|insert|delete|update|drop|alter|create|shutdown)/i,
+      /[\p{Emoji}\p{So}\p{Sk}]/gu // Bloquea emojis y símbolos
     ]
     return !forbidden.some((regex) => regex.test(pwd))
   }
