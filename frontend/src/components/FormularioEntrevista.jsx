@@ -5,10 +5,14 @@ export default function FormularioEntrevista() {
     <section className="entrevista__formulario">
       <h1 className="entrevista__titulo">Primera Entrevista</h1>
       <p className="entrevista__subtitulo">
-        Por favor complete el siguiente formulario<br />
+        Por favor complete el siguiente formulario
+        <br />
         con la información del niño/a y del responsable.
       </p>
-      <form className="entrevista__form" aria-label="Formulario de primera entrevista">
+      <form
+        className="entrevista__form"
+        aria-label="Formulario de primera entrevista"
+      >
         <fieldset>
           <legend>Datos del niño/a</legend>
           <label className="label-entrevista" htmlFor="nombre_nino">
@@ -23,7 +27,9 @@ export default function FormularioEntrevista() {
             required
           />
 
-          <label className="label-entrevista" htmlFor="fecha_dia">Fecha de nacimiento</label>
+          <label className="label-entrevista" htmlFor="fecha_dia">
+            Fecha de nacimiento
+          </label>
           <div className="entrevista__input-fecha">
             <input
               id="fecha_dia"
@@ -50,6 +56,31 @@ export default function FormularioEntrevista() {
               required
             />
           </div>
+          <label className="label-entrevista" htmlFor="dni_nino">
+            DNI del niño/a
+          </label>
+          <input
+            id="dni_nino"
+            className="entrevista__input"
+            type="text"
+            name="dni_nino"
+            placeholder="Ej: 12345678"
+            required
+          />
+          <label className="label-entrevista" htmlFor="obra_social">
+            Obra social
+          </label>
+          <input
+            id="obra_social"
+            className="entrevista__input"
+            type="text"
+            name="obra_social"
+            placeholder="Ej: OSDE"
+            required
+          />
+          <label className="label-vacio-entrevista">
+            En caso de no tener deje el campo vacio.{" "}
+          </label>
         </fieldset>
 
         <fieldset>
@@ -80,22 +111,26 @@ export default function FormularioEntrevista() {
         </fieldset>
 
         <fieldset>
-          <legend>Motivo de consulta</legend>
-          <label className="label-entrevista" htmlFor="motivo">
-            Motivo de consulta
+          <legend>Fecha de consulta</legend>
+          <label className="label-entrevista" htmlFor="fecha_consulta">
+            Fecha
           </label>
           <input
-            id="motivo"
+            id="fecha_consulta"
             className="entrevista__input"
-            type="text"
-            name="motivo"
-            placeholder="Explique brevemente"
+            type="date"
+            name="fecha_consulta"
             required
           />
         </fieldset>
 
         <fieldset>
           <legend>Consentimiento</legend>
+          <label className="label-informacion-entrevista">
+            {" "}
+            Todos los datos proporcionados son confidenciales y se utilizarán
+            únicamente para fines terapéuticos.{" "}
+          </label>
           <div className="entrevista__terminos-container">
             <input
               className="entrevista__aceptar-terminos"
@@ -104,7 +139,10 @@ export default function FormularioEntrevista() {
               name="aceptar_terminos"
               required
             />
-            <label className="entrevista__label-terminos" htmlFor="aceptar_terminos">
+            <label
+              className="entrevista__label-terminos"
+              htmlFor="aceptar_terminos"
+            >
               Acepto los términos y condiciones
             </label>
           </div>

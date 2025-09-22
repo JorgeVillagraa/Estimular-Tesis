@@ -53,14 +53,13 @@
   --color-gris-label: #888;
 
   /* Extras para gradientes, sombras y transparencias */
-  --color-blanco-translucido-95: rgba(255,255,255,0.95);
-  --color-blanco-translucido-70: rgba(255,255,255,0.7);
-  --color-blanco-translucido-10: rgba(255,255,255,0.1);
-  --color-sombra-rosa1-10: rgba(233,30,99,0.10);
+  --color-blanco-translucido-95: rgba(255, 255, 255, 0.95);
+  --color-blanco-translucido-70: rgba(255, 255, 255, 0.7);
+  --color-blanco-translucido-10: rgba(255, 255, 255, 0.1);
+  --color-sombra-rosa1-10: rgba(233, 30, 99, 0.1);
   --color-negro: #000;
   --color-transparente: transparent;
 }
-
 
 * {
   margin: 0;
@@ -68,15 +67,29 @@
   box-sizing: border-box;
 }
 
-textarea{
-  resize:none
+textarea {
+  resize: none;
 }
 
-html{
-    scroll-behavior: smooth;
-}
-
-html,body {
+html,
+body {
+  scroll-behavior: smooth;
   overflow-x: hidden;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
+  scrollbar-color: var(--color-rosa1) var(--color-fondo);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-rosa1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-fondo);
+}
+
+fieldset {
+  border: none;
 }
