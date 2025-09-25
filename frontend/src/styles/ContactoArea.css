@@ -40,9 +40,14 @@
 @media (max-width: 900px) {
   .area-content {
     flex-direction: column;
-    gap: 2rem;
+    align-items: center;
+    padding: 1.5rem 1rem;
+    gap: 1.5rem;
   }
-  .area-right {
-    min-width: 0;
+  .area-left, .area-right {
+    min-width: 100%;
   }
+
+
+
 }
