@@ -71,13 +71,12 @@ const TimeSlotWrapper = ({ children, value }) => {
 
 // Componente Principal
 
-export default function TurnosGrid() {
+export default function TurnosGrid({ loggedInProfesionalId }) {
   const [events, setEvents] = useState([]);
   const [consultorios, setConsultorios] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [turnoForPago, setTurnoForPago] = useState(null);
-  const loggedInProfesionalId = 1; // Hardcoded
 
   // Datos de turnos
   const fetchTurnos = useCallback(async (date) => {

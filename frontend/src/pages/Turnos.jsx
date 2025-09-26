@@ -1,10 +1,10 @@
 import React from 'react';
 import TurnosGrid from '../components/TurnosGrid';
 
-export default function Turnos() {
+export default function Turnos({ loggedInProfesionalId }) {
   return (
     <div>
-      <TurnosGrid />
+      <TurnosGrid loggedInProfesionalId={loggedInProfesionalId} />
     </div>
   );
 }

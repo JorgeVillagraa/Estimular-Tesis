@@ -6,7 +6,8 @@ import Entrevista from './pages/Entrevista';
 import Turnos from './pages/Turnos';
 
 function App() {
-  const loggedInProfesionalId = 1; // Hardcoded for demonstration
+  // Simular un ID de profesional logueado. Cambiar el valor en localStorage para probar.
+  const loggedInProfesionalId = localStorage.getItem('profesionalId') || 1;
 
   return (
     <NotificacionProvider loggedInProfesionalId={loggedInProfesionalId}>
@@ -15,7 +16,7 @@ function App() {
           {/* Rutas publicas */}
           <Route path="/" element={<Landing />} />
           <Route path="/formulario-entrevista" element={<Entrevista />} />
-          <Route path="/turnos" element={<Turnos />} />
+          <Route path="/turnos" element={<Turnos loggedInProfesionalId={loggedInProfesionalId} />} />
         </Routes>
       </Router>
     </NotificacionProvider>
