@@ -4,6 +4,7 @@ const cors = require('cors');
 const contactRoutes = require('./src/routes/contactRoutes');
 const turnoRoutes = require('./src/routes/turnoRoutes');
 const pagoRoutes = require('./src/routes/pagoRoutes');
+const notificacionRoutes = require('./src/routes/notificacionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api', contactRoutes);
 app.use('/api', turnoRoutes);
 app.use('/api', pagoRoutes);
+app.use('/api', notificacionRoutes);
 
 app.listen(PORT, () => {
 	console.log(`Servidor backend escuchando en puerto ${PORT}`);

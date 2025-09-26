@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import API_BASE_URL from '../constants/api';
 import './../styles/PagoModal.css';
 
 export default function PagoModal({ turno, onClose }) {
@@ -10,8 +11,8 @@ export default function PagoModal({ turno, onClose }) {
     if (!turno) return;
     setLoading(true);
     try {
-      const res = await axios.get(`/api/pagos?turno_id=${turno.id}`);
-      setPagos(res.data.data || []);
+      const res = await axios.get(`${API_BASE_URL}/api/pagos?turno_id=${turno.id}`);
+      setPagos(res.data.data || []); // Asegurarse de que pagos sea siempre un array
     } catch (error) {
       console.error("Error fetching pagos:", error);
       alert('No se pudieron cargar los pagos.');
@@ -25,7 +26,7 @@ export default function PagoModal({ turno, onClose }) {
 
   const handlePay = async (pagoId) => {
     try {
-      await axios.put(`/api/pagos/${pagoId}`, {
+      await axios.put(`${API_BASE_URL}/api/pagos/${pagoId}`, {
         estado: 'completado',
         turno_id: turno.id
       });

@@ -1,0 +1,45 @@
+/* Notificacion.css */
+
+.notificacion-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notificacion-toast {
+  background-color: #78909c; /* Gris azulado por defecto (pendiente) */
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  animation: slideIn 0.5s forwards;
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+/* Colores basados en el estado del turno */
+.notificacion-toast.status-confirmado {
+  background-color: var(--color-accent-blue);
+}
+.notificacion-toast.status-completado {
+  background-color: var(--color-verde2);
+}
+.notificacion-toast.status-cancelado {
+  background-color: #bdbdbd; 
+  color: #333;
+}
+.notificacion-toast.status-no_presento {
+  background-color: var(--color-naranja1);
+}
+
+@keyframes slideIn {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

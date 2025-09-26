@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import axios from 'axios';
+import API_BASE_URL from '../constants/api';
 import './../styles/TurnoModal.css';
 
 export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, loggedInProfesionalId }) {

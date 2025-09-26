@@ -92,9 +92,12 @@ async function getTurnoById(turnoId) {
   const sql = `
     SELECT 
         t.*,
+        p.nombre AS paciente_nombre, 
+        p.apellido AS paciente_apellido,
         GROUP_CONCAT(tp.profesional_id) AS profesional_ids
     FROM turnos t
     LEFT JOIN turno_profesionales tp ON t.id = tp.turno_id
+    LEFT JOIN pacientes p ON t.paciente_id = p.id
     WHERE t.id = ?
     GROUP BY t.id;
   `;

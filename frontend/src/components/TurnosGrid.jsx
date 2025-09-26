@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
 import axios from 'axios';
+import API_BASE_URL from '../constants/api';
 
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
@@ -14,7 +15,28 @@ import PagoModal from './PagoModal';
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
 
+// --- Componentes Personalizados ---
 
+const StatusLegend = () => {
+  const statuses = [
+    { name: 'Confirmado', class: 'confirmado' },
+    { name: 'Completado', class: 'completado' },
+    { name: 'Pendiente', class: 'pendiente' },
+    { name: 'Cancelado', class: 'cancelado' },
+    { name: 'No Presentó', class: 'no_presento' },
+  ];
+
+  return (
+    <div className="status-legend">
+      {statuses.map(status => (
+        <div key={status.class} className="legend-item">
+          <span className={`legend-color-box status-${status.class}`}></span>
+          <span>{status.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // Renderizar turno
 const SimpleEvent = ({ event }) => (
@@ -34,6 +56,7 @@ const CustomToolbar = ({ label, onNavigate }) => {
         <button type="button" onClick={() => onNavigate('TODAY')}>Hoy</button>
         <button type="button" onClick={() => onNavigate('NEXT')}>Siguiente &gt;</button>
       </span>
+      <StatusLegend />
       <span className="rbc-toolbar-label">{label}</span>
     </div>
   );
@@ -60,7 +83,7 @@ export default function TurnosGrid() {
   const fetchTurnos = useCallback(async (date) => {
     try {
       const formattedDate = moment(date).format('YYYY-MM-DD');
-      const res = await axios.get(`http://localhost:3001/api/turnos?date=${formattedDate}`);
+      const res = await axios.get(`${API_BASE_URL}/api/turnos?date=${formattedDate}`);
       
       const formattedEvents = res.data.data.map(turno => ({
         id: turno.id,
@@ -94,7 +117,7 @@ export default function TurnosGrid() {
 
   const handleEventAction = useCallback(async (turno, data, openPaymentModal = false) => {
     try {
-      await axios.put(`http://localhost:3001/api/turnos/${turno.id}`, data, {
+      await axios.put(`${API_BASE_URL}/api/turnos/${turno.id}`, data, {
         headers: { 'X-User-ID': loggedInProfesionalId }
       });
       fetchTurnos(currentDate);

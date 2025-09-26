@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import instagramIcon from "../assets/logo_instagram.jpg";
 import facebookIcon from "../assets/logo_facebook.jpg";
+import API_BASE_URL from "../constants/api";
 
 
 import { profesionales } from "../constants/profesionales";
@@ -33,7 +34,7 @@ export default function Footer() {
     e.preventDefault();
     setStatus(null);
     try {
-      const res = await axios.post("http://localhost:3001/api/contact", form);
+      const res = await axios.post(`${API_BASE_URL}/api/contact`, form);
 
       if (res.data.success) {
         setStatus({ success: true, message: res.data.message });

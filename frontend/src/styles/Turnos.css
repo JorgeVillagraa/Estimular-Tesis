@@ -78,3 +78,32 @@
 .rbc-day-slot .rbc-time-slot:not(.lunch-break) {
     border-top: none;
 }
+
+/* Estilos para la Leyenda de Estados */
+.status-legend {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.legend-color-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.legend-color-box.status-confirmado { background-color: var(--color-accent-blue); }
+.legend-color-box.status-completado { background-color: var(--color-verde2); }
+.legend-color-box.status-pendiente { background-color: #78909c; }
+.legend-color-box.status-cancelado { background-color: #bdbdbd; }
+.legend-color-box.status-no_presento { background-color: var(--color-naranja1); }
