@@ -5,6 +5,8 @@ require('dotenv').config();
 
 const contactosRoutes = require('./src/routes/contactoRoutes');
 const entrevistaRoutes = require('./src/routes/entrevistaRoutes');
+const obrasSocRoutes = require ('./src/routes/obrasSocRoutes');
+const candidatosRoutes = require('./src/routes/candidatosRoutes');
 
 
 const app = express();
@@ -16,6 +18,8 @@ app.use(express.json());
 // Rutas
 app.use('/api/contact', contactosRoutes);
 app.use('/api/entrevista', entrevistaRoutes);
+app.use('/api/obras-sociales', obrasSocRoutes);
+app.use('/api/candidatos', candidatosRoutes);
 
 app.listen(PORT, () => {
 	console.log(`Servidor backend escuchando en puerto ${PORT}`);

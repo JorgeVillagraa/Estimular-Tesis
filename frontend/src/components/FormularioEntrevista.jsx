@@ -1,23 +1,181 @@
 import "../styles/FormularioEntrevista.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 const MySwal = withReactContent(Swal);
 
+/* ---------- Helpers / Validations ---------- */
+const normalize = (s = "") =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const validators = {
+  nombre: (v) =>
+    !v || !/^[a-zA-ZÀ-ÿ\s]{2,50}$/.test(v)
+      ? "Debe contener solo letras/espacios (2-50)."
+      : null,
+  dni: (v) =>
+    !v || !/^\d{7,8}$/.test(v) ? "DNI inválido (7-8 dígitos)." : null,
+  telefono: (v) =>
+    !v || !/^\d{7,15}$/.test(v) ? "Teléfono inválido (7-15 dígitos)." : null,
+  email: (v) =>
+    !v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "Correo inválido." : null,
+  fecha_nacimiento: (v) => {
+    if (!v) return "Fecha obligatoria.";
+    const fecha = new Date(v);
+    const hoy = new Date();
+    const min = new Date(hoy.getFullYear() - 18, hoy.getMonth(), hoy.getDate());
+    const max = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    return fecha < min || fecha > max
+      ? "Niño/a debe tener hasta 18 años."
+      : null;
+  },
+  obra_social: (v, { hasObraSocial }) => {
+    if (!hasObraSocial) return null;
+    // Si es selección del catálogo, v es un id (string o number)
+    if (typeof v === "number" || (/^\d+$/.test(v) && v !== "")) {
+      return null; // id válido
+    }
+    if (!v || typeof v !== "string" || v.trim().length < 2)
+      return "Seleccione o escriba la obra social.";
+    return !/^[\wÀ-ÿ\s.-]{2,80}$/.test(v.trim())
+      ? "Nombre de obra social inválido."
+      : null;
+  },
+  aceptar_terminos: (v) => (!v ? "Debe aceptar los términos." : null),
+};
+
+/* ---------- Custom hook para traer obras sociales ---------- */
+function useObrasSociales() {
+  const [obras, setObras] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await axios.get(
+          "http://localhost:5000/api/obras-sociales/"
+        );
+        if (!mounted) return;
+        if (res.data && res.data.success && Array.isArray(res.data.data))
+          setObras(res.data.data);
+        else if (Array.isArray(res.data)) setObras(res.data);
+        else console.warn("Respuesta inesperada obras:", res.data);
+      } catch (err) {
+        console.error("Error al obtener obras sociales:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return { obras, loading };
+}
+
+/* ---------- Pequeños componentes reutilizables ---------- */
+const TextInput = ({ id, label, name, value, onChange, onBlur, ...rest }) => (
+  <>
+    <label className="label-entrevista" htmlFor={id}>
+      {label}
+    </label>
+    <input
+      id={id}
+      className="entrevista__input"
+      name={name}
+      value={value}
+      onChange={onChange}
+      onBlur={onBlur}
+      {...rest}
+    />
+  </>
+);
+
+const ToggleYesNo = ({ label, active, onYes, onNo }) => (
+  <>
+    <label className="label-entrevista">{label}</label>
+    <div className="entrevista__radio-group">
+      <button
+        type="button"
+        className={`btn-opcion ${active ? "activo" : ""}`}
+        onClick={onYes}
+      >
+        Sí
+      </button>
+      <button
+        type="button"
+        className={`btn-opcion ${!active ? "activo" : ""}`}
+        onClick={onNo}
+      >
+        No
+      </button>
+    </div>
+  </>
+);
+
+const SelectWithOther = ({
+  label,
+  obras,
+  value,
+  seleccionOtra,
+  onSelect,
+  onOtherChange,
+  onOtherBlur,
+}) => (
+  <>
+    <label className="label-entrevista" htmlFor="obra_social_select">
+      {label}
+    </label>
+    <select
+      id="obra_social_select"
+      className="entrevista__input"
+      value={seleccionOtra ? "otra" : value}
+      onChange={onSelect}
+      required
+    >
+      <option value="">-- Seleccionar --</option>
+      {obras.map((obra) => (
+        <option key={obra.id_obra_social} value={obra.id_obra_social}>
+          {obra.nombre}
+        </option>
+      ))}
+      <option value="otra">Otra</option>
+    </select>
+    {seleccionOtra && (
+      <input
+        className="entrevista__input"
+        type="text"
+        name="obra_social_texto"
+        placeholder="Escriba su obra social"
+        value={value || ""}
+        onChange={onOtherChange}
+        onBlur={onOtherBlur}
+        required
+      />
+    )}
+  </>
+);
+
+/* ---------- Componente principal (modular) con auto-selección en blur ---------- */
 export default function FormularioEntrevista() {
   const [aceptar_terminos, setAceptarTerminos] = useState(false);
-
-  const [tieneCertificado, setTieneCertificado] = useState(false);
-
   const [errores, setErrores] = useState({});
+  const { obras: obrasSociales } = useObrasSociales();
 
-  const [formularioEntrevista, setFormularioEntrevista] = useState({
+  const [formulario, setFormulario] = useState({
     nombre_nino: "",
     apellido_nino: "",
     fecha_nacimiento: "",
     dni_nino: "",
-    obra_social: "",
+    certificado_discapacidad: false,
+    id_obra_social: "",
+    obra_social_texto: "",
     nombre_responsable: "",
     apellido_responsable: "",
     telefono: "",
@@ -26,152 +184,157 @@ export default function FormularioEntrevista() {
     motivo_consulta: "",
   });
 
-  const obrasSociales = [
-    { id: "ospe", nombre: "OSPE" },
-    { id: "swissmedical", nombre: "Swiss Medical" },
-    { id: "sancor", nombre: "Sancor" },
-    { id: "osecac", nombre: "OSECAC" },
-    { id: "boreal", nombre: "Boreal" },
-    { id: "ospia", nombre: "OSPIA Alimentación" },
-    { id: "ossacra", nombre: "OSSACRA" },
-    { id: "camioneros", nombre: "Camioneros" },
-    { id: "ospecon", nombre: "OSPECON" },
-    { id: "bramed", nombre: "Bramed" },
-    { id: "subsidio_salud", nombre: "Subsidio de Salud" },
-    { id: "opegap", nombre: "Opegap" },
-    { id: "oseg", nombre: "OSEG" },
-    { id: "ospaga", nombre: "OSPAGA" },
-    { id: "ospaca", nombre: "OSPACA" },
-    { id: "osdop", nombre: "OSDOP" },
-    { id: "prensa", nombre: "Prensa" },
-    { id: "redseguromedico", nombre: "Red de Seguro Médico" },
-  ];
+  // estados locales que NO se envían al backend
+  const [hasObraSocial, setHasObraSocial] = useState(false);
+  const [seleccionOtra, setSeleccionOtra] = useState(false);
 
-  const validarCampo = (name, value) => {
-    if (!value) return null;
+  const setField = (field, value) =>
+    setFormulario((p) => ({ ...p, [field]: value }));
 
-    switch (name) {
-      case "nombre_nino":
-      case "apellido_nino":
-      case "nombre_responsable":
-      case "apellido_responsable":
-        if (!value || !/^[a-zA-ZÀ-ÿ\s]{2,50}$/.test(value)) {
-          return "El nombre y apellido deben contener solo letras y espacios, y tener entre 2 y 50 caracteres.";
-        }
-        break;
-      case "dni_nino":
-        if (!value || !/^\d{7,8}$/.test(value)) {
-          return "El DNI debe contener entre 7 y 8 dígitos numéricos.";
-        }
-        break;
-      case "telefono":
-        if (!value || !/^\d{7,15}$/.test(value)) {
-          return "El teléfono debe contener entre 7 y 15 dígitos numéricos.";
-        }
-        break;
-      case "email":
-        if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          return "El correo electrónico no es válido.";
-        }
-        break;
-      case "fecha_nacimiento":
-        if (!value) return "La fecha de nacimiento es obligatoria.";
-        const fecha = new Date(value);
-        const hoy = new Date();
-        const fechaMax = new Date(
-          hoy.getFullYear(),
-          hoy.getMonth(),
-          hoy.getDate()
-        );
-        const fechaMin = new Date(
-          hoy.getFullYear() - 18,
-          hoy.getMonth(),
-          hoy.getDate()
-        );
-        if (fecha < fechaMin || fecha > fechaMax) {
-          return "La fecha de nacimiento debe ser válida y el niño/a tener hasta 18 años.";
-        }
-        break;
-      case "obra_social":
-        if (value && !/^[a-zA-ZÀ-ÿ\s]{2,50}$/.test(value)) {
-          return "La obra social debe contener solo letras y espacios, y tener entre 2 y 50 caracteres.";
-        }
-        break;
-      case "aceptar_terminos":
-        if (!value)
-          return "Debe aceptar los términos y condiciones para continuar.";
-        break;
-      default:
-        break;
-    }
-    return null;
-  };
-
+  /* Handlers específicos */
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-
-    if (name === "certificado_discapacidad") {
-      setTieneCertificado(checked);
-      setFormularioEntrevista((prev) => ({ ...prev, [name]: checked }));
+    if (type === "checkbox" && name === "certificado_discapacidad") {
+      setField(name, checked);
       return;
     }
-
     if (type === "checkbox" && name === "aceptar_terminos") {
       setAceptarTerminos(checked);
+      return;
     }
-
-    setFormularioEntrevista((prevState) => ({
-      ...prevState,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    setField(name, value);
   };
 
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    const error = validarCampo(name, value);
-    setErrores((prev) => ({ ...prev, [name]: error }));
+  const toggleHasObraSocial = (si) => {
+    setHasObraSocial(Boolean(si));
+    if (!si) {
+      setField("obra_social", "");
+      setSeleccionOtra(false);
+    } else {
+      setSeleccionOtra(false);
+    }
+  };
+
+  const handleObraSelect = (e) => {
+    const v = e.target.value;
+    if (v === "otra") {
+      setField("id_obra_social", "");
+      setField("obra_social_texto", "");
+      setSeleccionOtra(true);
+    } else {
+      setField("id_obra_social", v);
+      setField("obra_social_texto", "");
+      setSeleccionOtra(false);
+    }
+  };
+
+  // onChange for the "otra" input (just update value, no auto-match here)
+  // Eliminado: const handleObraOtherChange = (e) => setField("obra_social", e.target.value);
+  const handleObraOtherChange = (e) =>
+    setField("obra_social_texto", e.target.value);
+
+  // onBlur: check normalized match and auto-select if exists
+  const handleObraOtherBlur = () => {
+    const typed = formulario.obra_social_texto || "";
+    const typedNorm = normalize(typed);
+    if (!typedNorm) return;
+    const match = obrasSociales.find((obra) => {
+      const nombre = obra.nombre || "";
+      return normalize(nombre) === typedNorm;
+    });
+    if (match) {
+      setField("id_obra_social", match.id_obra_social);
+      setField("obra_social_texto", "");
+      setSeleccionOtra(false);
+    }
+    // else leave as typed (no message)
+  };
+
+  const validarTodos = () => {
+    const nuevos = {};
+    nuevos.nombre_nino = validators.nombre(formulario.nombre_nino);
+    nuevos.apellido_nino = validators.nombre(formulario.apellido_nino);
+    nuevos.fecha_nacimiento = validators.fecha_nacimiento(
+      formulario.fecha_nacimiento
+    );
+    nuevos.dni_nino = validators.dni(formulario.dni_nino);
+    nuevos.nombre_responsable = validators.nombre(
+      formulario.nombre_responsable
+    );
+    nuevos.apellido_responsable = validators.nombre(
+      formulario.apellido_responsable
+    );
+    nuevos.telefono = validators.telefono(formulario.telefono);
+    nuevos.email = validators.email(formulario.email);
+    nuevos.parentesco = !formulario.parentesco
+      ? "Seleccione parentesco."
+      : null;
+    nuevos.motivo_consulta = !formulario.motivo_consulta
+      ? "Motivo obligatorio."
+      : null;
+    nuevos.aceptar_terminos = validators.aceptar_terminos(aceptar_terminos);
+    nuevos.obra_social = hasObraSocial
+      ? seleccionOtra
+        ? validators.obra_social(formulario.obra_social_texto, {
+            hasObraSocial,
+          })
+        : validators.obra_social(formulario.id_obra_social, { hasObraSocial })
+      : null;
+
+    Object.keys(nuevos).forEach((k) => {
+      if (nuevos[k] === null) delete nuevos[k];
+    });
+    setErrores(nuevos);
+    return Object.keys(nuevos).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validarTodos()) return;
 
-    // Validar todos los campos, incluyendo el checkbox
-    const nuevosErrores = {};
-    const campos = {
-      ...formularioEntrevista,
-      aceptar_terminos: aceptar_terminos,
+    // preparar payload para backend
+    const candidatoPayload = {
+      nombre_nino: formulario.nombre_nino,
+      apellido_nino: formulario.apellido_nino,
+      fecha_nacimiento: formulario.fecha_nacimiento,
+      dni_nino: formulario.dni_nino,
+      certificado_discapacidad: formulario.certificado_discapacidad,
+      id_obra_social: seleccionOtra ? null : formulario.id_obra_social,
+      obra_social_texto: seleccionOtra ? formulario.obra_social_texto : null,
+      motivo_consulta: formulario.motivo_consulta,
     };
-
-    Object.entries(campos).forEach(([key, value]) => {
-      const error = validarCampo(key, value);
-      if (error) nuevosErrores[key] = error;
-    });
-
-    setErrores(nuevosErrores);
-
-    // Si hay errores, no enviar
-    if (Object.keys(nuevosErrores).length > 0) return;
-
+    const responsablePayload = {
+      nombre_responsable: formulario.nombre_responsable,
+      apellido_responsable: formulario.apellido_responsable,
+      telefono: formulario.telefono,
+      email: formulario.email,
+      parentesco: formulario.parentesco,
+      es_principal: true,
+    };
     try {
-      const respuesta = await axios.post(
+      const res = await axios.post(
         "http://localhost:5000/api/entrevista/crear-candidato",
-        formularioEntrevista
+        {
+          candidato: candidatoPayload,
+          responsable: responsablePayload,
+        }
       );
-
-      if (respuesta.data.success) {
+      if (res.data?.success) {
         MySwal.fire({
           icon: "success",
-          title: "Formulario enviado",
-          text: "Gracias por completar el formulario, nos pondremos en contacto a la brevedad.",
+          title: "Enviado",
+          text: "Formulario recibido. Gracias",
+          confirmButtonColor: "#ff66b2", // botón rosado más intenso
         });
-
-        setFormularioEntrevista({
+        // reset del formulario
+        setFormulario({
           nombre_nino: "",
           apellido_nino: "",
           fecha_nacimiento: "",
           dni_nino: "",
           certificado_discapacidad: false,
-          obra_social: "",
+          id_obra_social: "",
+          obra_social_texto: "",
           nombre_responsable: "",
           apellido_responsable: "",
           telefono: "",
@@ -180,16 +343,18 @@ export default function FormularioEntrevista() {
           motivo_consulta: "",
         });
         setAceptarTerminos(false);
-        setTieneCertificado(false);
+        setHasObraSocial(false);
+        setSeleccionOtra(false);
         setErrores({});
       } else {
         MySwal.fire({
           icon: "error",
           title: "Error",
-          text: "Intente más tarde.",
+          text: res.data?.message || "Intente más tarde.",
         });
       }
     } catch (err) {
+      console.error(err);
       MySwal.fire({
         icon: "error",
         title: "Error",
@@ -202,10 +367,10 @@ export default function FormularioEntrevista() {
     <section className="entrevista__formulario">
       <h1 className="entrevista__titulo">Primera Entrevista</h1>
       <p className="entrevista__subtitulo">
-        Por favor complete el siguiente formulario
-        <br />
-        con la información del niño/a y del responsable.
+        Por favor complete el formulario con la información del niño/a y del
+        responsable.
       </p>
+
       <form
         onSubmit={handleSubmit}
         className="entrevista__form"
@@ -213,37 +378,25 @@ export default function FormularioEntrevista() {
       >
         <fieldset>
           <legend>Datos del niño/a</legend>
-          <label className="label-entrevista" htmlFor="nombre_nino">
-            Nombre
-          </label>
-          <input
+          <TextInput
             id="nombre_nino"
-            className="entrevista__input"
-            type="text"
+            label="Nombre/s"
             name="nombre_nino"
-            placeholder="Ej: Juan"
-            value={formularioEntrevista.nombre_nino}
+            value={formulario.nombre_nino}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: Juan"
           />
           {errores.nombre_nino && (
             <span className="error-message">{errores.nombre_nino}</span>
           )}
 
-          <label className="label-entrevista" htmlFor="apellido_nino">
-            Apellido
-          </label>
-          <input
+          <TextInput
             id="apellido_nino"
-            className="entrevista__input"
-            type="text"
+            label="Apellido/s"
             name="apellido_nino"
-            placeholder="Ej: Pérez"
-            value={formularioEntrevista.apellido_nino}
+            value={formulario.apellido_nino}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: Pérez"
           />
           {errores.apellido_nino && (
             <span className="error-message">{errores.apellido_nino}</span>
@@ -257,10 +410,8 @@ export default function FormularioEntrevista() {
             className="entrevista__input"
             type="date"
             name="fecha_nacimiento"
-            value={formularioEntrevista.fecha_nacimiento}
+            value={formulario.fecha_nacimiento}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
             min={
               new Date(new Date().setFullYear(new Date().getFullYear() - 18))
                 .toISOString()
@@ -272,58 +423,75 @@ export default function FormularioEntrevista() {
             <span className="error-message">{errores.fecha_nacimiento}</span>
           )}
 
-          <label className="label-entrevista" htmlFor="dni_nino">
-            DNI del niño/a
-          </label>
-          <input
+          <TextInput
             id="dni_nino"
-            className="entrevista__input"
-            type="text"
+            label="DNI del niño/a"
             name="dni_nino"
-            placeholder="Ej: 12345678"
-            value={formularioEntrevista.dni_nino}
+            value={formulario.dni_nino}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: 12345678"
           />
           {errores.dni_nino && (
             <span className="error-message">{errores.dni_nino}</span>
+          )}
+
+          <ToggleYesNo
+            label="¿El niño/a posee certificado de discapacidad?"
+            active={formulario.certificado_discapacidad}
+            onYes={() => setField("certificado_discapacidad", true)}
+            onNo={() => setField("certificado_discapacidad", false)}
+          />
+
+          <ToggleYesNo
+            label="¿El niño/a posee obra social?"
+            active={hasObraSocial}
+            onYes={() => toggleHasObraSocial(true)}
+            onNo={() => toggleHasObraSocial(false)}
+          />
+
+          {hasObraSocial && (
+            <>
+              <SelectWithOther
+                label="Obra social"
+                obras={obrasSociales}
+                value={
+                  seleccionOtra
+                    ? formulario.obra_social_texto
+                    : formulario.id_obra_social
+                }
+                seleccionOtra={seleccionOtra}
+                onSelect={handleObraSelect}
+                onOtherChange={handleObraOtherChange}
+                onOtherBlur={handleObraOtherBlur}
+              />
+              {errores.obra_social && (
+                <span className="error-message">{errores.obra_social}</span>
+              )}
+            </>
           )}
         </fieldset>
 
         <fieldset>
           <legend>Datos del responsable</legend>
-          <label className="label-entrevista" htmlFor="nombre_responsable">
-            Nombre
-          </label>
-          <input
+          <TextInput
             id="nombre_responsable"
-            className="entrevista__input"
-            type="text"
+            label="Nombre/s"
             name="nombre_responsable"
-            placeholder="Ej: María"
-            value={formularioEntrevista.nombre_responsable}
+            value={formulario.nombre_responsable}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: María"
           />
           {errores.nombre_responsable && (
             <span className="error-message">{errores.nombre_responsable}</span>
           )}
 
-          <label className="label-entrevista" htmlFor="apellido_responsable">
-            Apellido
-          </label>
-          <input
+          <TextInput
             id="apellido_responsable"
-            className="entrevista__input"
-            type="text"
+            label="Apellido/s"
             name="apellido_responsable"
-            placeholder="Ej: García"
-            value={formularioEntrevista.apellido_responsable}
+            value={formulario.apellido_responsable}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: García"
           />
           {errores.apellido_responsable && (
             <span className="error-message">
@@ -331,52 +499,39 @@ export default function FormularioEntrevista() {
             </span>
           )}
 
-          <label className="label-entrevista" htmlFor="telefono">
-            Teléfono
-          </label>
-          <input
+          <TextInput
             id="telefono"
-            className="entrevista__input"
-            type="tel"
+            label="Teléfono"
             name="telefono"
-            placeholder="Ej: 3811234567"
-            value={formularioEntrevista.telefono}
+            value={formulario.telefono}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: 1123456789"
           />
           {errores.telefono && (
             <span className="error-message">{errores.telefono}</span>
           )}
 
-          <label className="label-entrevista" htmlFor="email">
-            Correo electrónico
-          </label>
-          <input
+          <TextInput
             id="email"
-            className="entrevista__input"
-            type="email"
+            label="Email"
             name="email"
-            placeholder="Ej: juanperez@gmail.com"
-            value={formularioEntrevista.email}
+            value={formulario.email}
             onChange={handleChange}
-            onBlur={handleBlur}
-            required
+            placeholder="Ej: ejemplo@email.com"
           />
           {errores.email && (
             <span className="error-message">{errores.email}</span>
           )}
 
           <label className="label-entrevista" htmlFor="parentesco">
-            Parentesco con el niño/a
+            Parentesco
           </label>
           <select
             id="parentesco"
             className="entrevista__input"
             name="parentesco"
-            value={formularioEntrevista.parentesco}
+            value={formulario.parentesco}
             onChange={handleChange}
-            onBlur={handleBlur}
             required
           >
             <option value="">Seleccione una opción</option>
@@ -385,71 +540,28 @@ export default function FormularioEntrevista() {
             <option value="tutor">Tutor</option>
             <option value="otro">Otro</option>
           </select>
+          {errores.parentesco && (
+            <span className="error-message">{errores.parentesco}</span>
+          )}
         </fieldset>
 
         <fieldset>
-          <label className="label-entrevista" htmlFor="obra_social">
-            ¿Tiene certificado de discapacidad?
-          </label>
-          <div className="entrevista__radio-group">
-            <button
-              type="button"
-              className={`btn-opcion ${tieneCertificado ? "activo" : ""}`}
-              onClick={() => {
-                setTieneCertificado(true);
-                setFormularioEntrevista((prev) => ({
-                  ...prev,
-                  certificado_discapacidad: true,
-                }));
-              }}
-            >
-              Sí
-            </button>
-            <button
-              type="button"
-              className={`btn-opcion ${!tieneCertificado ? "activo" : ""}`}
-              onClick={() => {
-                setTieneCertificado(false);
-                setFormularioEntrevista((prev) => ({
-                  ...prev,
-                  certificado_discapacidad: false,
-                  obra_social: "", // resetear obra social si elige "No"
-                }));
-              }}
-            >
-              No
-            </button>
-          </div>
-          {tieneCertificado && (
-            <select
-              className="entrevista__input"
-              name="obra_social"
-              value={formularioEntrevista.obra_social}
-              onChange={handleChange}
-            >
-              <option value="">-- Seleccionar --</option>
-              {obrasSociales.map((obra) => (
-                <option key={obra.id} value={obra.id}>
-                  {obra.nombre}
-                </option>
-              ))}
-              <option value="otra">Otra</option>
-            </select>
-          )}
           <label className="label-entrevista" htmlFor="motivo_consulta">
-            Describa brevemente los motivos por los cuales solicita la
-            entrevista
+            Motivo de la consulta
           </label>
           <textarea
+            id="motivo_consulta"
             name="motivo_consulta"
             className="entrevista__input"
             placeholder="Mi hijo tiene dificultades en..."
-            value={formularioEntrevista.motivo_consulta}
+            value={formulario.motivo_consulta}
             onChange={handleChange}
             maxLength={250}
             required
           />
-          <span className="max-caracteres">Maximo de 250 caracteres</span>
+          {errores.motivo_consulta && (
+            <span className="error-message">{errores.motivo_consulta}</span>
+          )}
         </fieldset>
 
         <div className="entrevista__terminos-container">
@@ -459,7 +571,7 @@ export default function FormularioEntrevista() {
             type="checkbox"
             name="aceptar_terminos"
             checked={aceptar_terminos}
-            onChange={handleChange}
+            onChange={(e) => setAceptarTerminos(e.target.checked)}
           />
           <label
             className="entrevista__label-terminos"
