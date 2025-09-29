@@ -36,7 +36,7 @@ const registrarUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contrasena, 10);
 
     await db.query(
-      "INSERT INTO usuarios (dni, contrasena) VALUES (?, ?)",
+      "INSERT INTO usuarios (username, password_hash) VALUES (?, ?)",
       [dni, hash]
     );
 
@@ -59,7 +59,7 @@ const loginUsuario = async (req, res) => {
       return res.status(400).json({ error: "Contraseña insegura o inválida." });
     }
 
-    const [rows] = await db.query("SELECT * FROM usuarios WHERE dni = ?", [dni]);
+    const [rows] = await db.query("SELECT * FROM usuarios WHERE username = ?", [dni]);
 
     if (rows.length === 0) {
       return res.status(400).json({ error: "Usuario no encontrado" });
@@ -67,14 +67,16 @@ const loginUsuario = async (req, res) => {
 
     const usuario = rows[0];
 
-    const coincide = await bcrypt.compare(contrasena, usuario.contrasena);
+    const hash = await bcrypt.hash(contrasena, 10);
+    console.log(hash)
+    const coincide = await bcrypt.compare(contrasena, usuario.password_hash);
 
     if (!coincide) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
     // Nunca devuelvas la contraseña (ni siquiera hasheada)
-    delete usuario.contrasena;
+    delete usuario.password_hash;
 
     res.json({ message: "Login exitoso", usuario });
   } catch (error) {
