@@ -1,0 +1,218 @@
+-- Crear base de datos (cambiá el nombre si querés)
+CREATE DATABASE IF NOT EXISTS estimular DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE estimular;
+
+-- Tabla roles
+CREATE TABLE IF NOT EXISTS roles (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(30) NOT NULL UNIQUE,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Tabla usuarios (incluye profesionales, secretarias, admin, etc.)
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  rol_id INT NOT NULL,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  email VARCHAR(150) UNIQUE,
+  password_hash VARCHAR(255),
+  nombre_mostrar VARCHAR(150),
+  telefono VARCHAR(40),
+  activo TINYINT(1) DEFAULT 1,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (rol_id) REFERENCES roles(id)
+) ENGINE=InnoDB;
+
+-- Departamentos (Psicología, Fonoaudiología, TO, Psicopedagogía, etc.)
+CREATE TABLE IF NOT EXISTS departamentos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(50) UNIQUE,
+  nombre VARCHAR(150) NOT NULL
+) ENGINE=InnoDB;
+
+-- Tabla profesionales (extensión de usuarios; la PK es users.id)
+CREATE TABLE IF NOT EXISTS profesionales (
+  id INT PRIMARY KEY, -- referencia a usuarios.id
+  departamento_id INT,
+  matricula VARCHAR(100),
+  bio TEXT,
+  FOREIGN KEY (id) REFERENCES usuarios(id) ON DELETE CASCADE,
+  FOREIGN KEY (departamento_id) REFERENCES departamentos(id)
+) ENGINE=InnoDB;
+
+-- Pacientes
+CREATE TABLE IF NOT EXISTS pacientes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(120),
+  apellido VARCHAR(120),
+  fecha_nacimiento DATE,
+  dni VARCHAR(50),
+  cud VARCHAR(100),
+  telefono VARCHAR(40),
+  email VARCHAR(150),
+  titular_nombre VARCHAR(150),
+  obra_social VARCHAR(150),
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Servicios (psicodiagnóstico, neurolingüístico, taller, etc.)
+CREATE TABLE IF NOT EXISTS servicios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  codigo VARCHAR(80) UNIQUE,
+  nombre VARCHAR(150) NOT NULL,
+  duracion_default_min INT NOT NULL DEFAULT 30,
+  descripcion TEXT
+) ENGINE=InnoDB;
+
+-- Consultorios / salas físicas
+CREATE TABLE IF NOT EXISTS consultorios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  ubicacion VARCHAR(255)
+) ENGINE=InnoDB;
+
+-- Disponibilidades (agenda/horarios y bloqueos)
+CREATE TABLE IF NOT EXISTS disponibilidades (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  profesional_id INT NOT NULL,
+  inicio DATETIME NOT NULL,
+  fin DATETIME NOT NULL,
+  tipo ENUM('disponible','bloqueado') DEFAULT 'disponible',
+  nota VARCHAR(255),
+  creado_por INT,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (profesional_id) REFERENCES usuarios(id),
+  FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Turnos (tabla principal)
+CREATE TABLE IF NOT EXISTS turnos (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  paciente_id INT NOT NULL,
+  servicio_id INT NOT NULL,
+  inicio DATETIME NOT NULL,
+  fin DATETIME NOT NULL,
+  duracion_min INT NOT NULL,
+  consultorio_id INT NULL,
+  estado ENUM('pendiente','confirmado','completado','cancelado','no_presento') DEFAULT 'pendiente',
+  estado_pago ENUM('pendiente','parcial','pagado','eximido') DEFAULT 'pendiente',
+  creado_por INT,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  motivo_cancelacion VARCHAR(255),
+  notas TEXT,
+  FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+  FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+  FOREIGN KEY (consultorio_id) REFERENCES consultorios(id),
+  FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+  INDEX idx_inicio (inicio),
+  INDEX idx_estado (estado)
+) ENGINE=InnoDB;
+
+-- Relación N:M entre turnos y profesionales (soporta multi-profesional)
+CREATE TABLE IF NOT EXISTS turno_profesionales (
+  turno_id BIGINT NOT NULL,
+  profesional_id INT NOT NULL,
+  rol_en_turno ENUM('responsable','asistente','observador') DEFAULT 'responsable',
+  PRIMARY KEY (turno_id, profesional_id),
+  FOREIGN KEY (turno_id) REFERENCES turnos(id) ON DELETE CASCADE,
+  FOREIGN KEY (profesional_id) REFERENCES usuarios(id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- Pagos (puede haber varios pagos por turno)
+CREATE TABLE IF NOT EXISTS pagos (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  turno_id BIGINT NULL,
+  paciente_id INT NOT NULL,
+  monto DECIMAL(12,2) NOT NULL,
+  moneda VARCHAR(10) DEFAULT 'ARS',
+  metodo ENUM('efectivo','tarjeta','transferencia','mercadopago','otro') DEFAULT 'efectivo',
+  estado ENUM('pendiente','completado','fallido','reembolsado') DEFAULT 'completado',
+  comprobante VARCHAR(120),
+  creado_por INT,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (turno_id) REFERENCES turnos(id) ON DELETE SET NULL,
+  FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+  FOREIGN KEY (creado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Asistencias y marcaciones
+CREATE TABLE IF NOT EXISTS asistencia (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  turno_id BIGINT NOT NULL,
+  profesional_id INT NOT NULL,
+  paciente_presente TINYINT(1) DEFAULT 0,
+  ingreso_en DATETIME NULL,
+  salida_en DATETIME NULL,
+  notas TEXT,
+  registrado_por INT,
+  registrado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (turno_id) REFERENCES turnos(id) ON DELETE CASCADE,
+  FOREIGN KEY (profesional_id) REFERENCES usuarios(id),
+  FOREIGN KEY (registrado_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Documentos adjuntos (paciente o turno)
+CREATE TABLE IF NOT EXISTS documentos (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  paciente_id INT NULL,
+  turno_id BIGINT NULL,
+  nombre_archivo VARCHAR(255),
+  ruta_archivo VARCHAR(500),
+  mime VARCHAR(100),
+  subido_por INT,
+  subido_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+  FOREIGN KEY (turno_id) REFERENCES turnos(id),
+  FOREIGN KEY (subido_por) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Lista de espera
+CREATE TABLE IF NOT EXISTS lista_espera (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  paciente_id INT NOT NULL,
+  servicio_id INT,
+  profesional_preferido_id INT NULL,
+  solicitado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  notificado TINYINT(1) DEFAULT 0,
+  FOREIGN KEY (paciente_id) REFERENCES pacientes(id),
+  FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+  FOREIGN KEY (profesional_preferido_id) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Registros de auditoría
+CREATE TABLE IF NOT EXISTS registros_auditoria (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT,
+  entidad VARCHAR(80),
+  entidad_id VARCHAR(80),
+  accion VARCHAR(80),
+  carga JSON NULL,
+  creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+) ENGINE=InnoDB;
+
+-- Índices adicionales
+CREATE INDEX idx_turno_paciente ON turnos(paciente_id);
+CREATE INDEX idx_turno_inicio_estado ON turnos(inicio, estado);
+CREATE INDEX idx_turno_profesional ON turno_profesionales(profesional_id);
+
+-- Ejemplos mínimos de inserción de roles y departamento para arrancar
+INSERT INTO roles (codigo, nombre, descripcion) VALUES
+('admin','Administrador','Acceso total al sistema'),
+('jefe','Jefe de departamento','Permisos para su departamento'),
+('profesional','Profesional','Acceso a su agenda y fichas'),
+('secretaria','Secretaría','Gestión de turnos y pagos'),
+('contable','Contable','Acceso a reportes y pagos')
+ON DUPLICATE KEY UPDATE nombre=VALUES(nombre);
+
+INSERT INTO departamentos (codigo, nombre) VALUES
+('psico','Psicología'),
+('fono','Fonoaudiología'),
+('to','Terapia Ocupacional'),
+('psicop','Psicopedagogía')
+ON DUPLICATE KEY UPDATE nombre=VALUES(nombre);
