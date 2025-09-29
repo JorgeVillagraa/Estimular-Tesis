@@ -36,8 +36,8 @@ const registrarUsuario = async (req, res) => {
     const hash = await bcrypt.hash(contrasena, 10);
 
     await db.query(
-      "INSERT INTO usuarios (username, password_hash) VALUES (?, ?)",
-      [dni, hash]
+      "INSERT INTO usuarios (rol_id, username, password_hash) VALUES (?, ?, ?)",
+      ["3", dni, hash]
     );
 
     res.status(201).json({ message: "Usuario registrado con éxito" });
