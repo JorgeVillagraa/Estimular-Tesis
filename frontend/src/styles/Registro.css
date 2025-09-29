@@ -17,7 +17,7 @@ form.registro div {
     gap: 6px;
 }
 
-.registro  label.registro {
+label.registro {
     font-weight: 600;
     color: #ebe6e8; /* Rosado fuerte */
     margin-bottom: 2px;

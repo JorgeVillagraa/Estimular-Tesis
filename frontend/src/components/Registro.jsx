@@ -129,7 +129,7 @@ function Registro({ onSuccess }) {
             )}
             <div>
                 <label className="registro">Teléfono:</label>
-                <input
+                <input className="registro"
                     type="tel"
                     name="telefono"
                     value={form.telefono}
@@ -139,7 +139,7 @@ function Registro({ onSuccess }) {
             </div>
             <div>
                 <label className="registro">Dirección de mail:</label>
-                <input
+                <input className="registro"
                     type="email"
                     name="email"
                     value={form.email}
