@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_BASE_URL from '../constants/api';
 import './../styles/TurnoModal.css';
 
-export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, loggedInProfesionalId }) {
+export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOpenPaciente, loggedInProfesionalId }) {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -56,6 +56,7 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, logg
             <h2>{turno.paciente_nombre} {turno.paciente_apellido}</h2>
             <p>Nacimiento: {moment(turno.paciente_fecha_nacimiento).format('DD/MM/YYYY')}</p>
             <p>Servicio: {turno.servicio_nombre}</p>
+            <button className="btn-view-patient" onClick={() => onOpenPaciente(turno)}>Ver Ficha</button>
           </div>
         </div>
 

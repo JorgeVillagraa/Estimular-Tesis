@@ -109,6 +109,20 @@
 }
 .btn-save:hover { background-color: #1a83d8; }
 
+.btn-view-patient {
+  background: transparent;
+  border: 1px solid var(--color-accent-blue);
+  color: var(--color-accent-blue);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-top: 10px;
+}
+.btn-view-patient:hover {
+  background-color: var(--color-azul2);
+}
+
 .btn-asistencia {
   background-color: var(--color-rojo1);
   color: white;

@@ -1,0 +1,79 @@
+/* PacienteModal.css */
+
+.paciente-modal-content {
+  background: var(--color-fondo);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+  width: 90%;
+  max-width: 700px; /* Más grande que el otro modal */
+  position: relative;
+}
+
+.paciente-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.paciente-profile-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 3px solid var(--color-accent-blue);
+}
+
+.paciente-details {
+  flex-grow: 1;
+}
+
+.paciente-details h2 {
+  margin: 0 0 10px 0;
+  color: var(--color-text);
+  font-size: 1.8rem;
+  border-bottom: 2px solid var(--color-rosa1);
+  padding-bottom: 5px;
+}
+
+.paciente-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.paciente-info-grid p {
+  margin: 0;
+  background-color: #f7f7f7;
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.paciente-info-grid p strong {
+  color: var(--color-rosa2);
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+
+.paciente-modal-actions {
+  margin-top: 2rem;
+  text-align: right;
+}
+
+.btn-view-docs {
+  background-color: var(--color-accent-purple);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-view-docs:hover {
+  background-color: #8e24aa;
+}

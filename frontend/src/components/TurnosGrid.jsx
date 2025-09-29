@@ -11,6 +11,7 @@ import '../styles/Turnos.css'; // Importar los estilos personalizados
 
 import TurnoModal from './TurnoModal';
 import PagoModal from './PagoModal';
+import PacienteModal from './PacienteModal';
 
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
@@ -77,6 +78,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [turnoForPago, setTurnoForPago] = useState(null);
+  const [pacienteParaVer, setPacienteParaVer] = useState(null);
 
   // Datos de turnos
   const fetchTurnos = useCallback(async (date) => {
@@ -167,6 +169,15 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
     setTurnoForPago(null);
   };
 
+  const handleOpenPaciente = (pacienteData) => {
+    setSelectedEvent(null); // Cierra el modal de turno
+    setPacienteParaVer(pacienteData);
+  };
+
+  const handleClosePacienteModal = () => {
+    setPacienteParaVer(null);
+  };
+
   const isEventDraggable = useCallback((event) => {
     return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
   }, [loggedInProfesionalId]);
@@ -220,13 +231,21 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
           onClose={handleCloseModal}
           onUpdate={handleEventAction}
           onOpenPagos={handleOpenPagos}
+          onOpenPaciente={handleOpenPaciente}
           loggedInProfesionalId={loggedInProfesionalId}
         />
       )}
       {turnoForPago && (
         <PagoModal
           turno={turnoForPago}
+          turno={turnoForPago}
           onClose={handleClosePagoModal}
+        />
+      )}
+      {pacienteParaVer && (
+        <PacienteModal
+          paciente={pacienteParaVer}
+          onClose={handleClosePacienteModal}
         />
       )}
     </div>

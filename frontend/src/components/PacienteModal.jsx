@@ -1,0 +1,50 @@
+import React from 'react';
+import moment from 'moment';
+import './../styles/PacienteModal.css';
+
+const calculateAge = (birthDate) => {
+  if (!birthDate) return 'N/A';
+  return moment().diff(birthDate, 'years');
+};
+
+export default function PacienteModal({ paciente, onClose }) {
+  if (!paciente) return null;
+
+  const handleVerDocumentos = () => {
+    alert('No implementado');
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="paciente-modal-content" onClick={e => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>&times;</button>
+        
+        <div className="paciente-modal-header">
+          <img 
+            src={`http://localhost:3001/documentos/${paciente.paciente_dni}.jpg`} 
+            alt={`Foto de ${paciente.paciente_nombre}`}
+            className="paciente-profile-img"
+            onError={(e) => { e.target.onerror = null; e.target.src='/src/assets/persona_prueba1.png'}} // Fallback
+          />
+          <div className="paciente-details">
+            <h2>{paciente.paciente_nombre} {paciente.paciente_apellido}</h2>
+            <div className="paciente-info-grid">
+              <p><strong>Edad:</strong> {calculateAge(paciente.paciente_fecha_nacimiento)} años</p>
+              <p><strong>Nacimiento:</strong> {moment(paciente.paciente_fecha_nacimiento).format('DD/MM/YYYY')}</p>
+              <p><strong>DNI:</strong> {paciente.paciente_dni}</p>
+              <p><strong>Teléfono:</strong> {paciente.telefono || 'N/A'}</p>
+              <p><strong>Email:</strong> {paciente.email || 'N/A'}</p>
+              <p><strong>Titular:</strong> {paciente.titular_nombre || 'N/A'}</p>
+              <p><strong>Obra Social:</strong> {paciente.obra_social || 'N/A'}</p>
+              <p><strong>CUD:</strong> {paciente.cud || 'No posee'}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="paciente-modal-actions">
+          <button className="btn-view-docs" onClick={handleVerDocumentos}>Ver Documentos</button>
+        </div>
+      </div>
+    </div>
+  );
+}
