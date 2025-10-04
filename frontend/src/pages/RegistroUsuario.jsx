@@ -12,7 +12,7 @@ const RegistroUsuario = () => {
   };
 
   return (
-    <div className="registro-usuario-container">
+    <div className="registro registro-usuario-container">
       {!exito ? (
         <Registro onSuccess={() => setExito(true)} />
       ) : (

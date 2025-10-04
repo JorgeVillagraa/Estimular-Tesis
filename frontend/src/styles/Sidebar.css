@@ -2,7 +2,7 @@
   flex: 0 0 30vw;
   height: 100%;
   max-width: 40vw;
-  background: url("../assets/fondo_estimular.png");
+  background: url("../assets/fondo_estimular.svg");
   background-size: cover;
   color: var(--color-fondo);
   display: flex;

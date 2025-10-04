@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1024" height="1536" viewBox="0 0 1024 1536">
+  <defs>
+    <linearGradient id="b">
+      <stop offset="0" stop-color="#f4557a" stop-opacity="0"/>
+      <stop offset="1" stop-color="#f65e7e"/>
+    </linearGradient>
+    <linearGradient id="a">
+      <stop offset="0" stop-color="#f4557a"/>
+      <stop offset="1" stop-color="#f24769"/>
+    </linearGradient>
+    <linearGradient id="c" x1="16" x2="1021.4" y1="1519.7" y2="11.5" gradientUnits="userSpaceOnUse" href="#a"/>
+    <radialGradient id="d" cx="-86.4" cy="166.3" r="197" fx="-86.4" fy="166.3" gradientTransform="matrix(0 2 -2 0 332 145)" gradientUnits="userSpaceOnUse" href="#b"/>
+  </defs>
+  <path fill="url(#c)" d="M1024 0v1536H0V0Z"/>
+  <path fill="#f76181" d="M172 0c0 32-59 122-172 122V0Z"/>
+  <path fill="url(#d)" d="M394 0A375 375 0 0 1 0 330V0Z"/>
+  <path fill="#f86585" d="M1024 193v110c-44 26-96-7-96-56 0-50 56-81 96-54"/>
+  <path fill="#f55a7a" d="M1024 1065c-163 51-305 223-238 471H650c-61-305 95-540 374-611"/>
+  <path fill="#f96a8a" d="M88 1092h-1l-24 10c-8-12-15-24-7-38l7-9q3-3 8-2l13 2q5 2 9-1c3-2 11-2 12-6q-1-11 6-21c4-7 15-11 23-13l1 1q15 8 19 25l1 7-2 2-17 8q-6 3-6 9 1 12-5 24-3 6-9 6-15 3-28-4"/>
+  <path fill="#f96989" d="M105 1048c-8 11-25 10-37 5-6-2-25 22-6 49 1 2 15-6 25-10 21 8 42 13 44-31 15-13 20-8 21-11 4-14-12-35-17-36-33 6-27 30-30 34"/>
+</svg>
+
