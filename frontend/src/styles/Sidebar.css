@@ -2,7 +2,7 @@
   flex: 0 0 30vw;
   height: 100%;
   max-width: 40vw;
-  background: url("../assets/fondo_estimular.png");
+  background: url("../assets/estimular_sidebar_fondo.svg");
   background-size: cover;
   color: var(--color-fondo);
   display: flex;
@@ -42,6 +42,7 @@
   margin: 1rem;
 }
 
+
 .barra-lateral__slogan {
   font-size: 1.5rem;
   font-style: italic;
@@ -49,6 +50,12 @@
   line-height: 1.4;
   letter-spacing: 0.2px;
   text-shadow: 0 0 8px rgb(255, 0, 166);
+}
+
+.barra-lateral__cta{
+  display:flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .btn-logout {
