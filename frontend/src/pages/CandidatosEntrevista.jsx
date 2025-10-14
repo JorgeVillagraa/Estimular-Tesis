@@ -1,18 +1,18 @@
 // CandidatosEntrevista.jsx
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import '../styles/CandidatosEntrevista.css';
-import { MdEdit, MdDelete } from 'react-icons/md';
-import { FaCheck, FaTimes, FaInfoCircle } from 'react-icons/fa';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import "../styles/CandidatosEntrevista.css";
+import { MdEdit, MdDelete } from "react-icons/md";
+import { FaCheck, FaTimes, FaInfoCircle } from "react-icons/fa";
 
 const ESTADOS = [
-  { key: 'entrevistar', label: 'Entrevistar' },
-  { key: 'entrevistado', label: 'Entrevistado' },
-  { key: 'descartado', label: 'Descartado' },
+  { key: "entrevistar", label: "Entrevistar" },
+  { key: "entrevistado", label: "Entrevistado" },
+  { key: "descartado", label: "Descartado" },
 ];
 
 function calcularEdad(fechaNacimiento) {
-  if (!fechaNacimiento) return '';
+  if (!fechaNacimiento) return "";
   const hoy = new Date();
   const nacimiento = new Date(fechaNacimiento);
   let edad = hoy.getFullYear() - nacimiento.getFullYear();
@@ -28,7 +28,7 @@ export default function CandidatosEntrevista() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actualizando, setActualizando] = useState(null);
-  const [busqueda, setBusqueda] = useState('');
+  const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [editId, setEditId] = useState(null);
@@ -37,17 +37,17 @@ export default function CandidatosEntrevista() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState(null);
 
-  const fetchCandidatos = async (search = '', pageNum = 1) => {
+  const fetchCandidatos = async (search = "", pageNum = 1) => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/candidatos', {
+      const res = await axios.get("http://localhost:5000/api/candidatos", {
         params: { search, page: pageNum, pageSize },
       });
       setCandidatos(res.data.data || []);
       setTotal(res.data.total || 0);
       setError(null);
     } catch {
-      setError('Error al obtener los candidatos');
+      setError("Error al obtener los candidatos");
     } finally {
       setLoading(false);
     }
@@ -59,12 +59,15 @@ export default function CandidatosEntrevista() {
   }, [page]);
 
   const cambiarEstado = async (id_candidato, estado) => {
-    setActualizando(id_candidato + '-' + estado);
+    setActualizando(id_candidato + "-" + estado);
     try {
-      await axios.put(`http://localhost:5000/api/candidatos/${id_candidato}/estado`, { estado_entrevista: estado });
+      await axios.put(
+        `http://localhost:5000/api/candidatos/${id_candidato}/estado`,
+        { estado_entrevista: estado }
+      );
       await fetchCandidatos(busqueda, page);
     } catch {
-      setError('No se pudo cambiar el estado');
+      setError("No se pudo cambiar el estado");
     } finally {
       setActualizando(null);
     }
@@ -84,10 +87,28 @@ export default function CandidatosEntrevista() {
         <h1 className="candidatos-title">Candidatos a entrevista</h1>
 
         <div className="candidatos-controls">
-          <form className="busqueda-form" onSubmit={handleBuscar} role="search" aria-label="Buscar candidatos">
-            <label className="sr-only" htmlFor="buscar">Buscar</label>
+          <form
+            className="busqueda-form"
+            onSubmit={handleBuscar}
+            role="search"
+            aria-label="Buscar candidatos"
+          >
+            <label className="sr-only" htmlFor="buscar">
+              Buscar
+            </label>
             <div className="search">
-              <svg className="icon search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden><path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+              <svg
+                className="icon search-icon"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                aria-hidden
+              >
+                <path
+                  fill="currentColor"
+                  d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"
+                />
+              </svg>
               <input
                 id="buscar"
                 type="text"
@@ -121,16 +142,23 @@ export default function CandidatosEntrevista() {
                 <div className="meta">{total} candidatos</div>
               </div>
               <div className="right">
-                <div className="meta">Página {page} de {totalPages}</div>
+                <div className="meta">
+                  Página {page} de {totalPages}
+                </div>
               </div>
             </div>
 
-            <table className="table candidatos-table" role="table" aria-label="Lista de candidatos">
+            <table
+              className="table candidatos-table"
+              role="table"
+              aria-label="Lista de candidatos"
+            >
               <thead>
                 <tr>
                   <th className="col-name">Nombre</th>
                   <th className="col-last">Apellido</th>
                   <th className="col-dni">DNI</th>
+                  <th className="col-dniNac">Fecha Nac.</th>
                   <th className="col-cert">Certificado</th>
                   <th className="col-os">Obra Social</th>
                   <th className="col-resp">Responsable</th>
@@ -140,7 +168,7 @@ export default function CandidatosEntrevista() {
               </thead>
               <tbody>
                 {candidatos.map((c) => {
-                  const estadoKey = c.estado_entrevista || 'entrevistar';
+                  const estadoKey = c.estado_entrevista || "entrevistar";
                   const isEditing = editId === c.id_candidato;
                   return (
                     <tr key={c.id_candidato}>
@@ -150,9 +178,16 @@ export default function CandidatosEntrevista() {
                             className="edit-input"
                             type="text"
                             value={editData.nombre_nino ?? c.nombre_nino}
-                            onChange={e => setEditData(ed => ({ ...ed, nombre_nino: e.target.value }))}
+                            onChange={(e) =>
+                              setEditData((ed) => ({
+                                ...ed,
+                                nombre_nino: e.target.value,
+                              }))
+                            }
                           />
-                        ) : c.nombre_nino}
+                        ) : (
+                          c.nombre_nino
+                        )}
                       </td>
                       <td className="col-last">
                         {isEditing ? (
@@ -160,9 +195,16 @@ export default function CandidatosEntrevista() {
                             className="edit-input"
                             type="text"
                             value={editData.apellido_nino ?? c.apellido_nino}
-                            onChange={e => setEditData(ed => ({ ...ed, apellido_nino: e.target.value }))}
+                            onChange={(e) =>
+                              setEditData((ed) => ({
+                                ...ed,
+                                apellido_nino: e.target.value,
+                              }))
+                            }
                           />
-                        ) : c.apellido_nino}
+                        ) : (
+                          c.apellido_nino
+                        )}
                       </td>
                       <td className="col-dni">
                         {isEditing ? (
@@ -170,21 +212,79 @@ export default function CandidatosEntrevista() {
                             className="edit-input"
                             type="text"
                             value={editData.dni_nino ?? c.dni_nino}
-                            onChange={e => setEditData(ed => ({ ...ed, dni_nino: e.target.value }))}
+                            onChange={(e) =>
+                              setEditData((ed) => ({
+                                ...ed,
+                                dni_nino: e.target.value,
+                              }))
+                            }
                           />
-                        ) : c.dni_nino}
+                        ) : (
+                          c.dni_nino
+                        )}
                       </td>
-                      <td className="col-cert">{c.certificado_discapacidad ? 'SI' : 'NO'}</td>
-                      <td className="col-os">{c.obra_social?.nombre || '—'}</td>
+                      <td className="col-dniNac">
+                        {isEditing ? (
+                          <input
+                            className="edit-input"
+                            type="date"
+                            value={
+                              editData.fecha_nacimiento ??
+                              c.fecha_nacimiento ??
+                              ""
+                            }
+                            onChange={(e) =>
+                              setEditData((ed) => ({
+                                ...ed,
+                                fecha_nacimiento: e.target.value,
+                              }))
+                            }
+                          />
+                        ) : (
+                          c.fecha_nacimiento
+                        )}
+                      </td>
+                      <td className="col-cert">
+                        {isEditing ? (
+                          <label className="cert-label">
+                            <input
+                              type="checkbox"
+                              checked={!!editData.certificado_discapacidad}
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  certificado_discapacidad: e.target.checked,
+                                }))
+                              }
+                            />
+                            <span>
+                              {editData.certificado_discapacidad ? "SI" : "NO"}
+                            </span>
+                          </label>
+                        ) : c.certificado_discapacidad ? (
+                          "SI"
+                        ) : (
+                          "NO"
+                        )}
+                      </td>
+                      <td className="col-os">{c.obra_social?.nombre || "—"}</td>
                       <td className="col-resp">
-                        {Array.isArray(c.responsables) && c.responsables.length > 0 ? (
-                          c.responsables[0].responsable
-                            ? `${c.responsables[0].responsable.nombre_responsable} ${c.responsables[0].responsable.apellido_responsable}${c.responsables[0].es_principal ? '*' : ''}`
-                            : '—'
-                        ) : '—'}
+                        {Array.isArray(c.responsables) &&
+                        c.responsables.length > 0
+                          ? c.responsables[0].responsable
+                            ? `${
+                                c.responsables[0].responsable.nombre_responsable
+                              } ${
+                                c.responsables[0].responsable
+                                  .apellido_responsable
+                              }${c.responsables[0].es_principal ? "*" : ""}`
+                            : "—"
+                          : "—"}
                       </td>
                       <td className="col-state">
-                        <span className={`pill ${estadoKey}`}>{ESTADOS.find(e => e.key === estadoKey)?.label}</span>
+                        <span className={`pill ${estadoKey}`}>
+                          {ESTADOS.find((e) => e.key === estadoKey)?.label}
+                        </span>
                       </td>
                       <td className="col-actions">
                         <div className="row-actions">
@@ -205,12 +305,27 @@ export default function CandidatosEntrevista() {
                                 title="Guardar"
                                 onClick={async () => {
                                   try {
-                                    await axios.put(`http://localhost:5000/api/candidatos/${c.id_candidato}`, editData);
+                                    // Build payload with allowed fields only
+                                    const payload = {
+                                      nombre_nino: editData.nombre_nino,
+                                      apellido_nino: editData.apellido_nino,
+                                      dni_nino: editData.dni_nino,
+                                      fecha_nacimiento:
+                                        editData.fecha_nacimiento,
+                                      certificado_discapacidad:
+                                        !!editData.certificado_discapacidad,
+                                      motivo_consulta: editData.motivo_consulta,
+                                    };
+                                    await axios.put(
+                                      `http://localhost:5000/api/candidatos/${c.id_candidato}`,
+                                      payload
+                                    );
                                     setEditId(null);
                                     setEditData({});
                                     await fetchCandidatos(busqueda, page);
-                                  } catch {
-                                    setError('No se pudo editar el candidato');
+                                  } catch (err) {
+                                    console.error(err);
+                                    setError("No se pudo editar el candidato");
                                   }
                                 }}
                               >
@@ -234,8 +349,14 @@ export default function CandidatosEntrevista() {
                                   key={e.key}
                                   className={`icon-btn state btn-${e.key}`}
                                   title={e.label}
-                                  disabled={actualizando === c.id_candidato + '-' + e.key || c.estado_entrevista === e.key}
-                                  onClick={() => cambiarEstado(c.id_candidato, e.key)}
+                                  disabled={
+                                    actualizando ===
+                                      c.id_candidato + "-" + e.key ||
+                                    c.estado_entrevista === e.key
+                                  }
+                                  onClick={() =>
+                                    cambiarEstado(c.id_candidato, e.key)
+                                  }
                                 >
                                   {e.label}
                                 </button>
@@ -248,7 +369,7 @@ export default function CandidatosEntrevista() {
                                   setEditData({
                                     nombre_nino: c.nombre_nino,
                                     apellido_nino: c.apellido_nino,
-                                    dni_nino: c.dni_nino
+                                    dni_nino: c.dni_nino,
                                   });
                                 }}
                               >
@@ -258,12 +379,20 @@ export default function CandidatosEntrevista() {
                                 className="icon-btn delete"
                                 title="Eliminar"
                                 onClick={async () => {
-                                  if (window.confirm('¿Seguro que quieres borrar este candidato?')) {
+                                  if (
+                                    window.confirm(
+                                      "¿Seguro que quieres borrar este candidato?"
+                                    )
+                                  ) {
                                     try {
-                                      await axios.delete(`http://localhost:5000/api/candidatos/${c.id_candidato}`);
+                                      await axios.delete(
+                                        `http://localhost:5000/api/candidatos/${c.id_candidato}`
+                                      );
                                       await fetchCandidatos(busqueda, page);
                                     } catch {
-                                      setError('No se pudo borrar el candidato');
+                                      setError(
+                                        "No se pudo borrar el candidato"
+                                      );
                                     }
                                   }
                                 }}
@@ -282,9 +411,23 @@ export default function CandidatosEntrevista() {
 
             {totalPages > 1 && (
               <div className="paginacion-sweeper">
-                <button className="sweeper-btn" disabled={page === 1} onClick={() => setPage(page - 1)}>&#60;</button>
-                <span className="sweeper-info">Página {page} de {totalPages}</span>
-                <button className="sweeper-btn" disabled={page === totalPages} onClick={() => setPage(page + 1)}>&#62;</button>
+                <button
+                  className="sweeper-btn"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  &#60;
+                </button>
+                <span className="sweeper-info">
+                  Página {page} de {totalPages}
+                </span>
+                <button
+                  className="sweeper-btn"
+                  disabled={page === totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  &#62;
+                </button>
               </div>
             )}
           </>
@@ -292,33 +435,70 @@ export default function CandidatosEntrevista() {
       </div>
       {modalOpen && modalData && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-info" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setModalOpen(false)}>&times;</button>
+          <div className="modal-info" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setModalOpen(false)}>
+              &times;
+            </button>
             <h2>Información del candidato</h2>
             <div className="modal-section">
               <h3>Niño</h3>
-              <div className="modal-row"><span>Nombre:</span> {modalData.nombre_nino}</div>
-              <div className="modal-row"><span>Apellido:</span> {modalData.apellido_nino}</div>
-              <div className="modal-row"><span>Fecha de nacimiento:</span> {modalData.fecha_nacimiento} ({calcularEdad(modalData.fecha_nacimiento)} años)</div>
-              <div className="modal-row"><span>DNI:</span> {modalData.dni_nino}</div>
-              <div className="modal-row"><span>Certificado discapacidad:</span> {modalData.certificado_discapacidad ? 'SI' : 'NO'}</div>
-              <div className="modal-row"><span>Motivo consulta:</span> {modalData.motivo_consulta}</div>
+              <div className="modal-row">
+                <span>Nombre:</span> {modalData.nombre_nino}
+              </div>
+              <div className="modal-row">
+                <span>Apellido:</span> {modalData.apellido_nino}
+              </div>
+              <div className="modal-row">
+                <span>Fecha de nacimiento:</span> {modalData.fecha_nacimiento} (
+                {calcularEdad(modalData.fecha_nacimiento)} años)
+              </div>
+              <div className="modal-row">
+                <span>DNI:</span> {modalData.dni_nino}
+              </div>
+              <div className="modal-row">
+                <span>Certificado discapacidad:</span>{" "}
+                {modalData.certificado_discapacidad ? "SI" : "NO"}
+              </div>
+              <div className="modal-row">
+                <span>Motivo consulta:</span> {modalData.motivo_consulta}
+              </div>
             </div>
             <div className="modal-section">
               <h3>Responsable</h3>
-              {Array.isArray(modalData.responsables) && modalData.responsables.length > 0 && modalData.responsables[0].responsable ? (
+              {Array.isArray(modalData.responsables) &&
+              modalData.responsables.length > 0 &&
+              modalData.responsables[0].responsable ? (
                 <>
-                  <div className="modal-row"><span>Nombre:</span> {modalData.responsables[0].responsable.nombre_responsable}</div>
-                  <div className="modal-row"><span>Apellido:</span> {modalData.responsables[0].responsable.apellido_responsable}</div>
-                  <div className="modal-row"><span>Email:</span> {modalData.responsables[0].responsable.email}</div>
-                  <div className="modal-row"><span>Teléfono:</span> {modalData.responsables[0].responsable.telefono}</div>
-                  <div className="modal-row"><span>Parentesco:</span> {modalData.responsables[0].parentesco}</div>
+                  <div className="modal-row">
+                    <span>Nombre:</span>{" "}
+                    {modalData.responsables[0].responsable.nombre_responsable}
+                  </div>
+                  <div className="modal-row">
+                    <span>Apellido:</span>{" "}
+                    {modalData.responsables[0].responsable.apellido_responsable}
+                  </div>
+                  <div className="modal-row">
+                    <span>Email:</span>{" "}
+                    {modalData.responsables[0].responsable.email}
+                  </div>
+                  <div className="modal-row">
+                    <span>Teléfono:</span>{" "}
+                    {modalData.responsables[0].responsable.telefono}
+                  </div>
+                  <div className="modal-row">
+                    <span>Parentesco:</span>{" "}
+                    {modalData.responsables[0].parentesco}
+                  </div>
                 </>
-              ) : <div className="modal-row">No hay responsable principal</div>}
+              ) : (
+                <div className="modal-row">No hay responsable principal</div>
+              )}
             </div>
             <div className="modal-section">
               <h3>Obra Social</h3>
-              <div className="modal-row"><span>Nombre:</span> {modalData.obra_social?.nombre || '—'}</div>
+              <div className="modal-row">
+                <span>Nombre:</span> {modalData.obra_social?.nombre || "—"}
+              </div>
             </div>
           </div>
         </div>
@@ -326,4 +506,3 @@ export default function CandidatosEntrevista() {
     </section>
   );
 }
-

@@ -1,34 +1,34 @@
-const { supabase } = require('../config/db');
+const { supabaseAdmin } = require('../config/db');
 
 // Obtener candidatos con búsqueda y paginación
 const getCandidatos = async (req, res) => {
   const { search = '', page = 1, pageSize = 10 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(pageSize);
   try {
-    let query = supabase
-      .from('candidatos')
-      .select(`*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre), estado_entrevista`)
-      .order('created_at', { ascending: false });
+    const selectString = `*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social), estado_entrevista`;
 
-    if (search) {
-      // Buscar por nombre, apellido o DNI
-      query = query.or(`nombre_nino.ilike.%${search}%,apellido_nino.ilike.%${search}%,dni_nino.ilike.%${search}%`);
+    // sanitize search to avoid accidental wildcard injection
+    const searchSafe = String(search || '').replace(/[%']/g, '').trim();
+
+    let q = supabaseAdmin.from('candidatos').select(selectString, { count: 'exact' });
+
+    if (searchSafe) {
+      const pattern = `%${searchSafe}%`;
+      q = q.or(`nombre_nino.ilike.${pattern},apellido_nino.ilike.${pattern},dni_nino.ilike.${pattern}`);
     }
 
-    query = query.range(offset, offset + parseInt(pageSize) - 1);
+    q = q.order('created_at', { ascending: false }).range(offset, offset + parseInt(pageSize) - 1);
 
-    const { data, error, count } = await query;
-    if (error) throw error;
+    const { data, error, count } = await q;
+    if (error) {
+      console.error('Error fetching candidatos:', error);
+      throw error;
+    }
 
-    // Obtener total de candidatos para paginación
-    const { count: totalCount, error: countError } = await supabase
-      .from('candidatos')
-      .select('id_candidato', { count: 'exact', head: true });
-    if (countError) throw countError;
-
-    res.json({ success: true, data, total: totalCount });
+    res.json({ success: true, data, total: count || 0 });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Error al obtener candidatos', error: err.message });
+    console.error('getCandidatos failed:', err);
+    res.status(500).json({ success: false, message: 'Error al obtener candidatos', error: err.message, detail: err });
   }
 };
 
@@ -40,7 +40,7 @@ const cambiarEstado = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Faltan datos' });
   }
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('candidatos')
       .update({ estado_entrevista })
       .eq('id_candidato', id_candidato)
@@ -60,12 +60,32 @@ const editarCandidato = async (req, res) => {
   if (!id_candidato || !updateData || Object.keys(updateData).length === 0) {
     return res.status(400).json({ success: false, message: 'Faltan datos para editar' });
   }
+
+  // Whitelist de campos permitidos para editar
+  const allowed = ['nombre_nino', 'apellido_nino', 'fecha_nacimiento', 'dni_nino', 'certificado_discapacidad', 'motivo_consulta', 'id_obra_social'];
+  const payload = {};
+  for (const k of allowed) {
+    if (Object.prototype.hasOwnProperty.call(updateData, k)) {
+      payload[k] = updateData[k];
+    }
+  }
+
+  // Normalizaciones simples
+  if (payload.certificado_discapacidad !== undefined) {
+    payload.certificado_discapacidad = !!payload.certificado_discapacidad;
+  }
+  if (payload.fecha_nacimiento) {
+    // Ensure date format yyyy-mm-dd
+    const d = new Date(payload.fecha_nacimiento);
+    if (!isNaN(d)) payload.fecha_nacimiento = d.toISOString().slice(0, 10);
+  }
+
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('candidatos')
-      .update(updateData)
+      .update(payload)
       .eq('id_candidato', id_candidato)
-      .select()
+      .select(`*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social), estado_entrevista`)
       .single();
     if (error) throw error;
     res.json({ success: true, data });
@@ -81,7 +101,7 @@ const borrarCandidato = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Falta id_candidato' });
   }
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('candidatos')
       .delete()
       .eq('id_candidato', id_candidato);

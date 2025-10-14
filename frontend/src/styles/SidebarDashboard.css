@@ -1,0 +1,68 @@
+.sd-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.sd-sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, var(--neutral-200), var(--card-bg));
+  border-right: 1px solid var(--neutral-300);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: var(--color-sombra-sidebar-logo) 0 0 0;
+}
+.sd-top {
+  padding-bottom: 8px;
+}
+.sd-logo {
+  font-weight: 900;
+  color: var(--color-rosa1);
+  font-size: 1.15rem;
+}
+
+.sd-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sd-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--neutral-600);
+  font-weight: 700;
+}
+.sd-link.active {
+  background: linear-gradient(90deg, var(--pink-1), var(--pink-2));
+  color: #fff;
+}
+
+.sd-footer {
+  margin-top: auto;
+}
+.sd-logout {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--neutral-300);
+  cursor: pointer;
+}
+
+.sd-content {
+  flex: 1 1 auto;
+  padding: 24px;
+}
+
+@media (max-width: 900px) {
+  .sd-sidebar {
+    display: none;
+  }
+}

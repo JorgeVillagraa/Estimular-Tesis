@@ -1,8 +1,8 @@
-const { supabase } = require('../config/db');
+const { supabaseAdmin } = require('../config/db');
 
 const obtenerTodasLasObrasSociales = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('obras_sociales')
       .select('id_obra_social, nombre')
       .order('nombre', { ascending: true }); // orden alfabético ascendente

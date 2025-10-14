@@ -1,0 +1,36 @@
+
+import { Outlet, Routes, Route, Navigate } from "react-router-dom";
+import SidebarDashboard from "../components/SidebarDashboard";
+import CandidatosEntrevista from "./CandidatosEntrevista";
+
+export default function Dashboard() {
+  return (
+    <div className="sd-layout">
+      <SidebarDashboard />
+      <main className="sd-content">
+        <Routes>
+          <Route
+            path="/"
+            element={<div style={{ padding: 24 }}>Bienvenido al Dashboard</div>}
+          />
+          <Route path="candidatos" element={<CandidatosEntrevista />} />
+          <Route
+            path="entrevistas"
+            element={
+              <div style={{ padding: 24 }}>
+                Listado de entrevistas (placeholder)
+              </div>
+            }
+          />
+          <Route
+            path="obras-sociales"
+            element={
+              <div style={{ padding: 24 }}>Obras sociales (placeholder)</div>
+            }
+          />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}

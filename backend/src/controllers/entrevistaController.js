@@ -1,7 +1,7 @@
-const { supabase } = require('../config/db');
+const { supabaseAdmin } = require('../config/db');
 
 const enviarFormularioEntrevista = async (req, res) => {
-  
+
   const body = req.body || {};
 
   const candidatoBody = body.candidato || {
@@ -33,7 +33,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     let idObra = candidatoBody.id_obra_social ?? null;
     if (!idObra && candidatoBody.obra_social_texto && candidatoBody.obra_social_texto.trim().length > 0) {
       const nombre = candidatoBody.obra_social_texto.trim();
-      const { data: obraData, error: obraErr } = await supabase
+      const { data: obraData, error: obraErr } = await supabaseAdmin
         .from('obras_sociales')
         .insert([{ nombre, estado: 'pendiente' }])
         .select()
@@ -55,7 +55,7 @@ const enviarFormularioEntrevista = async (req, res) => {
       motivo_consulta: candidatoBody.motivo_consulta,
     };
 
-    const { data: candidato, error: errorCandidato } = await supabase
+    const { data: candidato, error: errorCandidato } = await supabaseAdmin
       .from('candidatos')
       .insert([candidatoInsert])
       .select()
@@ -64,7 +64,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     if (errorCandidato) {
       // si hubo creación de obra en este flujo, intentar borrarla (cleanup)
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorCandidato;
     }
@@ -79,7 +79,7 @@ const enviarFormularioEntrevista = async (req, res) => {
       created_at: new Date().toISOString(),
     };
 
-    const { data: responsable, error: errorResponsable } = await supabase
+    const { data: responsable, error: errorResponsable } = await supabaseAdmin
       .from('responsables')
       .insert([responsableInsert])
       .select()
@@ -88,7 +88,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     if (errorResponsable) {
       // rollback candidato + obra si aplica
       if (insertedCandidato) {
-        await supabase.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
       }
       if (createdObraId) {
         await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
@@ -105,7 +105,7 @@ const enviarFormularioEntrevista = async (req, res) => {
       es_principal: responsableBody.es_principal ?? true,
     };
 
-    const { data: relacionData, error: errorRelacion } = await supabase
+    const { data: relacionData, error: errorRelacion } = await supabaseAdmin
       .from('candidato_responsables')
       .insert([relacionInsert])
       .select()
@@ -114,13 +114,13 @@ const enviarFormularioEntrevista = async (req, res) => {
     if (errorRelacion) {
       // rollback responsable, candidato, obra si aplica
       if (insertedResponsable) {
-        await supabase.from('responsables').delete().eq('id_responsable', insertedResponsable.id_responsable);
+        await supabaseAdmin.from('responsables').delete().eq('id_responsable', insertedResponsable.id_responsable);
       }
       if (insertedCandidato) {
-        await supabase.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
       }
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorRelacion;
     }
