@@ -33,14 +33,15 @@ const enviarFormularioEntrevista = async (req, res) => {
     let idObra = candidatoBody.id_obra_social ?? null;
     if (!idObra && candidatoBody.obra_social_texto && candidatoBody.obra_social_texto.trim().length > 0) {
       const nombre = candidatoBody.obra_social_texto.trim();
+      // esquema: nombre_obra_social, estado
       const { data: obraData, error: obraErr } = await supabaseAdmin
         .from('obras_sociales')
-        .insert([{ nombre, estado: 'pendiente' }])
-        .select()
-        .single();
+        .insert([{ nombre_obra_social: nombre, estado: 'pendiente' }])
+        .select('id_obra_social, nombre_obra_social')
+        .maybeSingle();
 
       if (obraErr) throw obraErr;
-      idObra = obraData.id_obra_social;
+      idObra = obraData?.id_obra_social;
       createdObraId = idObra;
     }
 
@@ -58,8 +59,8 @@ const enviarFormularioEntrevista = async (req, res) => {
     const { data: candidato, error: errorCandidato } = await supabaseAdmin
       .from('candidatos')
       .insert([candidatoInsert])
-      .select()
-      .single();
+      .select('id_candidato, nombre_nino, apellido_nino, fecha_nacimiento, dni_nino, id_obra_social')
+      .maybeSingle();
 
     if (errorCandidato) {
       // si hubo creación de obra en este flujo, intentar borrarla (cleanup)
@@ -71,27 +72,28 @@ const enviarFormularioEntrevista = async (req, res) => {
     insertedCandidato = candidato; // guardamos para posible rollback
 
     // 3) Insertar responsable
+    // Ajuste de nombres: responsables tiene columnas nombre, apellido, telefono, email, creado_en
     const responsableInsert = {
-      nombre_responsable: responsableBody.nombre_responsable,
-      apellido_responsable: responsableBody.apellido_responsable,
+      nombre: responsableBody.nombre_responsable,
+      apellido: responsableBody.apellido_responsable,
       telefono: responsableBody.telefono || null,
       email: responsableBody.email || null,
-      created_at: new Date().toISOString(),
+      creado_en: new Date().toISOString(),
     };
 
     const { data: responsable, error: errorResponsable } = await supabaseAdmin
       .from('responsables')
       .insert([responsableInsert])
-      .select()
-      .single();
+      .select('id_responsable, nombre, apellido, telefono, email')
+      .maybeSingle();
 
     if (errorResponsable) {
       // rollback candidato + obra si aplica
       if (insertedCandidato) {
-        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato || insertedCandidato.id);
       }
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorResponsable;
     }
@@ -99,8 +101,8 @@ const enviarFormularioEntrevista = async (req, res) => {
 
     // 4) Insertar relación N:M en candidato_responsables usando ids explícitos
     const relacionInsert = {
-      id_candidato: insertedCandidato.id_candidato,
-      id_responsable: insertedResponsable.id_responsable,
+      id_candidato: insertedCandidato.id_candidato || insertedCandidato.id,
+      id_responsable: insertedResponsable.id_responsable || insertedResponsable.id,
       parentesco: responsableBody.parentesco || null,
       es_principal: responsableBody.es_principal ?? true,
     };
@@ -108,16 +110,16 @@ const enviarFormularioEntrevista = async (req, res) => {
     const { data: relacionData, error: errorRelacion } = await supabaseAdmin
       .from('candidato_responsables')
       .insert([relacionInsert])
-      .select()
-      .single();
+      .select('id_candidato_responsable, id_candidato, id_responsable, parentesco, es_principal')
+      .maybeSingle();
 
     if (errorRelacion) {
       // rollback responsable, candidato, obra si aplica
       if (insertedResponsable) {
-        await supabaseAdmin.from('responsables').delete().eq('id_responsable', insertedResponsable.id_responsable);
+        await supabaseAdmin.from('responsables').delete().eq('id_responsable', insertedResponsable.id_responsable || insertedResponsable.id);
       }
       if (insertedCandidato) {
-        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato || insertedCandidato.id);
       }
       if (createdObraId) {
         await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);

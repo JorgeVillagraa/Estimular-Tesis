@@ -7,6 +7,7 @@ const contactosRoutes = require('./src/routes/contactoRoutes');
 const entrevistaRoutes = require('./src/routes/entrevistaRoutes');
 const obrasSocRoutes = require('./src/routes/obrasSocRoutes');
 const candidatosRoutes = require('./src/routes/candidatosRoutes');
+const turnosRoutes = require('./src/routes/turnosRoutes');
 
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/api/contact', contactosRoutes);
 app.use('/api/entrevista', entrevistaRoutes);
 app.use('/api/obras-sociales', obrasSocRoutes);
 app.use('/api/candidatos', candidatosRoutes);
+app.use('/api/turnos', turnosRoutes);
 
 app.listen(PORT, () => {
 	console.log(`Servidor backend escuchando en puerto ${PORT}`);

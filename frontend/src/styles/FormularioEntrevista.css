@@ -39,7 +39,7 @@
   max-width: 880px;        /* buen ancho de lectura */
   padding: 1rem;
   border-radius: 16px;
-  box-shadow: 0 6px 18px rgba(255, 182, 193, 0.35);
+  box-shadow: 0 6px 18px rgb(255, 6, 176);
   margin-bottom: 2rem;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.02);
@@ -60,7 +60,7 @@
   color: var(--color-rosa1);
   letter-spacing: 0.5px;
   text-align: center;
-  padding-bottom: 0.6rem;
+  padding-bottom: 2rem;
   font-size: clamp(1rem, 2.4vw, 1.2rem);
 }
 
@@ -174,7 +174,7 @@ select.entrevista__input:focus {
   padding: 1rem 1.1rem;
   margin-top: 1rem;
   margin-bottom: 0.7rem;
-  text-align: center;
+  text-align: left;
   box-shadow: 0 2px 10px rgba(255, 182, 193, 0.15);
 }
 .entrevista__mensaje-confidencialidad p {
@@ -183,13 +183,6 @@ select.entrevista__input:focus {
   line-height: 1.5;
   font-weight: 500;
   margin: 0;
-}
-.entrevista__mensaje-confidencialidad::before {
-  content: "🔒";
-  display: block;
-  font-size: 1.4rem;
-  margin-bottom: 0.25rem;
-  opacity: 0.85;
 }
 
 .entrevista__terminos-container {

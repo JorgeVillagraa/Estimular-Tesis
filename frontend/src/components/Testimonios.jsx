@@ -13,12 +13,12 @@ import testimonio3 from '../assets/testimonio3.jpg' ;
 
 const data = [
   { 
-    quote: '“Todos los avances en mis hijos son en gran medida son gracias al aporte de este gran equipo que acompaña con amor compromiso y siempre buscando soluciones ante cada nueva situacion ”', 
+    quote: '“Todos los avances en mis hijos son en gran medida gracias al aporte de este gran equipo que acompaña con amor compromiso y siempre buscando soluciones ante cada nueva situacion ”', 
     name: 'Erica Costilla',
     image: testimonio1
   },
   {
-    quote: "Gracias, equipo Estimular, por la dedicación, el compromiso, el cariño y la responsabilidad hacia mi hijo. Les agradezco, porque sus logros y evolución son notorios y significativos.",
+    quote: "Gracias equipo Estimular, por la dedicación, el compromiso, el cariño y la responsabilidad hacia mi hijo. Les agradezco, porque sus logros y evolución son notorios y significativos.",
     name: "Familia Rodríguez",
     image: testimonio2
   },

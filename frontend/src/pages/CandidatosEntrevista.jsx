@@ -170,6 +170,13 @@ export default function CandidatosEntrevista() {
                 {candidatos.map((c) => {
                   const estadoKey = c.estado_entrevista || "entrevistar";
                   const isEditing = editId === c.id_candidato;
+                  // Normalizar datos de obra social y responsable según el backend
+                  const obraSocialName = c.obra_social?.nombre_obra_social || c.obra_social?.nombre || c.nombre_obra_social || null;
+                  const responsableRel = Array.isArray(c.responsables) && c.responsables.length > 0 ? (c.responsables[0].responsable || c.responsables[0]) : null;
+                  const responsableNombre = responsableRel ? (responsableRel.nombre_responsable || responsableRel.nombre) : null;
+                  const responsableApellido = responsableRel ? (responsableRel.apellido_responsable || responsableRel.apellido) : null;
+                  const hasTurno = (Array.isArray(c.turnos) && c.turnos.length > 0) || !!c.tiene_turno || !!c.turno_id || false;
+
                   return (
                     <tr key={c.id_candidato}>
                       <td className="col-name">
@@ -267,20 +274,15 @@ export default function CandidatosEntrevista() {
                           "NO"
                         )}
                       </td>
-                      <td className="col-os">{c.obra_social?.nombre || "—"}</td>
+                      <td className="col-os">{obraSocialName || "—"}</td>
                       <td className="col-resp">
-                        {Array.isArray(c.responsables) &&
-                        c.responsables.length > 0
-                          ? c.responsables[0].responsable
-                            ? `${
-                                c.responsables[0].responsable.nombre_responsable
-                              } ${
-                                c.responsables[0].responsable
-                                  .apellido_responsable
-                              }${c.responsables[0].es_principal ? "*" : ""}`
-                            : "—"
-                          : "—"}
+                        {responsableRel ? (
+                          `${responsableNombre || ""} ${responsableApellido || ""}${c.responsables && c.responsables[0]?.es_principal ? " *" : ""}`.trim()
+                        ) : (
+                          "NO"
+                        )}
                       </td>
+                      <td className="col-turno">{hasTurno ? "Asignado" : "—"}</td>
                       <td className="col-state">
                         <span className={`pill ${estadoKey}`}>
                           {ESTADOS.find((e) => e.key === estadoKey)?.label}
@@ -305,15 +307,13 @@ export default function CandidatosEntrevista() {
                                 title="Guardar"
                                 onClick={async () => {
                                   try {
-                                    // Build payload with allowed fields only
+                                    // Build payload with allowed fields only (only candidato fields)
                                     const payload = {
                                       nombre_nino: editData.nombre_nino,
                                       apellido_nino: editData.apellido_nino,
                                       dni_nino: editData.dni_nino,
-                                      fecha_nacimiento:
-                                        editData.fecha_nacimiento,
-                                      certificado_discapacidad:
-                                        !!editData.certificado_discapacidad,
+                                      fecha_nacimiento: editData.fecha_nacimiento,
+                                      certificado_discapacidad: !!editData.certificado_discapacidad,
                                       motivo_consulta: editData.motivo_consulta,
                                     };
                                     await axios.put(
@@ -350,13 +350,10 @@ export default function CandidatosEntrevista() {
                                   className={`icon-btn state btn-${e.key}`}
                                   title={e.label}
                                   disabled={
-                                    actualizando ===
-                                      c.id_candidato + "-" + e.key ||
+                                    actualizando === c.id_candidato + "-" + e.key ||
                                     c.estado_entrevista === e.key
                                   }
-                                  onClick={() =>
-                                    cambiarEstado(c.id_candidato, e.key)
-                                  }
+                                  onClick={() => cambiarEstado(c.id_candidato, e.key)}
                                 >
                                   {e.label}
                                 </button>
@@ -379,26 +376,36 @@ export default function CandidatosEntrevista() {
                                 className="icon-btn delete"
                                 title="Eliminar"
                                 onClick={async () => {
-                                  if (
-                                    window.confirm(
-                                      "¿Seguro que quieres borrar este candidato?"
-                                    )
-                                  ) {
+                                  if (window.confirm("¿Seguro que quieres borrar este candidato?")) {
                                     try {
-                                      await axios.delete(
-                                        `http://localhost:5000/api/candidatos/${c.id_candidato}`
-                                      );
+                                      await axios.delete(`http://localhost:5000/api/candidatos/${c.id_candidato}`);
                                       await fetchCandidatos(busqueda, page);
                                     } catch {
-                                      setError(
-                                        "No se pudo borrar el candidato"
-                                      );
+                                      setError("No se pudo borrar el candidato");
                                     }
                                   }
                                 }}
                               >
                                 <MdDelete size={20} />
                               </button>
+                              {/* Assign turno if candidate has no turno */}
+                              {!hasTurno && (
+                                <button
+                                  className="icon-btn assign-turno"
+                                  title="Asignar turno"
+                                  onClick={async () => {
+                                    try {
+                                      await axios.post(`http://localhost:5000/api/turnos/assign`, { candidato_id: c.id_candidato });
+                                      await fetchCandidatos(busqueda, page);
+                                    } catch (err) {
+                                      console.error('assign turno error', err);
+                                      setError('No se pudo asignar el turno. Asegura que exista el endpoint /api/turnos/assign.');
+                                    }
+                                  }}
+                                >
+                                  Asignar turno
+                                </button>
+                              )}
                             </>
                           )}
                         </div>

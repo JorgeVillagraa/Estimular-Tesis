@@ -5,7 +5,8 @@ const getCandidatos = async (req, res) => {
   const { search = '', page = 1, pageSize = 10 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(pageSize);
   try {
-    const selectString = `*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social), estado_entrevista`;
+    // Ajuste de select para que coincida con el esquema proporcionado
+    const selectString = `*, responsables: candidato_responsables (parentesco, es_principal, id_responsable, responsable: responsables (*)), obra_social: obras_sociales (id_obra_social, nombre_obra_social), estado_entrevista`;
 
     // sanitize search to avoid accidental wildcard injection
     const searchSafe = String(search || '').replace(/[%']/g, '').trim();
@@ -44,8 +45,8 @@ const cambiarEstado = async (req, res) => {
       .from('candidatos')
       .update({ estado_entrevista })
       .eq('id_candidato', id_candidato)
-      .select()
-      .single();
+      .select('*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social)')
+      .maybeSingle();
     if (error) throw error;
     res.json({ success: true, data });
   } catch (err) {
@@ -86,7 +87,7 @@ const editarCandidato = async (req, res) => {
       .update(payload)
       .eq('id_candidato', id_candidato)
       .select(`*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social), estado_entrevista`)
-      .single();
+      .maybeSingle();
     if (error) throw error;
     res.json({ success: true, data });
   } catch (err) {
