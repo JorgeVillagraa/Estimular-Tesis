@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useRef } from "react";
 import axios from "axios";
 import "../styles/CandidatosEntrevista.css";
+import CrearCandidato from "../components/CrearCandidato";
+import Swal from "sweetalert2";
 import { MdEdit, MdDelete } from "react-icons/md";
 import { FaCheck, FaTimes, FaInfoCircle } from "react-icons/fa";
 
-const ESTADOS = [
-  { key: "entrevistar", label: "Entrevistar" },
-  { key: "entrevistado", label: "Entrevistado" },
-  { key: "descartado", label: "Descartado" },
-];
+// Removed interview states from this module: state and turno management
+// will be handled in the Entrevistas/Turnos module (EntrevistasCrud.jsx).
 
 function calcularEdad(fechaNacimiento) {
   if (!fechaNacimiento) return "";
@@ -28,7 +27,7 @@ export default function CandidatosEntrevista() {
   const [candidatos, setCandidatos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [actualizando, setActualizando] = useState(null);
+  // state for inline operations (reserved)
   const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -37,6 +36,7 @@ export default function CandidatosEntrevista() {
   const pageSize = 10;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState(null);
+  const [obrasSociales, setObrasSociales] = useState([]);
   const skipPageEffectRef = useRef(false);
 
   // simple debounce hook local to this file
@@ -50,6 +50,22 @@ export default function CandidatosEntrevista() {
   }
 
   const debouncedBusqueda = useDebounce(busqueda, 300);
+
+  // cargar obras sociales disponibles para el select
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/obras-sociales");
+        if (mounted && res.data && res.data.data)
+          setObrasSociales(res.data.data);
+      } catch (err) {
+        console.warn("No se pudo cargar obras sociales", err?.message || err);
+      }
+    };
+    load();
+    return () => (mounted = false);
+  }, []);
 
   const fetchCandidatos = async (search = "", pageNum = 1) => {
     setLoading(true);
@@ -87,20 +103,7 @@ export default function CandidatosEntrevista() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  const cambiarEstado = async (id_candidato, estado) => {
-    setActualizando(id_candidato + "-" + estado);
-    try {
-      await axios.put(
-        `http://localhost:5000/api/candidatos/${id_candidato}/estado`,
-        { estado_entrevista: estado }
-      );
-      await fetchCandidatos(busqueda, page);
-    } catch {
-      setError("No se pudo cambiar el estado");
-    } finally {
-      setActualizando(null);
-    }
-  };
+  // Note: state transitions handled in Entrevistas/Turnos module; no cambiarEstado here
 
   const handleBuscar = (e) => {
     e.preventDefault();
@@ -150,12 +153,19 @@ export default function CandidatosEntrevista() {
           </form>
 
           <div className="action-buttons">
-            <button className="btn primary">+ Agregar candidato</button>
+            <button
+              className="btn primary"
+              onClick={() => setModalOpen((s) => !s)}
+            >
+              + Agregar candidato
+            </button>
             <button className="btn outline-pink">Filtrar</button>
             <button className="btn ghost">Exportar</button>
           </div>
         </div>
+        {/* end candidatos-controls */}
       </div>
+      {/* end candidatos-top */}
 
       <div className="card candidatos-card">
         {loading ? (
@@ -192,14 +202,11 @@ export default function CandidatosEntrevista() {
                     <th className="col-cert">Certificado</th>
                     <th className="col-os">Obra Social</th>
                     <th className="col-resp">Responsable</th>
-                    <th className="col-turno">Turno</th>
-                    <th className="col-state">Estado</th>
                     <th className="col-actions">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {candidatos.map((c) => {
-                    const estadoKey = c.estado_entrevista || "entrevistar";
                     const isEditing = editId === c.id_candidato;
                     // Normalizar datos de obra social y responsable según el backend
                     const obraSocialName =
@@ -219,11 +226,7 @@ export default function CandidatosEntrevista() {
                       ? responsableRel.apellido_responsable ||
                         responsableRel.apellido
                       : null;
-                    const hasTurno =
-                      (Array.isArray(c.turnos) && c.turnos.length > 0) ||
-                      !!c.tiene_turno ||
-                      !!c.turno_id ||
-                      false;
+                    // In this module we don't surface turno/state controls.
 
                     return (
                       <tr key={c.id_candidato}>
@@ -286,63 +289,146 @@ export default function CandidatosEntrevista() {
 
                         {/* Edad */}
                         <td className="col-dniNac">
-                          {c.fecha_nacimiento
-                            ? `${calcularEdad(c.fecha_nacimiento)} años`
-                            : "—"}
+                          {isEditing ? (
+                            <input
+                              type="date"
+                              className="edit-input"
+                              value={
+                                editData.fecha_nacimiento ??
+                                c.fecha_nacimiento ??
+                                ""
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  fecha_nacimiento: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : c.fecha_nacimiento ? (
+                            `${calcularEdad(c.fecha_nacimiento)} años`
+                          ) : (
+                            "—"
+                          )}
                         </td>
 
                         {/* Certificado */}
                         <td className="col-cert">
-                          {c.certificado_discapacidad ? "SI" : "NO"}
-                        </td>
-
-                        {/* Obra Social */}
-                        <td className="col-os">{obraSocialName || "—"}</td>
-
-                        {/* Responsable */}
-                        <td className="col-resp">
-                          {responsableNombre || responsableApellido
-                            ? `${responsableNombre || ""} ${
-                                responsableApellido || ""
-                              }`.trim()
-                            : "—"}
-                        </td>
-
-                        {/* Turno */}
-                        <td className="col-turno">
-                          {hasTurno ? (
-                            <span className="meta">Asignado</span>
-                          ) : isEditing ? (
-                            <span className="meta">—</span>
-                          ) : (
-                            <button
-                              className="icon-btn assign-turno"
-                              title="Asignar turno"
-                              onClick={async () => {
-                                try {
-                                  await axios.post(
-                                    `http://localhost:5000/api/turnos/assign`,
-                                    { candidato_id: c.id_candidato }
-                                  );
-                                  await fetchCandidatos(busqueda, page);
-                                } catch (err) {
-                                  console.error("assign turno error", err);
-                                  setError(
-                                    "No se pudo asignar el turno. Asegura que exista el endpoint /api/turnos/assign."
-                                  );
-                                }
-                              }}
+                          {isEditing ? (
+                            <select
+                              className="edit-select"
+                              value={
+                                editData.certificado_discapacidad === undefined
+                                  ? c.certificado_discapacidad
+                                    ? "si"
+                                    : "no"
+                                  : editData.certificado_discapacidad
+                                  ? "si"
+                                  : "no"
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  certificado_discapacidad:
+                                    e.target.value === "si",
+                                }))
+                              }
                             >
-                              Asignar turno
-                            </button>
+                              <option value="si">SI</option>
+                              <option value="no">NO</option>
+                            </select>
+                          ) : c.certificado_discapacidad ? (
+                            "SI"
+                          ) : (
+                            "NO"
                           )}
                         </td>
 
-                        {/* Estado */}
-                        <td className="col-state">
-                          <span className={`pill ${estadoKey}`}>
-                            {ESTADOS.find((e) => e.key === estadoKey)?.label}
-                          </span>
+                        {/* Obra Social */}
+                        <td className="col-os">
+                          {isEditing ? (
+                            <select
+                              className="edit-select"
+                              value={
+                                editData.id_obra_social ??
+                                c.id_obra_social ??
+                                ""
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  id_obra_social: e.target.value
+                                    ? Number(e.target.value)
+                                    : null,
+                                }))
+                              }
+                            >
+                              <option value="">
+                                -- Seleccionar obra social --
+                              </option>
+                              {obrasSociales.map((o) => (
+                                <option
+                                  key={o.id_obra_social}
+                                  value={o.id_obra_social}
+                                >
+                                  {o.nombre_obra_social}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            obraSocialName || "—"
+                          )}
+                        </td>
+
+                        {/* Responsable */}
+                        <td className="col-resp">
+                          {isEditing ? (
+                            <select
+                              className="edit-select"
+                              value={
+                                editData.selected_responsable_id ??
+                                (Array.isArray(c.responsables) &&
+                                c.responsables.length > 0
+                                  ? c.responsables[0].responsable
+                                      ?.id_responsable ||
+                                    c.responsables[0].id_responsable
+                                  : "")
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  selected_responsable_id: e.target.value
+                                    ? Number(e.target.value)
+                                    : null,
+                                }))
+                              }
+                            >
+                              <option value="">
+                                -- Seleccionar responsable --
+                              </option>
+                              {Array.isArray(c.responsables) &&
+                                c.responsables.map((rel) => {
+                                  const r = rel.responsable || rel;
+                                  const id = r.id_responsable || r.id;
+                                  const label = `${
+                                    r.nombre_responsable || r.nombre || ""
+                                  } ${
+                                    r.apellido_responsable || r.apellido || ""
+                                  }`.trim();
+                                  return (
+                                    <option key={id} value={id}>
+                                      {label}
+                                    </option>
+                                  );
+                                })}
+                            </select>
+                          ) : responsableNombre || responsableApellido ? (
+                            `${responsableNombre || ""} ${
+                              responsableApellido || ""
+                            }`.trim()
+                          ) : (
+                            "—"
+                          )}
                         </td>
 
                         {/* Acciones */}
@@ -376,19 +462,76 @@ export default function CandidatosEntrevista() {
                                           !!editData.certificado_discapacidad,
                                         motivo_consulta:
                                           editData.motivo_consulta,
+                                        id_obra_social:
+                                          editData.id_obra_social ??
+                                          c.id_obra_social ??
+                                          null,
                                       };
+
+                                      // show loading
+                                      Swal.fire({
+                                        title: "Guardando...",
+                                        allowOutsideClick: false,
+                                        didOpen: () => Swal.showLoading(),
+                                      });
+
+                                      // 1) Guardar cambios principales del candidato
                                       await axios.put(
                                         `http://localhost:5000/api/candidatos/${c.id_candidato}`,
                                         payload
                                       );
+
+                                      // 2) Si se seleccionó un responsable distinto, llamar al endpoint para marcarlo principal
+                                      const newRespId =
+                                        editData.selected_responsable_id ??
+                                        null;
+                                      const currentRespId =
+                                        Array.isArray(c.responsables) &&
+                                        c.responsables.length > 0
+                                          ? c.responsables[0].responsable
+                                              ?.id_responsable ||
+                                            c.responsables[0].id_responsable ||
+                                            null
+                                          : null;
+                                      if (
+                                        newRespId &&
+                                        newRespId !== currentRespId
+                                      ) {
+                                        try {
+                                          await axios.put(
+                                            `http://localhost:5000/api/candidatos/${c.id_candidato}/responsable`,
+                                            { id_responsable: newRespId }
+                                          );
+                                        } catch (err) {
+                                          console.warn(
+                                            "No se pudo actualizar responsable principal:",
+                                            err?.message || err
+                                          );
+                                        }
+                                      }
+
                                       setEditId(null);
                                       setEditData({});
                                       await fetchCandidatos(busqueda, page);
+
+                                      Swal.close();
+                                      Swal.fire({
+                                        icon: "success",
+                                        title: "Guardado",
+                                        text: "Cambios guardados correctamente",
+                                        timer: 1400,
+                                        showConfirmButton: false,
+                                      });
                                     } catch (err) {
                                       console.error(err);
-                                      setError(
-                                        "No se pudo editar el candidato"
-                                      );
+                                      Swal.close();
+                                      Swal.fire({
+                                        icon: "error",
+                                        title: "Error",
+                                        text:
+                                          err?.response?.data?.message ||
+                                          "No se pudo editar el candidato",
+                                      });
                                     }
                                   }}
                                 >
@@ -407,33 +550,37 @@ export default function CandidatosEntrevista() {
                               </>
                             ) : (
                               <>
-                                {ESTADOS.map((e) => (
-                                  <button
-                                    key={e.key}
-                                    className={`icon-btn state btn-${e.key}`}
-                                    title={e.label}
-                                    disabled={
-                                      actualizando ===
-                                        c.id_candidato + "-" + e.key ||
-                                      c.estado_entrevista === e.key
-                                    }
-                                    onClick={() =>
-                                      cambiarEstado(c.id_candidato, e.key)
-                                    }
-                                  >
-                                    {e.label}
-                                  </button>
-                                ))}
-
                                 <button
                                   className="icon-btn edit"
                                   title="Editar"
                                   onClick={() => {
+                                    // initialize editData with full editable fields
+                                    // find current principal responsable id if exists
+                                    const principalRel = Array.isArray(
+                                      c.responsables
+                                    )
+                                      ? c.responsables.find(
+                                          (r) => r.es_principal === true
+                                        ) || c.responsables[0]
+                                      : null;
+                                    const principalId = principalRel
+                                      ? principalRel.responsable
+                                          ?.id_responsable ||
+                                        principalRel.id_responsable ||
+                                        principalRel.responsable?.id ||
+                                        principalRel.id
+                                      : null;
                                     setEditId(c.id_candidato);
                                     setEditData({
                                       nombre_nino: c.nombre_nino,
                                       apellido_nino: c.apellido_nino,
                                       dni_nino: c.dni_nino,
+                                      fecha_nacimiento:
+                                        c.fecha_nacimiento || "",
+                                      certificado_discapacidad:
+                                        !!c.certificado_discapacidad,
+                                      id_obra_social: c.id_obra_social ?? null,
+                                      selected_responsable_id: principalId,
                                     });
                                   }}
                                 >
@@ -443,20 +590,42 @@ export default function CandidatosEntrevista() {
                                   className="icon-btn delete"
                                   title="Eliminar"
                                   onClick={async () => {
-                                    if (
-                                      window.confirm(
-                                        "¿Seguro que quieres borrar este candidato?"
-                                      )
-                                    ) {
+                                    const result = await Swal.fire({
+                                      title: "¿Eliminar candidato?",
+                                      text: "Esta acción no se puede deshacer.",
+                                      icon: "warning",
+                                      showCancelButton: true,
+                                      confirmButtonText: "Sí, eliminar",
+                                      cancelButtonText: "Cancelar",
+                                    });
+                                    if (result.isConfirmed) {
                                       try {
+                                        Swal.fire({
+                                          title: "Eliminando...",
+                                          allowOutsideClick: false,
+                                          didOpen: () => Swal.showLoading(),
+                                        });
                                         await axios.delete(
                                           `http://localhost:5000/api/candidatos/${c.id_candidato}`
                                         );
                                         await fetchCandidatos(busqueda, page);
-                                      } catch {
-                                        setError(
-                                          "No se pudo borrar el candidato"
-                                        );
+                                        Swal.close();
+                                        Swal.fire({
+                                          icon: "success",
+                                          title: "Eliminado",
+                                          text: "El candidato fue eliminado",
+                                          timer: 1400,
+                                          showConfirmButton: false,
+                                        });
+                                      } catch (err) {
+                                        Swal.close();
+                                        Swal.fire({
+                                          icon: "error",
+                                          title: "Error",
+                                          text:
+                                            err?.response?.data?.message ||
+                                            "No se pudo borrar el candidato",
+                                        });
                                       }
                                     }
                                   }}
@@ -567,6 +736,16 @@ export default function CandidatosEntrevista() {
             </div>
           </div>
         </div>
+      )}
+      {modalOpen && !modalData && (
+        <CrearCandidato
+          onClose={() => setModalOpen(false)}
+          obrasSociales={obrasSociales}
+          onCreated={async () => {
+            setModalOpen(false);
+            await fetchCandidatos(busqueda, page);
+          }}
+        />
       )}
     </section>
   );

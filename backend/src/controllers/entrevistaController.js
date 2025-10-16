@@ -78,13 +78,14 @@ const enviarFormularioEntrevista = async (req, res) => {
       apellido: responsableBody.apellido_responsable,
       telefono: responsableBody.telefono || null,
       email: responsableBody.email || null,
+      dni: responsableBody.dni || null,
       creado_en: new Date().toISOString(),
     };
 
     const { data: responsable, error: errorResponsable } = await supabaseAdmin
       .from('responsables')
       .insert([responsableInsert])
-      .select('id_responsable, nombre, apellido, telefono, email')
+      .select('id_responsable, nombre, apellido, telefono, email, dni')
       .maybeSingle();
 
     if (errorResponsable) {

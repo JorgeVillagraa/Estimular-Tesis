@@ -6,7 +6,8 @@ const getCandidatos = async (req, res) => {
   const offset = (parseInt(page) - 1) * parseInt(pageSize);
   try {
     // Ajuste de select para que coincida con el esquema proporcionado
-    const selectString = `*, responsables: candidato_responsables (parentesco, es_principal, id_responsable, responsable: responsables (*)), obra_social: obras_sociales (id_obra_social, nombre_obra_social), estado_entrevista`;
+    // Eliminamos campos relacionados con el flujo de entrevistas/turnos aquí; este módulo solo debe devolver información del candidato
+    const selectString = `*, responsables: candidato_responsables (parentesco, es_principal, id_responsable, responsable: responsables (*)), obra_social: obras_sociales (id_obra_social, nombre_obra_social)`;
 
     // sanitize search to avoid accidental wildcard injection
     const searchSafe = String(search || '').replace(/[%']/g, '').trim();
@@ -63,26 +64,7 @@ const getCandidatos = async (req, res) => {
   }
 };
 
-// Cambiar estado de entrevista
-const cambiarEstado = async (req, res) => {
-  const { id_candidato } = req.params;
-  const { estado_entrevista } = req.body;
-  if (!id_candidato || !estado_entrevista) {
-    return res.status(400).json({ success: false, message: 'Faltan datos' });
-  }
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('candidatos')
-      .update({ estado_entrevista })
-      .eq('id_candidato', id_candidato)
-      .select('*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social)')
-      .maybeSingle();
-    if (error) throw error;
-    res.json({ success: true, data });
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Error al cambiar estado', error: err.message });
-  }
-};
+// NOTE: Removing cambiarEstado - state transitions and turno assignment will be handled in the Entrevistas/Turnos module
 
 // Editar candidato
 const editarCandidato = async (req, res) => {
@@ -116,7 +98,7 @@ const editarCandidato = async (req, res) => {
       .from('candidatos')
       .update(payload)
       .eq('id_candidato', id_candidato)
-      .select(`*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social), estado_entrevista`)
+      .select(`*, responsables: candidato_responsables (parentesco, es_principal, responsable: responsables (*)), obra_social: obras_sociales (nombre_obra_social)`)
       .maybeSingle();
     if (error) throw error;
     res.json({ success: true, data });
@@ -143,4 +125,51 @@ const borrarCandidato = async (req, res) => {
   }
 };
 
-module.exports = { getCandidatos, cambiarEstado, editarCandidato, borrarCandidato };
+module.exports = { getCandidatos, editarCandidato, borrarCandidato };
+
+// Establecer responsable principal para un candidato
+const setPrincipalResponsable = async (req, res) => {
+  const { id_candidato } = req.params;
+  const { id_responsable } = req.body;
+  if (!id_candidato || !id_responsable) {
+    return res.status(400).json({ success: false, message: 'Faltan datos (id_candidato o id_responsable)' });
+  }
+
+  try {
+    // Verificar que la relación exista
+    const { data: existing, error: selErr } = await supabaseAdmin
+      .from('candidato_responsables')
+      .select('*')
+      .eq('id_candidato', id_candidato)
+      .eq('id_responsable', id_responsable)
+      .maybeSingle();
+    if (selErr) throw selErr;
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Responsable no asociado al candidato' });
+    }
+
+    // Primero marcar todos como no principales
+    const { error: clearErr } = await supabaseAdmin
+      .from('candidato_responsables')
+      .update({ es_principal: false })
+      .eq('id_candidato', id_candidato);
+    if (clearErr) throw clearErr;
+
+    // Luego marcar el elegido como principal
+    const { data: updated, error: updErr } = await supabaseAdmin
+      .from('candidato_responsables')
+      .update({ es_principal: true })
+      .eq('id_candidato', id_candidato)
+      .eq('id_responsable', id_responsable)
+      .select('id_candidato_responsable, id_candidato, id_responsable, parentesco, es_principal')
+      .maybeSingle();
+    if (updErr) throw updErr;
+
+    return res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error('setPrincipalResponsable failed:', err);
+    return res.status(500).json({ success: false, message: 'Error al establecer responsable principal', error: err.message });
+  }
+};
+
+module.exports = { getCandidatos, editarCandidato, borrarCandidato, setPrincipalResponsable };
