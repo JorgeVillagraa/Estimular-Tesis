@@ -1,5 +1,6 @@
 // CandidatosEntrevista.jsx
 import { useState, useEffect } from "react";
+import { useRef } from "react";
 import axios from "axios";
 import "../styles/CandidatosEntrevista.css";
 import { MdEdit, MdDelete } from "react-icons/md";
@@ -36,6 +37,19 @@ export default function CandidatosEntrevista() {
   const pageSize = 10;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState(null);
+  const skipPageEffectRef = useRef(false);
+
+  // simple debounce hook local to this file
+  function useDebounce(value, delay) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+      const t = setTimeout(() => setDebounced(value), delay);
+      return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+  }
+
+  const debouncedBusqueda = useDebounce(busqueda, 300);
 
   const fetchCandidatos = async (search = "", pageNum = 1) => {
     setLoading(true);
@@ -53,9 +67,24 @@ export default function CandidatosEntrevista() {
     }
   };
 
+  // When debounced search changes, reset to page 1 and fetch results
   useEffect(() => {
+    // if the debounced value changed, we want to reset pagination
+    skipPageEffectRef.current = true;
+    setPage(1);
+    fetchCandidatos(debouncedBusqueda, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedBusqueda]);
+
+  // When page changes (user pagination), fetch current search/page
+  useEffect(() => {
+    if (skipPageEffectRef.current) {
+      // clear the flag and skip this automatic fetch because the debounced effect already fetched
+      skipPageEffectRef.current = false;
+      return;
+    }
     fetchCandidatos(busqueda, page);
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const cambiarEstado = async (id_candidato, estado) => {
@@ -148,273 +177,302 @@ export default function CandidatosEntrevista() {
               </div>
             </div>
 
-            <table
-              className="table candidatos-table"
-              role="table"
-              aria-label="Lista de candidatos"
-            >
-              <thead>
-                <tr>
-                  <th className="col-name">Nombre</th>
-                  <th className="col-last">Apellido</th>
-                  <th className="col-dni">DNI</th>
-                  <th className="col-dniNac">Fecha Nac.</th>
-                  <th className="col-cert">Certificado</th>
-                  <th className="col-os">Obra Social</th>
-                  <th className="col-resp">Responsable</th>
-                  <th className="col-state">Estado</th>
-                  <th className="col-actions">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {candidatos.map((c) => {
-                  const estadoKey = c.estado_entrevista || "entrevistar";
-                  const isEditing = editId === c.id_candidato;
-                  // Normalizar datos de obra social y responsable según el backend
-                  const obraSocialName = c.obra_social?.nombre_obra_social || c.obra_social?.nombre || c.nombre_obra_social || null;
-                  const responsableRel = Array.isArray(c.responsables) && c.responsables.length > 0 ? (c.responsables[0].responsable || c.responsables[0]) : null;
-                  const responsableNombre = responsableRel ? (responsableRel.nombre_responsable || responsableRel.nombre) : null;
-                  const responsableApellido = responsableRel ? (responsableRel.apellido_responsable || responsableRel.apellido) : null;
-                  const hasTurno = (Array.isArray(c.turnos) && c.turnos.length > 0) || !!c.tiene_turno || !!c.turno_id || false;
+            <div className="dashboard-table-wrapper">
+              <table
+                className="table candidatos-table"
+                role="table"
+                aria-label="Lista de candidatos"
+              >
+                <thead>
+                  <tr>
+                    <th className="col-dni">DNI</th>
+                    <th className="col-name">Nombre</th>
+                    <th className="col-last">Apellido</th>
+                    <th className="col-dniNac">Edad</th>
+                    <th className="col-cert">Certificado</th>
+                    <th className="col-os">Obra Social</th>
+                    <th className="col-resp">Responsable</th>
+                    <th className="col-turno">Turno</th>
+                    <th className="col-state">Estado</th>
+                    <th className="col-actions">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidatos.map((c) => {
+                    const estadoKey = c.estado_entrevista || "entrevistar";
+                    const isEditing = editId === c.id_candidato;
+                    // Normalizar datos de obra social y responsable según el backend
+                    const obraSocialName =
+                      c.obra_social?.nombre_obra_social ||
+                      c.obra_social?.nombre ||
+                      c.nombre_obra_social ||
+                      null;
+                    const responsableRel =
+                      Array.isArray(c.responsables) && c.responsables.length > 0
+                        ? c.responsables[0].responsable || c.responsables[0]
+                        : null;
+                    const responsableNombre = responsableRel
+                      ? responsableRel.nombre_responsable ||
+                        responsableRel.nombre
+                      : null;
+                    const responsableApellido = responsableRel
+                      ? responsableRel.apellido_responsable ||
+                        responsableRel.apellido
+                      : null;
+                    const hasTurno =
+                      (Array.isArray(c.turnos) && c.turnos.length > 0) ||
+                      !!c.tiene_turno ||
+                      !!c.turno_id ||
+                      false;
 
-                  return (
-                    <tr key={c.id_candidato}>
-                      <td className="col-name">
-                        {isEditing ? (
-                          <input
-                            className="edit-input"
-                            type="text"
-                            value={editData.nombre_nino ?? c.nombre_nino}
-                            onChange={(e) =>
-                              setEditData((ed) => ({
-                                ...ed,
-                                nombre_nino: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          c.nombre_nino
-                        )}
-                      </td>
-                      <td className="col-last">
-                        {isEditing ? (
-                          <input
-                            className="edit-input"
-                            type="text"
-                            value={editData.apellido_nino ?? c.apellido_nino}
-                            onChange={(e) =>
-                              setEditData((ed) => ({
-                                ...ed,
-                                apellido_nino: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          c.apellido_nino
-                        )}
-                      </td>
-                      <td className="col-dni">
-                        {isEditing ? (
-                          <input
-                            className="edit-input"
-                            type="text"
-                            value={editData.dni_nino ?? c.dni_nino}
-                            onChange={(e) =>
-                              setEditData((ed) => ({
-                                ...ed,
-                                dni_nino: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          c.dni_nino
-                        )}
-                      </td>
-                      <td className="col-dniNac">
-                        {isEditing ? (
-                          <input
-                            className="edit-input"
-                            type="date"
-                            value={
-                              editData.fecha_nacimiento ??
-                              c.fecha_nacimiento ??
-                              ""
-                            }
-                            onChange={(e) =>
-                              setEditData((ed) => ({
-                                ...ed,
-                                fecha_nacimiento: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          c.fecha_nacimiento
-                        )}
-                      </td>
-                      <td className="col-cert">
-                        {isEditing ? (
-                          <label className="cert-label">
+                    return (
+                      <tr key={c.id_candidato}>
+                        {/* DNI */}
+                        <td className="col-dni">
+                          {isEditing ? (
                             <input
-                              type="checkbox"
-                              checked={!!editData.certificado_discapacidad}
+                              className="edit-input"
+                              type="text"
+                              value={editData.dni_nino ?? c.dni_nino}
                               onChange={(e) =>
                                 setEditData((ed) => ({
                                   ...ed,
-                                  certificado_discapacidad: e.target.checked,
+                                  dni_nino: e.target.value,
                                 }))
                               }
                             />
-                            <span>
-                              {editData.certificado_discapacidad ? "SI" : "NO"}
-                            </span>
-                          </label>
-                        ) : c.certificado_discapacidad ? (
-                          "SI"
-                        ) : (
-                          "NO"
-                        )}
-                      </td>
-                      <td className="col-os">{obraSocialName || "—"}</td>
-                      <td className="col-resp">
-                        {responsableRel ? (
-                          `${responsableNombre || ""} ${responsableApellido || ""}${c.responsables && c.responsables[0]?.es_principal ? " *" : ""}`.trim()
-                        ) : (
-                          "NO"
-                        )}
-                      </td>
-                      <td className="col-turno">{hasTurno ? "Asignado" : "—"}</td>
-                      <td className="col-state">
-                        <span className={`pill ${estadoKey}`}>
-                          {ESTADOS.find((e) => e.key === estadoKey)?.label}
-                        </span>
-                      </td>
-                      <td className="col-actions">
-                        <div className="row-actions">
-                          <button
-                            className="icon-btn info"
-                            title="Información"
-                            onClick={() => {
-                              setModalData(c);
-                              setModalOpen(true);
-                            }}
-                          >
-                            <FaInfoCircle size={20} />
-                          </button>
-                          {isEditing ? (
-                            <>
-                              <button
-                                className="icon-btn save"
-                                title="Guardar"
-                                onClick={async () => {
-                                  try {
-                                    // Build payload with allowed fields only (only candidato fields)
-                                    const payload = {
-                                      nombre_nino: editData.nombre_nino,
-                                      apellido_nino: editData.apellido_nino,
-                                      dni_nino: editData.dni_nino,
-                                      fecha_nacimiento: editData.fecha_nacimiento,
-                                      certificado_discapacidad: !!editData.certificado_discapacidad,
-                                      motivo_consulta: editData.motivo_consulta,
-                                    };
-                                    await axios.put(
-                                      `http://localhost:5000/api/candidatos/${c.id_candidato}`,
-                                      payload
-                                    );
-                                    setEditId(null);
-                                    setEditData({});
-                                    await fetchCandidatos(busqueda, page);
-                                  } catch (err) {
-                                    console.error(err);
-                                    setError("No se pudo editar el candidato");
-                                  }
-                                }}
-                              >
-                                <FaCheck size={18} />
-                              </button>
-                              <button
-                                className="icon-btn cancel"
-                                title="Cancelar"
-                                onClick={() => {
-                                  setEditId(null);
-                                  setEditData({});
-                                }}
-                              >
-                                <FaTimes size={18} />
-                              </button>
-                            </>
                           ) : (
-                            <>
-                              {ESTADOS.map((e) => (
+                            c.dni_nino || "—"
+                          )}
+                        </td>
+
+                        {/* Nombre */}
+                        <td className="col-name">
+                          {isEditing ? (
+                            <input
+                              className="edit-input"
+                              type="text"
+                              value={editData.nombre_nino ?? c.nombre_nino}
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  nombre_nino: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : (
+                            c.nombre_nino || "—"
+                          )}
+                        </td>
+
+                        {/* Apellido */}
+                        <td className="col-last">
+                          {isEditing ? (
+                            <input
+                              className="edit-input"
+                              type="text"
+                              value={editData.apellido_nino ?? c.apellido_nino}
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  apellido_nino: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : (
+                            c.apellido_nino || "—"
+                          )}
+                        </td>
+
+                        {/* Edad */}
+                        <td className="col-dniNac">
+                          {c.fecha_nacimiento
+                            ? `${calcularEdad(c.fecha_nacimiento)} años`
+                            : "—"}
+                        </td>
+
+                        {/* Certificado */}
+                        <td className="col-cert">
+                          {c.certificado_discapacidad ? "SI" : "NO"}
+                        </td>
+
+                        {/* Obra Social */}
+                        <td className="col-os">{obraSocialName || "—"}</td>
+
+                        {/* Responsable */}
+                        <td className="col-resp">
+                          {responsableNombre || responsableApellido
+                            ? `${responsableNombre || ""} ${
+                                responsableApellido || ""
+                              }`.trim()
+                            : "—"}
+                        </td>
+
+                        {/* Turno */}
+                        <td className="col-turno">
+                          {hasTurno ? (
+                            <span className="meta">Asignado</span>
+                          ) : isEditing ? (
+                            <span className="meta">—</span>
+                          ) : (
+                            <button
+                              className="icon-btn assign-turno"
+                              title="Asignar turno"
+                              onClick={async () => {
+                                try {
+                                  await axios.post(
+                                    `http://localhost:5000/api/turnos/assign`,
+                                    { candidato_id: c.id_candidato }
+                                  );
+                                  await fetchCandidatos(busqueda, page);
+                                } catch (err) {
+                                  console.error("assign turno error", err);
+                                  setError(
+                                    "No se pudo asignar el turno. Asegura que exista el endpoint /api/turnos/assign."
+                                  );
+                                }
+                              }}
+                            >
+                              Asignar turno
+                            </button>
+                          )}
+                        </td>
+
+                        {/* Estado */}
+                        <td className="col-state">
+                          <span className={`pill ${estadoKey}`}>
+                            {ESTADOS.find((e) => e.key === estadoKey)?.label}
+                          </span>
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="col-actions">
+                          <div className="row-actions">
+                            <button
+                              className="icon-btn info"
+                              title="Información"
+                              onClick={() => {
+                                setModalData(c);
+                                setModalOpen(true);
+                              }}
+                            >
+                              <FaInfoCircle size={20} />
+                            </button>
+
+                            {isEditing ? (
+                              <>
                                 <button
-                                  key={e.key}
-                                  className={`icon-btn state btn-${e.key}`}
-                                  title={e.label}
-                                  disabled={
-                                    actualizando === c.id_candidato + "-" + e.key ||
-                                    c.estado_entrevista === e.key
-                                  }
-                                  onClick={() => cambiarEstado(c.id_candidato, e.key)}
-                                >
-                                  {e.label}
-                                </button>
-                              ))}
-                              <button
-                                className="icon-btn edit"
-                                title="Editar"
-                                onClick={() => {
-                                  setEditId(c.id_candidato);
-                                  setEditData({
-                                    nombre_nino: c.nombre_nino,
-                                    apellido_nino: c.apellido_nino,
-                                    dni_nino: c.dni_nino,
-                                  });
-                                }}
-                              >
-                                <MdEdit size={20} />
-                              </button>
-                              <button
-                                className="icon-btn delete"
-                                title="Eliminar"
-                                onClick={async () => {
-                                  if (window.confirm("¿Seguro que quieres borrar este candidato?")) {
-                                    try {
-                                      await axios.delete(`http://localhost:5000/api/candidatos/${c.id_candidato}`);
-                                      await fetchCandidatos(busqueda, page);
-                                    } catch {
-                                      setError("No se pudo borrar el candidato");
-                                    }
-                                  }
-                                }}
-                              >
-                                <MdDelete size={20} />
-                              </button>
-                              {/* Assign turno if candidate has no turno */}
-                              {!hasTurno && (
-                                <button
-                                  className="icon-btn assign-turno"
-                                  title="Asignar turno"
+                                  className="icon-btn save"
+                                  title="Guardar"
                                   onClick={async () => {
                                     try {
-                                      await axios.post(`http://localhost:5000/api/turnos/assign`, { candidato_id: c.id_candidato });
+                                      const payload = {
+                                        nombre_nino: editData.nombre_nino,
+                                        apellido_nino: editData.apellido_nino,
+                                        dni_nino: editData.dni_nino,
+                                        fecha_nacimiento:
+                                          editData.fecha_nacimiento,
+                                        certificado_discapacidad:
+                                          !!editData.certificado_discapacidad,
+                                        motivo_consulta:
+                                          editData.motivo_consulta,
+                                      };
+                                      await axios.put(
+                                        `http://localhost:5000/api/candidatos/${c.id_candidato}`,
+                                        payload
+                                      );
+                                      setEditId(null);
+                                      setEditData({});
                                       await fetchCandidatos(busqueda, page);
                                     } catch (err) {
-                                      console.error('assign turno error', err);
-                                      setError('No se pudo asignar el turno. Asegura que exista el endpoint /api/turnos/assign.');
+                                      console.error(err);
+                                      setError(
+                                        "No se pudo editar el candidato"
+                                      );
                                     }
                                   }}
                                 >
-                                  Asignar turno
+                                  <FaCheck size={18} />
                                 </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                                <button
+                                  className="icon-btn cancel"
+                                  title="Cancelar"
+                                  onClick={() => {
+                                    setEditId(null);
+                                    setEditData({});
+                                  }}
+                                >
+                                  <FaTimes size={18} />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {ESTADOS.map((e) => (
+                                  <button
+                                    key={e.key}
+                                    className={`icon-btn state btn-${e.key}`}
+                                    title={e.label}
+                                    disabled={
+                                      actualizando ===
+                                        c.id_candidato + "-" + e.key ||
+                                      c.estado_entrevista === e.key
+                                    }
+                                    onClick={() =>
+                                      cambiarEstado(c.id_candidato, e.key)
+                                    }
+                                  >
+                                    {e.label}
+                                  </button>
+                                ))}
+
+                                <button
+                                  className="icon-btn edit"
+                                  title="Editar"
+                                  onClick={() => {
+                                    setEditId(c.id_candidato);
+                                    setEditData({
+                                      nombre_nino: c.nombre_nino,
+                                      apellido_nino: c.apellido_nino,
+                                      dni_nino: c.dni_nino,
+                                    });
+                                  }}
+                                >
+                                  <MdEdit size={20} />
+                                </button>
+                                <button
+                                  className="icon-btn delete"
+                                  title="Eliminar"
+                                  onClick={async () => {
+                                    if (
+                                      window.confirm(
+                                        "¿Seguro que quieres borrar este candidato?"
+                                      )
+                                    ) {
+                                      try {
+                                        await axios.delete(
+                                          `http://localhost:5000/api/candidatos/${c.id_candidato}`
+                                        );
+                                        await fetchCandidatos(busqueda, page);
+                                      } catch {
+                                        setError(
+                                          "No se pudo borrar el candidato"
+                                        );
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <MdDelete size={20} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {totalPages > 1 && (
               <div className="paginacion-sweeper">

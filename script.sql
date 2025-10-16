@@ -275,4 +275,21 @@ create table if not exists public.turno_profesionales (
 
 -- =========================
 -- FIN DEL SCRIPT
+
+-- ============================================================
+-- FUNCTIONS: search helpers (accent-insensitive search)
+-- Requires the unaccent extension
+-- ============================================================
+create extension if not exists unaccent;
+
+-- Returns matching candidato ids for a search term (accent- and case-insensitive)
+create or replace function public.search_candidatos_ids(term text)
+returns table(id_candidato bigint) as $$
+  select id_candidato from public.candidatos
+  where unaccent(lower(nombre_nino)) like unaccent(lower('%' || term || '%'))
+     or unaccent(lower(apellido_nino)) like unaccent(lower('%' || term || '%'))
+     or unaccent(lower(dni_nino)) like unaccent(lower('%' || term || '%'))
+  order by created_at desc;
+$$ language sql stable;
+
 -- =========================

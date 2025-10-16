@@ -28,6 +28,22 @@ export default function SidebarDashboard() {
           👥 Candidatos
         </NavLink>
         <NavLink
+          to="/dashboard/usuarios"
+          className={({ isActive }) =>
+            isActive ? "sd-link active" : "sd-link"
+          }
+        >
+          👤 Usuarios
+        </NavLink>
+        <NavLink
+          to="/dashboard/profesionales"
+          className={({ isActive }) =>
+            isActive ? "sd-link active" : "sd-link"
+          }
+        >
+          🧑‍⚕️ Profesionales
+        </NavLink>
+        <NavLink
           to="/dashboard/entrevistas"
           className={({ isActive }) =>
             isActive ? "sd-link active" : "sd-link"
@@ -42,6 +58,30 @@ export default function SidebarDashboard() {
           }
         >
           🏥 Obras sociales
+        </NavLink>
+        <NavLink
+          to="/dashboard/turnos"
+          className={({ isActive }) =>
+            isActive ? "sd-link active" : "sd-link"
+          }
+        >
+          📅 Turnos
+        </NavLink>
+        <NavLink
+          to="/dashboard/pacientes"
+          className={({ isActive }) =>
+            isActive ? "sd-link active" : "sd-link"
+          }
+        >
+          🧾 Pacientes
+        </NavLink>
+        <NavLink
+          to="/dashboard/responsables"
+          className={({ isActive }) =>
+            isActive ? "sd-link active" : "sd-link"
+          }
+        >
+          🧑‍👩‍👧 Responsables
         </NavLink>
       </nav>
 

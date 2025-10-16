@@ -11,15 +11,45 @@ const getCandidatos = async (req, res) => {
     // sanitize search to avoid accidental wildcard injection
     const searchSafe = String(search || '').replace(/[%']/g, '').trim();
 
-    let q = supabaseAdmin.from('candidatos').select(selectString, { count: 'exact' });
-
+    // If search provided, try server-side accent-insensitive RPC to get matching ids
     if (searchSafe) {
-      const pattern = `%${searchSafe}%`;
-      q = q.or(`nombre_nino.ilike.${pattern},apellido_nino.ilike.${pattern},dni_nino.ilike.${pattern}`);
+      try {
+        // call RPC to get matching ids
+        const { data: idsData, error: rpcErr } = await supabaseAdmin.rpc('search_candidatos_ids', { term: searchSafe });
+        if (rpcErr) throw rpcErr;
+        const ids = (idsData || []).map((r) => r.id_candidato);
+
+        if (ids.length === 0) {
+          return res.json({ success: true, data: [], total: 0 });
+        }
+
+        // Apply pagination on the ids array (server-side)
+        const pagedIds = ids.slice(offset, offset + parseInt(pageSize));
+
+        const { data, error } = await supabaseAdmin
+          .from('candidatos')
+          .select(selectString)
+          .in('id_candidato', pagedIds)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return res.json({ success: true, data: data || [], total: ids.length });
+      } catch (rpcErr) {
+        // if RPC fails, fallback to ilike approach
+        console.warn('RPC search failed, falling back to ilike search:', rpcErr.message || rpcErr);
+        const pattern = `%${searchSafe}%`;
+        let q2 = supabaseAdmin.from('candidatos').select(selectString, { count: 'exact' }).or(`nombre_nino.ilike.${pattern},apellido_nino.ilike.${pattern},dni_nino.ilike.${pattern}`);
+        q2 = q2.order('created_at', { ascending: false }).range(offset, offset + parseInt(pageSize) - 1);
+        const { data, error, count } = await q2;
+        if (error) throw error;
+        return res.json({ success: true, data, total: count || 0 });
+      }
     }
 
+    // No search: simple paginated fetch
+    let q = supabaseAdmin.from('candidatos').select(selectString, { count: 'exact' });
     q = q.order('created_at', { ascending: false }).range(offset, offset + parseInt(pageSize) - 1);
-
     const { data, error, count } = await q;
     if (error) {
       console.error('Error fetching candidatos:', error);
