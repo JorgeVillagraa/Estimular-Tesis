@@ -187,11 +187,11 @@ export default function EquipoEstimular() {
                   <tr>
                     <th>Foto</th>
                     <th>DNI</th>
-                    <th>Nombre</th>
-                    <th>Fecha nac.</th>
                     <th>Profesión</th>
+                    <th>Nombre</th>
                     <th>Email</th>
                     <th>Teléfono</th>
+                    <th>Fecha nacimiento</th>
                     <th className="col-actions">Acciones</th>
                   </tr>
                 </thead>
@@ -251,6 +251,29 @@ export default function EquipoEstimular() {
                         </td>
                         <td>
                           {isEditing ? (
+                            <select
+                              className="edit-select"
+                              value={editData.profesion ?? p.profesion ?? ""}
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  profesion: e.target.value || null,
+                                }))
+                              }
+                            >
+                              <option value="">— Seleccionar —</option>
+                              {PROFESIONES.map((op) => (
+                                <option key={op} value={op}>
+                                  {op}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            p.profesion || "—"
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
                             <div style={{ display: "flex", gap: 8 }}>
                               <input
                                 className="edit-input"
@@ -277,56 +300,6 @@ export default function EquipoEstimular() {
                             </div>
                           ) : (
                             nombreCompleto || "—"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <input
-                              type="date"
-                              className="edit-input"
-                              value={
-                                editData.fecha_nacimiento !== undefined
-                                  ? editData.fecha_nacimiento
-                                  : p.fecha_nacimiento
-                                  ? String(p.fecha_nacimiento).slice(0, 10)
-                                  : ""
-                              }
-                              onChange={(e) =>
-                                setEditData((ed) => ({
-                                  ...ed,
-                                  fecha_nacimiento: e.target.value,
-                                }))
-                              }
-                            />
-                          ) : p.fecha_nacimiento ? (
-                            `${formatDateDMY(
-                              p.fecha_nacimiento
-                            )} (${calcularEdad(p.fecha_nacimiento)} años)`
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td>
-                          {isEditing ? (
-                            <select
-                              className="edit-select"
-                              value={editData.profesion ?? p.profesion ?? ""}
-                              onChange={(e) =>
-                                setEditData((ed) => ({
-                                  ...ed,
-                                  profesion: e.target.value || null,
-                                }))
-                              }
-                            >
-                              <option value="">— Seleccionar —</option>
-                              {PROFESIONES.map((op) => (
-                                <option key={op} value={op}>
-                                  {op}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            p.profesion || "—"
                           )}
                         </td>
                         <td>
@@ -359,6 +332,31 @@ export default function EquipoEstimular() {
                             />
                           ) : (
                             p.telefono || "—"
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <input
+                              type="date"
+                              className="edit-input"
+                              value={
+                                editData.fecha_nacimiento !== undefined
+                                  ? editData.fecha_nacimiento
+                                  : p.fecha_nacimiento
+                                  ? String(p.fecha_nacimiento).slice(0, 10)
+                                  : ""
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  fecha_nacimiento: e.target.value,
+                                }))
+                              }
+                            />
+                          ) : p.fecha_nacimiento ? (
+                            formatDateDMY(p.fecha_nacimiento)
+                          ) : (
+                            "—"
                           )}
                         </td>
                         <td className="col-actions">
@@ -549,7 +547,7 @@ export default function EquipoEstimular() {
           onClose={() => setModalOpen(false)}
           onCreated={async () => {
             setModalOpen(false);
-            await fetchEquipo(busqueda, page);
+            await fetchEquipo(busqueda, page, profesionFiltro);
           }}
         />
       )}
