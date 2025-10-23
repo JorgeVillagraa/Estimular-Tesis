@@ -40,15 +40,6 @@ export default function SidebarDashboard() {
           <MdEventAvailable size={18} /> <span>Turnos</span>
         </NavLink>
 
-        {/* Relacionados 1:1 */}
-        <NavLink
-          to="/dashboard/usuarios"
-          className={({ isActive }) =>
-            isActive ? "sd-link active" : "sd-link"
-          }
-        >
-          <MdPeople size={18} /> <span>Usuarios</span>
-        </NavLink>
 
         <NavLink
           to="/dashboard/profesionales"
@@ -75,7 +66,7 @@ export default function SidebarDashboard() {
             isActive ? "sd-link active" : "sd-link"
           }
         >
-          <MdFamilyRestroom size={18} /> <span>Responsables</span>
+          <MdFamilyRestroom size={18} /> <span>Padres/Tutores</span>
         </NavLink>
 
         <NavLink

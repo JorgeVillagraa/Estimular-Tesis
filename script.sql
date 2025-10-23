@@ -96,6 +96,7 @@ CREATE TABLE public.ninos (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   actualizado_en timestamp with time zone NOT NULL DEFAULT now(),
   activo boolean NOT NULL DEFAULT true,
+  foto_perfil text,
   CONSTRAINT ninos_pkey PRIMARY KEY (id_nino),
   CONSTRAINT ninos_id_obra_social_fkey FOREIGN KEY (id_obra_social) REFERENCES public.obras_sociales(id_obra_social)
 );

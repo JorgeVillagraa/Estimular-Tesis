@@ -1,0 +1,48 @@
+/* Chips y tarjetas de turnos para el selector */
+.turno-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(230, 240, 255, 0.6);
+  color: var(--accent-blue, #0b6bcb);
+  border: 1px solid rgba(11, 107, 203, 0.3);
+  border-radius: 10px;
+  font-weight: 700;
+}
+.turnos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.turno-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--neutral-300);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px var(--color-sombra-galeria);
+  cursor: pointer;
+  text-align: left;
+}
+.turno-card:hover {
+  background: linear-gradient(180deg, rgba(255, 239, 247, 0.45), transparent);
+}
+.turno-card-top {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 800;
+  color: var(--color-rosa1);
+}
+.turno-fecha {
+  font-size: 1rem;
+}
+.turno-hora {
+  font-size: 1rem;
+}
+.turno-duracion {
+  color: var(--muted);
+  font-weight: 700;
+}

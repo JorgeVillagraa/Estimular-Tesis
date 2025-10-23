@@ -8,6 +8,8 @@ import EditarProfesional from "./pages/EditarProfesional";
 import ObrasSociales from "./pages/ObrasSociales";
 import Responsables from "./pages/Responsables";
 import EntrevistaPage from "./pages/Entrevista";
+import AsignarEntrevista from "./pages/AsignarEntrevista";
+import EquipoEstimular from "./pages/EquipoEstimular";
 function App() {
   return (
     <div>
@@ -36,20 +38,8 @@ function App() {
                     path="usuarios"
                     element={<div className="p-24">Usuarios (placeholder)</div>}
                   />
-                  <Route
-                    path="profesionales"
-                    element={
-                      <div className="p-24">Profesionales (placeholder)</div>
-                    }
-                  />
-                  <Route
-                    path="entrevistas"
-                    element={
-                      <div className="p-24">
-                        Listado de entrevistas (placeholder)
-                      </div>
-                    }
-                  />
+                  <Route path="profesionales" element={<EquipoEstimular />} />
+                  <Route path="entrevistas" element={<AsignarEntrevista />} />
                   <Route path="obras-sociales" element={<ObrasSociales />} />
                   <Route
                     path="turnos"
