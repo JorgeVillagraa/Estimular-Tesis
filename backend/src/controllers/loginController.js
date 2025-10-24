@@ -1,7 +1,6 @@
 const { supabaseAdmin } = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { v4: uuidv4 } = require('uuid');
 
 // Función para validar DNI
 function isValidDni(dni) {
@@ -21,10 +20,19 @@ function isSafePassword(pwd) {
   );
 }
 
-// Registrar un usuario
+// Helpers
+function isValidDateYYYYMMDD(s) {
+  if (!s || typeof s !== 'string') return false;
+  const m = s.match(/^\d{4}-\d{2}-\d{2}$/);
+  if (!m) return false;
+  const d = new Date(s);
+  return !isNaN(d.getTime());
+}
+
+// Registrar un usuario (requiere id_rol según esquema)
 const registrarUsuario = async (req, res) => {
   try {
-    const { dni, contrasena } = req.body;
+    const { dni, contrasena, id_rol } = req.body || {};
 
     // Validaciones
     if (!isValidDni(dni)) {
@@ -32,6 +40,9 @@ const registrarUsuario = async (req, res) => {
     }
     if (!isSafePassword(contrasena)) {
       return res.status(400).json({ error: "Contraseña insegura o inválida." });
+    }
+    if (id_rol === undefined || id_rol === null || Number.isNaN(Number(id_rol))) {
+      return res.status(400).json({ error: "id_rol es obligatorio y debe ser numérico" });
     }
 
     // encriptar contraseña
@@ -41,7 +52,7 @@ const registrarUsuario = async (req, res) => {
     const { data: existingUser, error: findErr } = await supabaseAdmin
       .from('usuarios')
       .select('id_usuario, dni')
-      .eq('dni', dni)
+      .eq('dni', Number(dni))
       .limit(1)
       .maybeSingle();
 
@@ -55,11 +66,11 @@ const registrarUsuario = async (req, res) => {
     }
 
     // Insertar el nuevo usuario con Supabase — usamos password_hash de acuerdo al esquema
-    const payload = { dni: Number(dni), password_hash: hash };
+    const payload = { dni: Number(dni), password_hash: hash, id_rol: Number(id_rol) };
     const { data: insertData, error: insertErr } = await supabaseAdmin
       .from('usuarios')
       .insert([payload])
-      .select('id_usuario, dni')
+      .select('id_usuario, dni, id_rol')
       .maybeSingle();
 
     if (insertErr) {
@@ -73,14 +84,14 @@ const registrarUsuario = async (req, res) => {
   }
 };
 
-// Login: valida credenciales y devuelve JWT
+// Login: valida credenciales y devuelve JWT + flags de primer login/perfil incompleto
 const loginUsuario = async (req, res) => {
   try {
     const { dni, contrasena } = req.body || {};
     if (!dni || !contrasena) return res.status(400).json({ error: 'Faltan credenciales' });
     const { data: user, error: findErr } = await supabaseAdmin
       .from('usuarios')
-      .select('id_usuario, dni, password_hash')
+      .select('id_usuario, dni, password_hash, activo, id_rol')
       .eq('dni', Number(dni))
       .limit(1)
       .maybeSingle();
@@ -91,18 +102,123 @@ const loginUsuario = async (req, res) => {
     }
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const match = await bcrypt.compare(contrasena, user.password_hash || '');
-    if (!match) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (user.activo === false) {
+      return res.status(403).json({ error: 'Usuario inactivo' });
+    }
+
+    const DEFAULT_PWD = 'estimular_2025';
+    let match = false;
+    if (!user.password_hash) {
+      // Migración: si no hay hash y la contraseña es la default, setear hash y continuar
+      if (String(contrasena) === DEFAULT_PWD) {
+        const newHash = await bcrypt.hash(DEFAULT_PWD, 12);
+        const { error: updPwdErr } = await supabaseAdmin
+          .from('usuarios')
+          .update({ password_hash: newHash })
+          .eq('id_usuario', user.id_usuario);
+        if (updPwdErr) {
+          console.error('Error setting default password hash during login:', updPwdErr);
+          return res.status(500).json({ error: 'No se pudo validar credenciales' });
+        }
+        match = true;
+      } else {
+        return res.status(401).json({ error: 'Credenciales inválidas' });
+      }
+    } else {
+      match = await bcrypt.compare(contrasena, user.password_hash || '');
+      if (!match) return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
     const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
     const token = jwt.sign({ id: user.id_usuario, dni: user.dni }, secret, {
       expiresIn: '8h',
     });
 
-    res.json({ success: true, token, user: { id: user.id_usuario, dni: user.dni } });
+    // Detectar primer login por uso de contraseña por defecto
+    const firstLogin = String(contrasena) === DEFAULT_PWD;
+
+    // Verificar si el perfil del equipo está incompleto
+    let needsProfile = false;
+    try {
+      const { data: eq, error: eqErr } = await supabaseAdmin
+        .from('equipo')
+        .select('nombre, apellido, telefono')
+        .eq('id_profesional', user.id_usuario)
+        .maybeSingle();
+      if (!eqErr && eq) {
+        const falta = [eq.nombre, eq.apellido, eq.telefono].some((v) => v === null || v === undefined || String(v).trim() === '');
+        needsProfile = falta;
+      } else if (!eqErr && !eq) {
+        // No existe fila en equipo aún => necesita completar
+        needsProfile = true;
+      }
+    } catch (_) { }
+
+    res.json({ success: true, token, user: { id: user.id_usuario, dni: user.dni }, firstLogin, needsProfile });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-module.exports = { registrarUsuario, loginUsuario };
+// Primer registro: completa datos de equipo y cambia contraseña
+const primerRegistro = async (req, res) => {
+  try {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Token requerido' });
+    const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
+    let payload;
+    try {
+      payload = jwt.verify(token, secret);
+    } catch (e) {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+    const userId = payload.id;
+
+    const { nombre, apellido, telefono, fecha_nacimiento, profesion, nuevaContrasena } = req.body || {};
+
+    if (!nombre || !apellido || !telefono || !nuevaContrasena || !fecha_nacimiento) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios (nombre, apellido, telefono, fecha_nacimiento, nuevaContrasena)' });
+    }
+    if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
+      return res.status(400).json({ error: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
+    }
+
+    // 1) Upsert de equipo
+    const equipoPayload = {
+      id_profesional: userId,
+      nombre,
+      apellido,
+      telefono,
+      fecha_nacimiento: String(fecha_nacimiento),
+      profesion: profesion || null,
+    };
+    // Intentar update, si 0 rows => insert
+    const { data: updatedEq, error: updErr } = await supabaseAdmin
+      .from('equipo')
+      .upsert([equipoPayload], { onConflict: 'id_profesional' })
+      .select('id_profesional, nombre, apellido, telefono, fecha_nacimiento, profesion')
+      .maybeSingle();
+    if (updErr) {
+      console.error('primerRegistro upsert equipo error:', updErr);
+      return res.status(500).json({ error: 'No se pudo actualizar equipo' });
+    }
+
+    // 2) Cambiar contraseña
+    const hash = await bcrypt.hash(String(nuevaContrasena), 12);
+    const { error: pwdErr } = await supabaseAdmin
+      .from('usuarios')
+      .update({ password_hash: hash })
+      .eq('id_usuario', userId);
+    if (pwdErr) {
+      console.error('primerRegistro update password error:', pwdErr);
+      return res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
+    }
+
+    return res.json({ success: true, data: updatedEq });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { registrarUsuario, loginUsuario, primerRegistro };

@@ -1,0 +1,232 @@
+/* Este CSS usa las variables globales definidas en index.css (colores de Estimular) */
+
+/* layout */
+.login-root {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: var(--bg);
+}
+.login-left {
+  position: relative;
+  padding: 48px 56px;
+  /* Degradado suave en la línea de la marca (rosas) */
+  background: linear-gradient(
+    135deg,
+    rgba(240, 139, 189, 0.14),
+    rgba(233, 30, 99, 0.18)
+  );
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--color-rosa1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  overflow: hidden;
+}
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.brand-text h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-text);
+}
+.brand-text p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.left-content {
+  margin-top: 64px;
+  max-width: 540px;
+}
+.left-content h1 {
+  font-size: 40px;
+  line-height: 1.15;
+  color: var(--color-text);
+  margin: 0 0 16px;
+}
+.left-content h1 span {
+  color: var(--color-rosa1);
+}
+.left-content p {
+  color: #4b3d54;
+}
+.left-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 24px;
+  color: #6e5f78;
+  font-size: 12px;
+}
+
+.login-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  width: 420px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 28px 28px 24px;
+  border: 1px solid var(--neutral-300);
+}
+.login-card h2 {
+  margin: 0 0 4px;
+  color: var(--color-text);
+}
+.subtitle {
+  margin: 0 0 16px;
+  color: #806e8d;
+  font-size: 14px;
+}
+.alert-error {
+  background: #ffe7ea;
+  color: #8a0030;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #ffccd3;
+}
+.alert-ok {
+  background: #e8ffee;
+  color: #0a8a36;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #baf7cd;
+}
+
+label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  color: #594a63;
+  font-weight: 600;
+}
+input,
+select {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--color-rosa1);
+  padding: 0 12px;
+  outline: none;
+  transition: box-shadow 0.2s ease;
+}
+input:focus {
+  box-shadow: 0 0 0 3px rgba(233, 30, 99, 0.16);
+}
+
+/* campo de contraseña con botón ver/ocultar */
+.password-field {
+  position: relative;
+}
+.password-field input {
+  padding-right: 40px; /* espacio para el ojo */
+}
+.toggle-visibility {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #806e8d;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.toggle-visibility:hover {
+  background: rgba(233, 30, 99, 0.08);
+  color: var(--color-rosa1);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.login-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6f5f7a;
+  font-size: 14px;
+}
+.link {
+  color: var(--color-rosa1);
+  text-decoration: none;
+}
+
+.btn-primary {
+  width: 100%;
+  height: 46px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--pink-1), var(--color-rosa1));
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 8px 18px var(--color-sombra-footer);
+  cursor: pointer;
+}
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.help-note {
+  margin-top: 10px;
+  color: #6f5f7a;
+  font-size: 14px;
+  text-indent: 2px;
+  margin-left: 2px;
+}
+
+.secure-note {
+  margin-top: 6px;
+  color: #8a7a95;
+  font-size: 12px;
+  text-indent: 2px;
+  margin-left: 2px;
+}
+
+@media (max-width: 900px) {
+  .login-root {
+    grid-template-columns: 1fr;
+  }
+  .login-left {
+    display: none;
+  }
+  .login-card {
+    width: min(92vw, 460px);
+  }
+}

@@ -52,13 +52,27 @@ const listEquipo = async (req, res) => {
     }
 };
 
+function isValidDateYYYYMMDD(s) {
+    if (!s || typeof s !== 'string') return false;
+    const m = s.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (!m) return false;
+    const d = new Date(s);
+    return !isNaN(d.getTime());
+}
+
 // POST /api/equipo
-// body: { nombre, apellido, telefono?, email?, fecha_nacimiento, foto_perfil?, profesion?, dni, contrasena, rol? }
+// body: { nombre, apellido, telefono?, email?, fecha_nacimiento(YYYY-MM-DD), foto_perfil?, profesion?, dni, contrasena, id_rol }
 const crearIntegrante = async (req, res) => {
     const body = req.body || {};
-    const { nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil, profesion, dni, contrasena, rol } = body;
-    if (!nombre || !apellido || !dni || !contrasena) {
-        return res.status(400).json({ success: false, message: 'Faltan datos obligatorios (nombre, apellido, dni, contrasena)' });
+    const { nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil, profesion, dni, contrasena, id_rol } = body;
+    if (!nombre || !apellido || !dni || !contrasena || !id_rol || !fecha_nacimiento) {
+        return res.status(400).json({ success: false, message: 'Faltan datos obligatorios (nombre, apellido, dni, contrasena, id_rol, fecha_nacimiento)' });
+    }
+    if (!/^\d{7,15}$/.test(String(dni))) {
+        return res.status(400).json({ success: false, message: 'DNI inválido (7-15 dígitos)' });
+    }
+    if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
+        return res.status(400).json({ success: false, message: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
     }
 
     let insertedUsuario = null;
@@ -66,11 +80,11 @@ const crearIntegrante = async (req, res) => {
     try {
         // 1) Crear usuario (dni + hash)
         const hash = await bcrypt.hash(String(contrasena), 12);
-        const userPayload = { dni: Number(dni), password_hash: hash, rol: rol || null, activo: true };
+        const userPayload = { dni: Number(dni), password_hash: hash, activo: true, id_rol: Number(id_rol) };
         const { data: user, error: userErr } = await supabaseAdmin
             .from('usuarios')
             .insert([userPayload])
-            .select('id_usuario, dni, activo, rol')
+            .select('id_usuario, dni, activo, id_rol')
             .maybeSingle();
         if (userErr) throw userErr;
         insertedUsuario = user;
@@ -82,7 +96,7 @@ const crearIntegrante = async (req, res) => {
             apellido,
             telefono: telefono || null,
             email: email || null,
-            fecha_nacimiento: fecha_nacimiento ? new Date(fecha_nacimiento).toISOString().slice(0, 10) : null,
+            fecha_nacimiento: String(fecha_nacimiento),
             foto_perfil: foto_perfil || null,
             profesion: profesion || null,
         };
@@ -140,7 +154,7 @@ const editarIntegrante = async (req, res) => {
         if (usuarioUpd && Object.keys(usuarioUpd).length > 0) {
             const userPayload = {};
             if (usuarioUpd.dni !== undefined) userPayload.dni = Number(usuarioUpd.dni);
-            if (usuarioUpd.rol !== undefined) userPayload.rol = usuarioUpd.rol;
+            if (usuarioUpd.id_rol !== undefined) userPayload.id_rol = Number(usuarioUpd.id_rol);
             if (usuarioUpd.activo !== undefined) userPayload.activo = !!usuarioUpd.activo;
             if (usuarioUpd.contrasena) {
                 userPayload.password_hash = await bcrypt.hash(String(usuarioUpd.contrasena), 12);
@@ -150,7 +164,7 @@ const editarIntegrante = async (req, res) => {
                     .from('usuarios')
                     .update(userPayload)
                     .eq('id_usuario', Number(id_profesional))
-                    .select('id_usuario, dni, activo, rol')
+                    .select('id_usuario, dni, activo, id_rol')
                     .maybeSingle();
                 if (error) throw error;
                 updatedUser = data;

@@ -56,6 +56,7 @@ CREATE TABLE public.equipo (
   fecha_nacimiento date NOT NULL,
   foto_perfil text,
   profesion text,
+  activo boolean DEFAULT true,
   CONSTRAINT equipo_pkey PRIMARY KEY (id_profesional),
   CONSTRAINT equipo_id_profesional_fkey FOREIGN KEY (id_profesional) REFERENCES public.usuarios(id_usuario)
 );

@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import PrimerRegistro from "./pages/PrimerRegistro";
 import Entrevista from "./pages/Entrevista";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Ninos from "./pages/Ninos";
@@ -18,6 +20,8 @@ function App() {
           {/* Rutas publicas */}
           <Route path="/" element={<Landing />} />
           <Route path="/formulario-entrevista" element={<Entrevista />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/primer-registro" element={<PrimerRegistro />} />
           <Route
             path="/dashboard/*"
             element={
