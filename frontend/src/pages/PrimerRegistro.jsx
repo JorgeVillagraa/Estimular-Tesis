@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/Login.css";
 import useAuthStore from "../store/useAuthStore";
+import { IoEye, IoEyeOff } from "react-icons/io5";
 
 export default function PrimerRegistro() {
   const [form, setForm] = useState({
@@ -10,6 +11,8 @@ export default function PrimerRegistro() {
     apellido: "",
     telefono: "",
     fecha_nacimiento: "",
+    email: "",
+    tipoUsuario: "profesional",
     profesionId: "",
     fotoFile: null,
     fotoPreview: "",
@@ -20,15 +23,14 @@ export default function PrimerRegistro() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const navigate = useNavigate();
-  const { token, profile, updateProfile, setNeedsProfile } = useAuthStore(
-    (state) => ({
-      token: state.token,
-      profile: state.profile,
-      updateProfile: state.updateProfile,
-      setNeedsProfile: state.setNeedsProfile,
-    })
-  );
+  const token = useAuthStore((state) => state.token);
+  const profile = useAuthStore((state) => state.profile);
+  const needsProfile = useAuthStore((state) => state.needsProfile);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const setNeedsProfile = useAuthStore((state) => state.setNeedsProfile);
 
   useEffect(() => {
     if (profile) {
@@ -41,6 +43,8 @@ export default function PrimerRegistro() {
           (profile.fecha_nacimiento
             ? String(profile.fecha_nacimiento).slice(0, 10)
             : "") || "",
+        email: profile.email || "",
+        tipoUsuario: profile.tipo || "profesional",
         profesionId:
           profile.departamento_id ||
           profile.departamento?.id_departamento ||
@@ -65,8 +69,12 @@ export default function PrimerRegistro() {
     if (!useAuthStore.persist.hasHydrated()) return;
     if (!token) {
       navigate("/login", { replace: true });
+      return;
     }
-  }, [token, navigate]);
+    if (!needsProfile) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [token, needsProfile, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -74,6 +82,15 @@ export default function PrimerRegistro() {
     setOk("");
     if (!form.nombre || !form.apellido || !form.telefono) {
       setError("Completá nombre, apellido y teléfono");
+      return;
+    }
+    if (!form.email) {
+      setError("Ingresá tu email");
+      return;
+    }
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(form.email)) {
+      setError("Ingresá un email válido");
       return;
     }
     if (!form.fecha_nacimiento) {
@@ -84,7 +101,14 @@ export default function PrimerRegistro() {
       setError("La nueva contraseña no coincide");
       return;
     }
-    if (!form.profesionId) {
+    if (form.nuevaContrasena.trim().toLowerCase() === "estimular_2025") {
+      setError("Debes elegir una contraseña distinta a la genérica");
+      return;
+    }
+    if (
+      form.tipoUsuario === "profesional" &&
+      (!form.profesionId || Number.isNaN(Number(form.profesionId)))
+    ) {
       setError("Seleccioná tu profesión");
       return;
     }
@@ -97,8 +121,12 @@ export default function PrimerRegistro() {
           apellido: form.apellido,
           telefono: form.telefono,
           fecha_nacimiento: form.fecha_nacimiento,
-          tipoUsuario: "profesional",
-          profesionId: Number(form.profesionId),
+          email: form.email,
+          tipoUsuario: form.tipoUsuario,
+          profesionId:
+            form.tipoUsuario === "profesional"
+              ? Number(form.profesionId)
+              : null,
           foto_perfil: form.fotoPreview || null,
           nuevaContrasena: form.nuevaContrasena,
         }
@@ -172,6 +200,63 @@ export default function PrimerRegistro() {
             required
           />
 
+          <label>Email</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+
+          <div className="grid-2">
+            <div>
+              <label>Tipo de usuario</label>
+              <select
+                value={form.tipoUsuario}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    tipoUsuario: e.target.value,
+                    profesionId:
+                      e.target.value === "profesional" ? prev.profesionId : "",
+                  }))
+                }
+              >
+                <option value="profesional">Profesional</option>
+                <option value="secretario">Secretario/a</option>
+              </select>
+            </div>
+            {form.tipoUsuario === "profesional" ? (
+              <div>
+                <label>Profesión</label>
+                <select
+                  value={form.profesionId}
+                  onChange={(e) =>
+                    setForm({ ...form, profesionId: e.target.value })
+                  }
+                  required={form.tipoUsuario === "profesional"}
+                >
+                  <option value="">— Seleccionar —</option>
+                  {profesiones.map((p) => (
+                    <option key={p.id_departamento} value={p.id_departamento}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label style={{ visibility: "hidden" }}>Profesión</label>
+                <input
+                  type="text"
+                  disabled
+                  value="Secretaría"
+                  style={{ opacity: 0.6 }}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="grid-2">
             <div>
               <label>Foto de perfil</label>
@@ -225,47 +310,54 @@ export default function PrimerRegistro() {
                 required
               />
             </div>
-            <div>
-              <label>Profesión</label>
-              <select
-                value={form.profesionId}
-                onChange={(e) =>
-                  setForm({ ...form, profesionId: e.target.value })
-                }
-                required
-              >
-                <option value="">— Seleccionar —</option>
-                {profesiones.map((p) => (
-                  <option key={p.id_departamento} value={p.id_departamento}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           <div className="grid-2">
             <div>
               <label>Nueva contraseña</label>
-              <input
-                type="password"
-                value={form.nuevaContrasena}
-                onChange={(e) =>
-                  setForm({ ...form, nuevaContrasena: e.target.value })
-                }
-                required
-              />
+              <div className="password-field">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.nuevaContrasena}
+                  onChange={(e) =>
+                    setForm({ ...form, nuevaContrasena: e.target.value })
+                  }
+                  required
+                />
+                <button
+                  type="button"
+                  className="toggle-visibility"
+                  aria-label={
+                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  onClick={() => setShowPassword((prev) => !prev)}
+                >
+                  {showPassword ? <IoEyeOff size={20} /> : <IoEye size={20} />}
+                </button>
+              </div>
             </div>
             <div>
               <label>Confirmar contraseña</label>
-              <input
-                type="password"
-                value={form.confirmacion}
-                onChange={(e) =>
-                  setForm({ ...form, confirmacion: e.target.value })
-                }
-                required
-              />
+              <div className="password-field">
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  value={form.confirmacion}
+                  onChange={(e) =>
+                    setForm({ ...form, confirmacion: e.target.value })
+                  }
+                  required
+                />
+                <button
+                  type="button"
+                  className="toggle-visibility"
+                  aria-label={
+                    showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  onClick={() => setShowConfirm((prev) => !prev)}
+                >
+                  {showConfirm ? <IoEyeOff size={20} /> : <IoEye size={20} />}
+                </button>
+              </div>
             </div>
           </div>
 

@@ -32,6 +32,15 @@ export default function SidebarDashboard() {
     // 1) Profesión del perfil profesional si existe
     if (profile?.profesion) return profile.profesion;
     if (profile?.departamento?.nombre) return profile.departamento.nombre;
+    if (profile?.tipo) {
+      const normalizedTipo = String(profile.tipo).toLowerCase();
+      if (normalizedTipo === "secretario" || normalizedTipo === "secretaria") {
+        return "Secretaría";
+      }
+      if (normalizedTipo === "profesional" && profile?.departamento?.nombre) {
+        return profile.departamento.nombre;
+      }
+    }
     // 2) Rol asignado desde backend (string plano)
     if (user?.rol_nombre) return user.rol_nombre;
     // 3) Roles múltiples (si existen)
@@ -43,6 +52,7 @@ export default function SidebarDashboard() {
   }, [
     profile?.profesion,
     profile?.departamento?.nombre,
+    profile?.tipo,
     user?.rol_nombre,
     user?.roles,
   ]);

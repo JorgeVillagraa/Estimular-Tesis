@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../config/db');
+const { upsertWithIdentityOverride } = require('../utils/upsertWithIdentityOverride');
 const bcrypt = require('bcrypt');
 
 function sanitize(text = '') {
@@ -245,8 +246,7 @@ const crearIntegrante = async (req, res) => {
         }
 
         // Secretarios
-        const secretarioPayload = {
-            id: insertedUsuario.id_usuario,
+        const secretarioPayloadBase = {
             nombre,
             apellido,
             telefono: telefono || null,
@@ -255,11 +255,61 @@ const crearIntegrante = async (req, res) => {
             foto_perfil: foto_perfil || null,
         };
 
-        const { data: secretario, error: secretarioErr } = await supabaseAdmin
+        let secretario = null;
+        let secretarioErr = null;
+        let hasUsuarioIdColumn = true;
+
+        ({ data: secretario, error: secretarioErr } = await supabaseAdmin
             .from('secretarios')
-            .insert([secretarioPayload])
-            .select('id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
-            .maybeSingle();
+            .upsert([
+                {
+                    ...secretarioPayloadBase,
+                    usuario_id: insertedUsuario.id_usuario,
+                },
+            ], { onConflict: 'usuario_id', ignoreDuplicates: false })
+            .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+            .maybeSingle());
+
+        if (secretarioErr && secretarioErr.code === '42703') {
+            hasUsuarioIdColumn = false;
+            ({ data: secretario, error: secretarioErr } = await supabaseAdmin
+                .from('secretarios')
+                .upsert([
+                    {
+                        ...secretarioPayloadBase,
+                        id: insertedUsuario.id_usuario,
+                    },
+                ], { onConflict: 'id', ignoreDuplicates: false })
+                .select('id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                .maybeSingle());
+        }
+
+        if (secretarioErr && ['428C9'].includes(secretarioErr.code)) {
+            try {
+                const overridePayload = {
+                    id: insertedUsuario.id_usuario,
+                    nombre,
+                    apellido,
+                    telefono: telefono || null,
+                    email: email || null,
+                    fecha_nacimiento: String(fecha_nacimiento),
+                    foto_perfil: foto_perfil || null,
+                };
+                if (hasUsuarioIdColumn) {
+                    overridePayload.usuario_id = insertedUsuario.id_usuario;
+                }
+
+                secretario = await upsertWithIdentityOverride(
+                    'secretarios',
+                    overridePayload,
+                    { onConflict: 'id' }
+                );
+                secretarioErr = null;
+            } catch (overrideErr) {
+                secretarioErr = overrideErr;
+            }
+        }
+
         if (secretarioErr) throw secretarioErr;
 
         return res.status(201).json({ success: true, data: secretario });

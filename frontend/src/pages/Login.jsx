@@ -70,11 +70,13 @@ export default function Login() {
             lejos camina <span>acompañado</span>.
           </h1>
           <p>
-            Plataforma de gestión para profesionales.
-            Acceso seguro a turnos, historias y seguimiento.
+            Plataforma de gestión para profesionales. Acceso seguro a turnos,
+            historias y seguimiento.
           </p>
         </div>
-        <div className="left-footer">© Estimular {new Date().getFullYear()}</div>
+        <div className="left-footer">
+          © Estimular {new Date().getFullYear()}
+        </div>
       </div>
 
       <div className="login-right">

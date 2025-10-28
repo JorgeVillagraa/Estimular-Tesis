@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import axios from "axios";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -18,18 +20,28 @@ import AsignarEntrevista from "./pages/AsignarEntrevista";
 import EquipoEstimular from "./pages/EquipoEstimular";
 import useAuthStore from "./store/useAuthStore";
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, allowIncompleteProfile = false }) {
   const token = useAuthStore((state) => state.token);
+  const needsProfile = useAuthStore((state) => state.needsProfile);
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }
+
+  if (!allowIncompleteProfile && needsProfile) {
+    return <Navigate to="/primer-registro" replace />;
+  }
+
   return children;
 }
 
 function PublicOnlyRoute({ children }) {
   const token = useAuthStore((state) => state.token);
+  const needsProfile = useAuthStore((state) => state.needsProfile);
   if (token) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate to={needsProfile ? "/primer-registro" : "/dashboard"} replace />
+    );
   }
   return children;
 }
@@ -66,6 +78,43 @@ function DashboardRoutes() {
 }
 
 export default function App() {
+  const token = useAuthStore((state) => state.token);
+  const setProfile = useAuthStore((state) => state.setProfile);
+  const setUser = useAuthStore((state) => state.setUser);
+  const setNeedsProfile = useAuthStore((state) => state.setNeedsProfile);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+
+    const fetchProfile = async () => {
+      try {
+        const { data } = await axios.get("http://localhost:5000/api/login/me");
+        if (cancelled || !data) return;
+        if (data.profile && typeof setProfile === "function") {
+          setProfile(data.profile);
+        }
+        if (data.user && typeof setUser === "function") {
+          setUser(data.user);
+        }
+        if (
+          typeof setNeedsProfile === "function" &&
+          data.needsProfile !== undefined
+        ) {
+          setNeedsProfile(!!data.needsProfile);
+        }
+      } catch (err) {
+        console.warn("No se pudo actualizar la sesión", err);
+      }
+    };
+
+    fetchProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, setProfile, setUser, setNeedsProfile]);
+
   return (
     <Router>
       <Routes>
@@ -82,7 +131,7 @@ export default function App() {
         <Route
           path="/primer-registro"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowIncompleteProfile>
               <PrimerRegistro />
             </ProtectedRoute>
           }

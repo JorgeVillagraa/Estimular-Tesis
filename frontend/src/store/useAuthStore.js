@@ -33,6 +33,16 @@ const useAuthStore = create(
                         : { ...profileDelta },
                 }));
             },
+            setProfile: (profile) => set(() => ({ profile: profile ?? null })),
+            setUser: (user) => set(() => ({ user: user ?? null })),
+            updateUser: (userDelta) => {
+                if (!userDelta) return;
+                set((state) => ({
+                    user: state.user
+                        ? { ...state.user, ...userDelta }
+                        : { ...userDelta },
+                }));
+            },
             setNeedsProfile: (value) => set(() => ({ needsProfile: value })),
             clearAuth: () => {
                 applyAuthHeader(null);

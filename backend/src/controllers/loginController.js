@@ -1,6 +1,9 @@
 const { supabaseAdmin } = require('../config/db');
+const { upsertWithIdentityOverride } = require('../utils/upsertWithIdentityOverride');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD_LOGIN || 'estimular_2025';
 
 // Función para validar DNI
 function isValidDni(dni) {
@@ -105,11 +108,23 @@ async function fetchProfessionalProfile(idUsuario) {
 
 async function fetchSecretaryProfile(idUsuario) {
   try {
-    const { data, error } = await supabaseAdmin
+    let data = null;
+    let error = null;
+
+    ({ data, error } = await supabaseAdmin
       .from('secretarios')
-      .select('id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
-      .eq('id', Number(idUsuario))
-      .maybeSingle();
+      .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+      .eq('usuario_id', Number(idUsuario))
+      .maybeSingle());
+
+    if (error && ['42703', 'PGRST204'].includes(error.code)) {
+      ({ data, error } = await supabaseAdmin
+        .from('secretarios')
+        .select('id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+        .eq('id', Number(idUsuario))
+        .maybeSingle());
+    }
+
     if (error) {
       if (error.code !== 'PGRST116') {
         console.error('fetchSecretaryProfile error:', error);
@@ -119,7 +134,7 @@ async function fetchSecretaryProfile(idUsuario) {
     if (!data) return null;
     return {
       tipo: 'secretario',
-      id_secretario: data.id,
+      id_secretario: data.usuario_id ?? data.id,
       nombre: data.nombre,
       apellido: data.apellido,
       telefono: data.telefono,
@@ -143,7 +158,13 @@ async function fetchUserProfile(idUsuario) {
 
 function computeNeedsProfile(perfil) {
   if (!perfil) return true;
-  const required = [perfil.nombre, perfil.apellido, perfil.telefono, perfil.fecha_nacimiento];
+  const required = [
+    perfil.nombre,
+    perfil.apellido,
+    perfil.telefono,
+    perfil.fecha_nacimiento,
+    perfil.email,
+  ];
   if (required.some((value) => value === null || value === undefined || String(value).trim() === '')) {
     return true;
   }
@@ -347,11 +368,10 @@ const loginUsuario = async (req, res) => {
       return res.status(403).json({ error: 'Usuario inactivo' });
     }
 
-    const DEFAULT_PWD = 'estimular_2025';
     let match = false;
     if (!user.password_hash) {
-      if (String(contrasena) === DEFAULT_PWD) {
-        const newHash = await bcrypt.hash(DEFAULT_PWD, 12);
+      if (String(contrasena) === DEFAULT_PASSWORD) {
+        const newHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
         const { error: updPwdErr } = await supabaseAdmin
           .from('usuarios')
           .update({ password_hash: newHash })
@@ -374,7 +394,7 @@ const loginUsuario = async (req, res) => {
       expiresIn: '8h',
     });
 
-    const firstLogin = String(contrasena) === DEFAULT_PWD;
+    const firstLogin = String(contrasena) === DEFAULT_PASSWORD;
 
     const [perfil, roles] = await Promise.all([
       fetchUserProfile(user.id_usuario),
@@ -431,11 +451,18 @@ const primerRegistro = async (req, res) => {
       nuevaContrasena,
     } = req.body || {};
 
-    if (!nombre || !apellido || !telefono || !nuevaContrasena || !fecha_nacimiento) {
-      return res.status(400).json({ error: 'Faltan datos obligatorios (nombre, apellido, telefono, fecha_nacimiento, nuevaContrasena)' });
+    if (!nombre || !apellido || !telefono || !nuevaContrasena || !fecha_nacimiento || !email) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios (nombre, apellido, telefono, email, fecha_nacimiento, nuevaContrasena)' });
     }
     if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
       return res.status(400).json({ error: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
+    }
+
+    if (!isSafePassword(String(nuevaContrasena))) {
+      return res.status(400).json({ error: 'La nueva contraseña es insegura o inválida' });
+    }
+    if (String(nuevaContrasena) === DEFAULT_PASSWORD) {
+      return res.status(400).json({ error: 'Debes elegir una contraseña distinta a la genérica' });
     }
 
     let resolvedTipo = null;
@@ -486,15 +513,52 @@ const primerRegistro = async (req, res) => {
       // ignorar
     }
 
+    let existingSecretario = null;
+    let secretariosHasUsuarioIdColumn = true;
+    if (resolvedTipo === 'secretario') {
+      try {
+        const { data: secRow, error: secErr } = await supabaseAdmin
+          .from('secretarios')
+          .select('id, usuario_id, foto_perfil')
+          .eq('usuario_id', Number(userId))
+          .maybeSingle();
+        if (!secErr || secErr.code === 'PGRST116') {
+          existingSecretario = secRow || null;
+          secretariosHasUsuarioIdColumn = true;
+        } else if (secErr && ['42703', 'PGRST204'].includes(secErr.code)) {
+          secretariosHasUsuarioIdColumn = false;
+        }
+      } catch (e) {
+        secretariosHasUsuarioIdColumn = false;
+      }
+
+      if (!secretariosHasUsuarioIdColumn) {
+        try {
+          const { data: secRowById, error: secErrById } = await supabaseAdmin
+            .from('secretarios')
+            .select('id, foto_perfil')
+            .eq('id', Number(userId))
+            .maybeSingle();
+          if (!secErrById || secErrById.code === 'PGRST116') {
+            existingSecretario = secRowById || existingSecretario;
+          }
+        }
+        catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    let uploadedFotoUrl = null;
+    if (foto_perfil && typeof foto_perfil === 'string' && foto_perfil.startsWith('data:image')) {
+      uploadedFotoUrl = await uploadProfileImageIfNeeded(userId, foto_perfil);
+    }
+
     if (resolvedTipo === 'profesional') {
       if (existingProfesional && isProfessionalProfileComplete(existingProfesional)) {
         return res.status(409).json({ error: 'El perfil ya fue completado' });
       }
 
-      let fotoUrl = null;
-      if (foto_perfil && typeof foto_perfil === 'string' && foto_perfil.startsWith('data:image')) {
-        fotoUrl = await uploadProfileImageIfNeeded(userId, foto_perfil);
-      }
       const profesionalPayload = {
         id_profesional: userId,
         nombre,
@@ -502,7 +566,7 @@ const primerRegistro = async (req, res) => {
         telefono,
         email: email || null,
         fecha_nacimiento: String(fecha_nacimiento),
-        foto_perfil: fotoUrl || foto_perfil || existingProfesional?.foto_perfil || null,
+        foto_perfil: uploadedFotoUrl || foto_perfil || existingProfesional?.foto_perfil || null,
         id_departamento: resolvedProfesionId,
       };
 
@@ -525,20 +589,48 @@ const primerRegistro = async (req, res) => {
       }
     } else {
       const secretarioPayload = {
-        id: userId,
         nombre,
         apellido,
         telefono,
         email: email || null,
         fecha_nacimiento: String(fecha_nacimiento),
-        foto_perfil: (foto_perfil && foto_perfil.startsWith('data:image'))
-          ? (await uploadProfileImageIfNeeded(userId, foto_perfil))
-          : (foto_perfil || null),
+        foto_perfil: uploadedFotoUrl || foto_perfil || existingSecretario?.foto_perfil || null,
       };
 
-      const { error: secretarioErr } = await supabaseAdmin
+      if (secretariosHasUsuarioIdColumn) {
+        secretarioPayload.usuario_id = userId;
+      }
+
+      let secretarioErr = null;
+      ({ error: secretarioErr } = await supabaseAdmin
         .from('secretarios')
-        .upsert([secretarioPayload], { onConflict: 'id' });
+        .upsert([secretarioPayload], {
+          onConflict: secretariosHasUsuarioIdColumn ? 'usuario_id' : 'id',
+          ignoreDuplicates: false,
+        }));
+
+      if (secretarioErr && ['42703', '428C9', 'PGRST204'].includes(secretarioErr.code)) {
+        try {
+          const overridePayload = {
+            id: userId,
+            nombre,
+            apellido,
+            telefono,
+            email: email || null,
+            fecha_nacimiento: String(fecha_nacimiento),
+            foto_perfil: uploadedFotoUrl || foto_perfil || existingSecretario?.foto_perfil || null,
+          };
+          if (secretariosHasUsuarioIdColumn) {
+            overridePayload.usuario_id = userId;
+          }
+
+          await upsertWithIdentityOverride('secretarios', overridePayload, { onConflict: 'id' });
+          secretarioErr = null;
+        } catch (overrideErr) {
+          secretarioErr = overrideErr;
+        }
+      }
+
       if (secretarioErr) {
         console.error('primerRegistro upsert secretarios error:', secretarioErr);
         return res.status(500).json({ error: 'No se pudo actualizar el perfil de secretario' });
@@ -559,6 +651,286 @@ const primerRegistro = async (req, res) => {
     return res.json({ success: true, profile: perfil });
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+};
+
+const actualizarPerfil = async (req, res) => {
+  try {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ error: 'Token requerido' });
+    const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
+    let payload;
+    try {
+      payload = jwt.verify(token, secret);
+    } catch (e) {
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    const userId = payload.id;
+    const {
+      nombre,
+      apellido,
+      telefono,
+      fecha_nacimiento,
+      email,
+      profesionId,
+      tipoUsuario,
+      foto_perfil,
+      removeFoto,
+    } = req.body || {};
+
+    const currentProfile = await fetchUserProfile(userId);
+    if (!currentProfile) {
+      return res.status(404).json({ error: 'Perfil no encontrado para el usuario' });
+    }
+
+    let resolvedTipo = null;
+    if (typeof tipoUsuario === 'string' && tipoUsuario.trim()) {
+      resolvedTipo = tipoUsuario.trim().toLowerCase();
+    } else if (currentProfile?.tipo) {
+      resolvedTipo = currentProfile.tipo;
+    } else if (profesionId !== undefined && profesionId !== null && profesionId !== '') {
+      resolvedTipo = 'profesional';
+    } else {
+      resolvedTipo = 'secretario';
+    }
+
+    if (resolvedTipo !== 'profesional' && resolvedTipo !== 'secretario') {
+      return res.status(400).json({ error: 'Tipo de usuario inválido' });
+    }
+
+    if (currentProfile?.tipo && resolvedTipo !== currentProfile.tipo) {
+      resolvedTipo = currentProfile.tipo;
+    }
+
+    let fotoUrlToStore;
+    if (removeFoto === true) {
+      fotoUrlToStore = null;
+    }
+    if (foto_perfil !== undefined) {
+      if (typeof foto_perfil === 'string' && foto_perfil.startsWith('data:image')) {
+        fotoUrlToStore = await uploadProfileImageIfNeeded(userId, foto_perfil);
+      } else if (foto_perfil === null || (typeof foto_perfil === 'string' && foto_perfil.trim() === '')) {
+        fotoUrlToStore = null;
+      } else if (typeof foto_perfil === 'string') {
+        fotoUrlToStore = foto_perfil;
+      }
+    }
+
+    if (resolvedTipo === 'profesional') {
+      const updatePayload = {};
+      if (nombre !== undefined) updatePayload.nombre = nombre;
+      if (apellido !== undefined) updatePayload.apellido = apellido;
+      if (telefono !== undefined) updatePayload.telefono = telefono;
+      if (email !== undefined) updatePayload.email = email || null;
+
+      if (fecha_nacimiento !== undefined) {
+        if (!fecha_nacimiento || String(fecha_nacimiento).trim() === '') {
+          return res.status(400).json({ error: 'fecha_nacimiento es obligatorio para profesionales' });
+        }
+        if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
+          return res.status(400).json({ error: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
+        }
+        updatePayload.fecha_nacimiento = String(fecha_nacimiento);
+      }
+
+      let departamentoToAssign = null;
+      let shouldUpdateDepartment = false;
+      if (profesionId !== undefined) {
+        shouldUpdateDepartment = true;
+        if (profesionId === null || profesionId === '') {
+          departamentoToAssign = null;
+          updatePayload.id_departamento = null;
+        } else {
+          const parsedProf = Number(profesionId);
+          if (Number.isNaN(parsedProf)) {
+            return res.status(400).json({ error: 'profesionId inválido' });
+          }
+          departamentoToAssign = parsedProf;
+          updatePayload.id_departamento = parsedProf;
+        }
+      }
+
+      if (fotoUrlToStore !== undefined) {
+        updatePayload.foto_perfil = fotoUrlToStore;
+      }
+
+      if (Object.keys(updatePayload).length === 0 && !shouldUpdateDepartment) {
+        return res.status(400).json({ error: 'No hay cambios para actualizar' });
+      }
+
+      if (Object.keys(updatePayload).length > 0) {
+        const { data: updatedProfesional, error: profesionalErr } = await supabaseAdmin
+          .from('profesionales')
+          .update(updatePayload)
+          .eq('id_profesional', Number(userId))
+          .select('id_profesional')
+          .maybeSingle();
+
+        if (profesionalErr) {
+          if (profesionalErr.code === 'PGRST116') {
+            return res.status(404).json({ error: 'Perfil profesional no encontrado' });
+          }
+          console.error('actualizarPerfil profesionales error:', profesionalErr);
+          return res.status(500).json({ error: 'No se pudo actualizar el perfil profesional' });
+        }
+
+        if (!updatedProfesional) {
+          return res.status(404).json({ error: 'Perfil profesional no encontrado' });
+        }
+      }
+
+      if (shouldUpdateDepartment) {
+        if (departamentoToAssign === null) {
+          const { error: delErr } = await supabaseAdmin
+            .from('profesional_departamentos')
+            .delete()
+            .eq('profesional_id', Number(userId));
+          if (delErr && delErr.code !== 'PGRST116') {
+            console.warn('actualizarPerfil delete profesional_departamentos warn:', delErr.message);
+          }
+        } else {
+          const { error: linkErr } = await supabaseAdmin
+            .from('profesional_departamentos')
+            .upsert(
+              [{ profesional_id: Number(userId), departamento_id: departamentoToAssign }],
+              { onConflict: 'profesional_id,departamento_id' }
+            );
+          if (linkErr && linkErr.code !== '23505') {
+            console.warn('actualizarPerfil profesional_departamentos warning:', linkErr.message);
+          }
+        }
+      }
+    } else {
+      const secretarioPayload = {};
+      if (nombre !== undefined) secretarioPayload.nombre = nombre;
+      if (apellido !== undefined) secretarioPayload.apellido = apellido;
+      if (telefono !== undefined) secretarioPayload.telefono = telefono;
+      if (email !== undefined) secretarioPayload.email = email || null;
+      if (fecha_nacimiento !== undefined) {
+        if (fecha_nacimiento) {
+          if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
+            return res.status(400).json({ error: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
+          }
+          secretarioPayload.fecha_nacimiento = String(fecha_nacimiento);
+        } else {
+          secretarioPayload.fecha_nacimiento = null;
+        }
+      }
+      if (fotoUrlToStore !== undefined) {
+        secretarioPayload.foto_perfil = fotoUrlToStore;
+      }
+
+      if (Object.keys(secretarioPayload).length === 0) {
+        return res.status(400).json({ error: 'No hay cambios para actualizar' });
+      }
+
+      let secretariosHasUsuarioIdColumn = true;
+      let secretarioErr = null;
+      const basePayload = { ...secretarioPayload };
+
+      try {
+        const { error: upsertErr } = await supabaseAdmin
+          .from('secretarios')
+          .upsert(
+            [
+              {
+                ...basePayload,
+                usuario_id: Number(userId),
+              },
+            ],
+            { onConflict: 'usuario_id', ignoreDuplicates: false }
+          );
+        secretarioErr = upsertErr || null;
+      } catch (err) {
+        secretarioErr = err;
+      }
+
+      if (secretarioErr && ['42703', 'PGRST204'].includes(secretarioErr.code)) {
+        secretariosHasUsuarioIdColumn = false;
+        secretarioErr = null;
+        try {
+          const { error: upsertErrById } = await supabaseAdmin
+            .from('secretarios')
+            .upsert(
+              [
+                {
+                  ...basePayload,
+                  id: Number(userId),
+                },
+              ],
+              { onConflict: 'id', ignoreDuplicates: false }
+            );
+          secretarioErr = upsertErrById || null;
+        } catch (err) {
+          secretarioErr = err;
+        }
+      }
+
+      if (secretarioErr && ['428C9', 'PGRST204'].includes(secretarioErr.code)) {
+        try {
+          await upsertWithIdentityOverride(
+            'secretarios',
+            [
+              {
+                ...basePayload,
+                id: Number(userId),
+                ...(secretariosHasUsuarioIdColumn ? { usuario_id: Number(userId) } : {}),
+              },
+            ],
+            { onConflict: 'id' }
+          );
+          secretarioErr = null;
+        } catch (overrideErr) {
+          secretarioErr = overrideErr;
+        }
+      }
+
+      if (secretarioErr) {
+        console.error('actualizarPerfil secretarios error:', secretarioErr);
+        return res.status(500).json({ error: 'No se pudo actualizar el perfil de secretario' });
+      }
+    }
+
+    const [perfilActualizado, roles] = await Promise.all([
+      fetchUserProfile(userId),
+      fetchUserRoles(userId),
+    ]);
+
+    const { data: usuarioRow, error: usuarioErr } = await supabaseAdmin
+      .from('usuarios')
+      .select('id_usuario, dni, activo')
+      .eq('id_usuario', Number(userId))
+      .maybeSingle();
+
+    if (usuarioErr) {
+      console.error('actualizarPerfil usuario error:', usuarioErr);
+    }
+
+    const rolNombre = roles[0]?.nombre || null;
+
+    return res.json({
+      success: true,
+      profile: perfilActualizado,
+      user: usuarioRow
+        ? {
+          id: usuarioRow.id_usuario,
+          dni: usuarioRow.dni,
+          activo: usuarioRow.activo,
+          id_rol: roles[0]?.id ?? null,
+          rol_nombre: rolNombre,
+          roles,
+        }
+        : {
+          id: userId,
+          id_rol: roles[0]?.id ?? null,
+          rol_nombre: rolNombre,
+          roles,
+        },
+    });
+  } catch (err) {
+    console.error('actualizarPerfil exception:', err);
+    return res.status(500).json({ error: err.message || 'Error al actualizar el perfil' });
   }
 };
 
@@ -615,4 +987,4 @@ const obtenerPerfilActual = async (req, res) => {
   }
 };
 
-module.exports = { registrarUsuario, loginUsuario, primerRegistro, obtenerPerfilActual };
+module.exports = { registrarUsuario, loginUsuario, primerRegistro, actualizarPerfil, obtenerPerfilActual };
