@@ -3,6 +3,13 @@ const { upsertWithIdentityOverride } = require('../utils/upsertWithIdentityOverr
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
+const SUPABASE_SERVICE_ROLE_KEY = (
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  ''
+).trim();
+
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD_LOGIN || 'estimular_2025';
 
 // Función para validar DNI
@@ -218,6 +225,70 @@ function parseDataUrlImage(dataUrl) {
   }
 }
 
+function buildStorageObjectUrl(bucket, path) {
+  const cleanedUrl = SUPABASE_URL.replace(/\/$/, '');
+  const encodedPath = path
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  return `${cleanedUrl}/storage/v1/object/${bucket}/${encodedPath}`;
+}
+
+async function uploadToStorageWithServiceRole(bucket, path, buffer, contentType) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('uploadToStorageWithServiceRole: falta SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY para subir archivos.');
+    return null;
+  }
+
+  if (typeof fetch !== 'function') {
+    console.error('uploadToStorageWithServiceRole: fetch API no disponible en este entorno.');
+    return null;
+  }
+
+  const endpoint = buildStorageObjectUrl(bucket, path);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': contentType || 'application/octet-stream',
+        'x-upsert': 'true',
+      },
+      body: buffer,
+    });
+
+    const text = await response.text();
+    let parsed = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch (err) {
+        parsed = null;
+      }
+    }
+
+    if (!response.ok) {
+      const err = new Error(
+        parsed?.message || parsed?.error?.message || parsed?.error_description || response.statusText
+      );
+      err.status = response.status;
+      err.code = parsed?.code;
+      err.details = parsed?.details;
+      console.error('uploadToStorageWithServiceRole fallo:', err.message, err.status, err.code);
+      throw err;
+    }
+
+    const storedPath = parsed?.Key || parsed?.key || path;
+    const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(storedPath);
+    return { publicUrl: data?.publicUrl || null, path: storedPath };
+  } catch (err) {
+    console.error('uploadToStorageWithServiceRole exception:', err);
+    return null;
+  }
+}
+
 async function uploadProfileImageIfNeeded(usuarioId, dataUrl) {
   const parsed = parseDataUrlImage(dataUrl);
   if (!parsed) return null;
@@ -231,7 +302,25 @@ async function uploadProfileImageIfNeeded(usuarioId, dataUrl) {
       .from(bucket)
       .upload(path, parsed.buffer, { contentType: parsed.contentType, upsert: true });
     if (upErr) {
+      const statusCode = upErr?.statusCode || upErr?.status || upErr?.code;
+      const message = upErr?.message || '';
       console.error('uploadProfileImageIfNeeded upload error:', upErr);
+
+      if (
+        statusCode === 403 ||
+        String(statusCode).startsWith('403') ||
+        message.toLowerCase().includes('row-level security')
+      ) {
+        const fallback = await uploadToStorageWithServiceRole(
+          bucket,
+          path,
+          parsed.buffer,
+          parsed.contentType
+        );
+        if (fallback?.publicUrl) {
+          return fallback.publicUrl;
+        }
+      }
       return null;
     }
     const { data } = supabaseAdmin.storage.from(bucket).getPublicUrl(path);
@@ -805,8 +894,14 @@ const actualizarPerfil = async (req, res) => {
       const secretarioPayload = {};
       if (nombre !== undefined) secretarioPayload.nombre = nombre;
       if (apellido !== undefined) secretarioPayload.apellido = apellido;
-      if (telefono !== undefined) secretarioPayload.telefono = telefono;
-      if (email !== undefined) secretarioPayload.email = email || null;
+      if (telefono !== undefined) {
+        const telefonoNormalizado = telefono === null ? null : String(telefono).trim();
+        secretarioPayload.telefono = !telefonoNormalizado ? null : telefonoNormalizado;
+      }
+      if (email !== undefined) {
+        const emailNormalizado = email === null ? null : String(email).trim();
+        secretarioPayload.email = emailNormalizado || null;
+      }
       if (fecha_nacimiento !== undefined) {
         if (fecha_nacimiento) {
           if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
@@ -825,68 +920,86 @@ const actualizarPerfil = async (req, res) => {
         return res.status(400).json({ error: 'No hay cambios para actualizar' });
       }
 
-      let secretariosHasUsuarioIdColumn = true;
-      let secretarioErr = null;
       const basePayload = { ...secretarioPayload };
+      const numericUserId = Number(userId);
+
+      let secretariosHasUsuarioIdColumn = true;
+      let existingSecretario = null;
 
       try {
-        const { error: upsertErr } = await supabaseAdmin
+        const { data: secretarioByUsuario, error: secretarioByUsuarioError } = await supabaseAdmin
           .from('secretarios')
-          .upsert(
-            [
-              {
-                ...basePayload,
-                usuario_id: Number(userId),
-              },
-            ],
-            { onConflict: 'usuario_id', ignoreDuplicates: false }
-          );
-        secretarioErr = upsertErr || null;
-      } catch (err) {
-        secretarioErr = err;
+          .select('id, usuario_id')
+          .eq('usuario_id', numericUserId)
+          .maybeSingle();
+
+        if (secretarioByUsuarioError && secretarioByUsuarioError.code !== 'PGRST116') {
+          if (['42703', 'PGRST204'].includes(secretarioByUsuarioError.code)) {
+            secretariosHasUsuarioIdColumn = false;
+          } else {
+            throw secretarioByUsuarioError;
+          }
+        } else if (secretarioByUsuario) {
+          existingSecretario = secretarioByUsuario;
+        }
+      } catch (lookupErr) {
+        if (lookupErr && ['42703', 'PGRST204'].includes(lookupErr.code)) {
+          secretariosHasUsuarioIdColumn = false;
+        } else {
+          console.warn('actualizarPerfil secretario lookup warn:', lookupErr);
+        }
       }
 
-      if (secretarioErr && ['42703', 'PGRST204'].includes(secretarioErr.code)) {
-        secretariosHasUsuarioIdColumn = false;
-        secretarioErr = null;
+      if (!existingSecretario) {
         try {
-          const { error: upsertErrById } = await supabaseAdmin
+          const { data: secretarioById, error: secretarioByIdError } = await supabaseAdmin
             .from('secretarios')
-            .upsert(
-              [
-                {
-                  ...basePayload,
-                  id: Number(userId),
-                },
-              ],
-              { onConflict: 'id', ignoreDuplicates: false }
-            );
-          secretarioErr = upsertErrById || null;
-        } catch (err) {
-          secretarioErr = err;
+            .select('id')
+            .eq('id', numericUserId)
+            .maybeSingle();
+
+          if (!secretarioByIdError || secretarioByIdError.code === 'PGRST116') {
+            existingSecretario = secretarioById || null;
+          } else if (!['42703', 'PGRST204'].includes(secretarioByIdError.code)) {
+            console.warn('actualizarPerfil secretario lookup by id warn:', secretarioByIdError);
+          }
+        } catch (lookupByIdErr) {
+          console.warn('actualizarPerfil secretario lookup by id exception:', lookupByIdErr);
         }
       }
 
-      if (secretarioErr && ['428C9', 'PGRST204'].includes(secretarioErr.code)) {
-        try {
-          await upsertWithIdentityOverride(
-            'secretarios',
-            [
-              {
-                ...basePayload,
-                id: Number(userId),
-                ...(secretariosHasUsuarioIdColumn ? { usuario_id: Number(userId) } : {}),
-              },
-            ],
-            { onConflict: 'id' }
-          );
-          secretarioErr = null;
-        } catch (overrideErr) {
-          secretarioErr = overrideErr;
-        }
-      }
+      try {
+        if (existingSecretario) {
+          const targetColumn = secretariosHasUsuarioIdColumn ? 'usuario_id' : 'id';
+          const { error: updateErr } = await supabaseAdmin
+            .from('secretarios')
+            .update(basePayload)
+            .eq(targetColumn, numericUserId);
 
-      if (secretarioErr) {
+          if (updateErr && updateErr.code !== 'PGRST116') {
+            if (['42703', 'PGRST204'].includes(updateErr.code)) {
+              secretariosHasUsuarioIdColumn = false;
+              existingSecretario = null;
+            } else {
+              throw updateErr;
+            }
+          }
+
+          if (updateErr && updateErr.code === 'PGRST116') {
+            existingSecretario = null;
+          }
+        }
+
+        if (!existingSecretario) {
+          const insertPayload = {
+            ...basePayload,
+            id: numericUserId,
+            ...(secretariosHasUsuarioIdColumn ? { usuario_id: numericUserId } : {}),
+          };
+
+          await upsertWithIdentityOverride('secretarios', insertPayload, { onConflict: 'id' });
+        }
+      } catch (secretarioErr) {
         console.error('actualizarPerfil secretarios error:', secretarioErr);
         return res.status(500).json({ error: 'No se pudo actualizar el perfil de secretario' });
       }
