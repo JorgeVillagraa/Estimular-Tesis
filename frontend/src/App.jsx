@@ -20,6 +20,7 @@ import ObrasSociales from "./pages/ObrasSociales";
 import Responsables from "./pages/Responsables";
 import AsignarEntrevista from "./pages/AsignarEntrevista";
 import EquipoEstimular from "./pages/EquipoEstimular";
+import Turnos from "./pages/Turnos";
 import useAuthStore from "./store/useAuthStore";
 
 function ProtectedRoute({ children, allowIncompleteProfile = false }) {
@@ -62,10 +63,7 @@ function DashboardRoutes() {
         <Route path="profesionales" element={<EquipoEstimular />} />
         <Route path="entrevistas" element={<AsignarEntrevista />} />
         <Route path="obras-sociales" element={<ObrasSociales />} />
-        <Route
-          path="turnos"
-          element={<div className="p-24">Turnos (placeholder)</div>}
-        />
+        <Route path="turnos" element={<Turnos />} />
         <Route
           path="pacientes"
           element={<div className="p-24">Pacientes (placeholder)</div>}
@@ -132,6 +130,14 @@ export default function App() {
           element={
             <ProtectedRoute allowIncompleteProfile>
               <PrimerRegistro />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/turnos"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard/turnos" replace />
             </ProtectedRoute>
           }
         />
