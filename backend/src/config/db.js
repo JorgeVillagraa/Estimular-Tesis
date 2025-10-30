@@ -1,24 +1,5 @@
-const { createClient } = require('@supabase/supabase-js');
-const mysql = require('mysql2/promise');
-require('dotenv').config();
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '12345678',
-  database: process.env.DB_NAME || 'estimular',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-pool.getConnection()
-  .then(connection => {
-    console.log('Conexión a la base de datos MySQL establecida con éxito.');
-    connection.release();
-  })
-  .catch(err => {
-    console.error('Error al conectar con la base de datos MySQL:', err.message);
-  });
+const { createClient } = require("@supabase/supabase-js");
+require("dotenv").config();
 
 // --- Supabase Client Initialization ---
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -27,13 +8,11 @@ const supabaseKey = process.env.SUPABASE_KEY;
 let supabase;
 if (supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey);
-  console.log('Supabase client initialized successfully.');
+  console.log("Supabase client initialized successfully.");
 } else {
-  console.warn('Supabase credentials not found. Supabase client will not be available.');
-  supabase = null;
+  console.error("Supabase credentials not found. Please check your .env file.");
+  // Exit gracefully if Supabase is not configured
+  process.exit(1);
 }
 
-
-pool.supabase = supabase;
-
-module.exports = pool;
+module.exports = supabase;

@@ -1,4 +1,4 @@
-const db = require("../config/db.js");
+const supabase = require("../config/db.js");
 const bcrypt = require("bcrypt");
 
 // Función para validar DNI
@@ -10,7 +10,7 @@ function isValidDni(dni) {
 function isSafePassword(pwd) {
   // Bloquea patrones comunes de inyección SQL y comandos peligrosos
   const forbidden = [
-    /('|--|;|\/\*|\*\/|xp_|exec|union|select|insert|delete|update|drop|alter|create|shutdown)/i
+    /('|--|;|\/\*|\*\/|xp_|exec|union|select|insert|delete|update|drop|alter|create|shutdown)/i,
   ];
   return (
     typeof pwd === "string" &&
@@ -26,7 +26,9 @@ const registrarUsuario = async (req, res) => {
 
     // Validaciones
     if (!isValidDni(dni)) {
-      return res.status(400).json({ error: "DNI inválido. Debe tener entre 7 y 15 números." });
+      return res
+        .status(400)
+        .json({ error: "DNI inválido. Debe tener entre 7 y 15 números." });
     }
     if (!isSafePassword(contrasena)) {
       return res.status(400).json({ error: "Contraseña insegura o inválida." });
@@ -35,10 +37,17 @@ const registrarUsuario = async (req, res) => {
     // encriptar contraseña
     const hash = await bcrypt.hash(contrasena, 10);
 
-    await db.query(
-      "INSERT INTO usuarios (rol_id, username, password_hash) VALUES (?, ?, ?)",
-      ["3", dni, hash]
-    );
+    const { error } = await supabase
+      .from("usuarios")
+      .insert({ rol_id: 3, username: dni, password_hash: hash });
+
+    if (error) {
+      if (error.code === "23505") {
+        // Unique violation
+        return res.status(409).json({ error: "El usuario ya existe." });
+      }
+      throw error;
+    }
 
     res.status(201).json({ message: "Usuario registrado con éxito" });
   } catch (error) {
@@ -59,16 +68,16 @@ const loginUsuario = async (req, res) => {
       return res.status(400).json({ error: "Contraseña insegura o inválida." });
     }
 
-    const [rows] = await db.query("SELECT * FROM usuarios WHERE username = ?", [dni]);
+    const { data: usuario, error } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("username", dni)
+      .single();
 
-    if (rows.length === 0) {
-      return res.status(400).json({ error: "Usuario no encontrado" });
+    if (error || !usuario) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    const usuario = rows[0];
-
-    const hash = await bcrypt.hash(contrasena, 10);
-    console.log(hash)
     const coincide = await bcrypt.compare(contrasena, usuario.password_hash);
 
     if (!coincide) {
@@ -85,4 +94,3 @@ const loginUsuario = async (req, res) => {
 };
 
 module.exports = { registrarUsuario, loginUsuario };
-

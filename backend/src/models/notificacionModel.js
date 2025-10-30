@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const supabase = require("../config/db");
 
 /**
  * Inserta una nueva notificación en la base de datos.
@@ -8,9 +8,14 @@ const pool = require('../config/db');
  * @returns {Promise<object>} - El resultado de la inserción.
  */
 async function createNotificacion(profesionalId, mensaje, turnoId = null) {
-  const sql = 'INSERT INTO notificaciones (profesional_id, mensaje, turno_id) VALUES (?, ?, ?)';
-  const [result] = await pool.query(sql, [profesionalId, mensaje, turnoId]);
-  return result;
+  const { data, error } = await supabase
+    .from("notificaciones")
+    .insert({ profesional_id: profesionalId, mensaje, turno_id: turnoId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 /**
@@ -18,9 +23,18 @@ async function createNotificacion(profesionalId, mensaje, turnoId = null) {
  * @returns {Promise<number>} - El ID más alto.
  */
 async function getLatestNotificacionId() {
-  const sql = 'SELECT MAX(id) as lastId FROM notificaciones';
-  const [rows] = await pool.query(sql);
-  return rows[0].lastId || 0;
+  const { data, error } = await supabase
+    .from("notificaciones")
+    .select("id")
+    .order("id", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== "PGRST116") {
+    // PGRST116: No rows found
+    throw error;
+  }
+  return data ? data.id : 0;
 }
 
 /**
@@ -30,12 +44,18 @@ async function getLatestNotificacionId() {
  * @returns {Promise<Array>} - Una lista de nuevas notificaciones.
  */
 async function getNotificacionesAfterId(profesionalId, lastId) {
-  const sql = 'SELECT * FROM notificaciones WHERE profesional_id = ? AND id > ? ORDER BY id ASC';
-  const [rows] = await pool.query(sql, [profesionalId, lastId]);
-  return rows;
+  const { data, error } = await supabase
+    .from("notificaciones")
+    .select("*")
+    .eq("profesional_id", profesionalId)
+    .gt("id", lastId)
+    .order("id", { ascending: true });
+
+  if (error) throw error;
+  return data;
 }
 
-module.exports = { 
+module.exports = {
   createNotificacion,
   getLatestNotificacionId,
   getNotificacionesAfterId,

@@ -1,108 +1,91 @@
-const pool = require('../config/db');
-
-
-
-
-
+const supabase = require('../config/db');
 
 async function getTurnosByDate(date) {
-  const sql = `
-    SELECT 
-        t.id, 
-        t.inicio, 
-        t.fin, 
-        t.estado,
-        t.notas,
-        p.id AS paciente_id, 
-        p.nombre AS paciente_nombre, 
-        p.apellido AS paciente_apellido,
-        p.fecha_nacimiento AS paciente_fecha_nacimiento,
-        p.dni AS paciente_dni,
-        GROUP_CONCAT(DISTINCT u.id) AS profesional_ids,
-        GROUP_CONCAT(DISTINCT u.nombre_mostrar) AS profesional_nombres,
-        c.id AS consultorio_id, 
-        c.nombre AS consultorio_nombre,
-        s.id as servicio_id,
-        s.nombre as servicio_nombre
-    FROM turnos t
-    JOIN pacientes p ON t.paciente_id = p.id
-    JOIN consultorios c ON t.consultorio_id = c.id
-    JOIN servicios s ON t.servicio_id = s.id
-    LEFT JOIN turno_profesionales tp ON t.id = tp.turno_id
-    LEFT JOIN usuarios u ON tp.profesional_id = u.id
-    WHERE DATE(t.inicio) = ?
-    GROUP BY t.id
-    ORDER BY t.inicio;
-  `;
-  const [rows] = await pool.query(sql, [date]);
-  return rows;
+  const startOfDay = date; // Expecting 'YYYY-MM-DD'
+  const endOfDay = new Date(date);
+  endOfDay.setDate(endOfDay.getDate() + 1);
+  const endOfDayString = endOfDay.toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('turnos')
+    .select(`
+      id, inicio, fin, estado, notas,
+      paciente:pacientes (id, nombre, apellido, fecha_nacimiento, dni),
+      consultorio:consultorios (id, nombre),
+      servicio:servicios (id, nombre),
+      profesionales:turno_profesionales (
+        usuario:usuarios (id, nombre_mostrar)
+      )
+    `)
+    .gte('inicio', startOfDay)
+    .lt('inicio', endOfDayString)
+    .order('inicio', { ascending: true });
+
+  if (error) throw error;
+
+  // Map data safely, handling potential null relationships
+  return data.map(turno => ({
+    id: turno.id,
+    inicio: turno.inicio,
+    fin: turno.fin,
+    estado: turno.estado,
+    notas: turno.notas,
+    paciente_id: turno.paciente?.id,
+    paciente_nombre: turno.paciente?.nombre,
+    paciente_apellido: turno.paciente?.apellido,
+    paciente_fecha_nacimiento: turno.paciente?.fecha_nacimiento,
+    paciente_dni: turno.paciente?.dni,
+    profesional_ids: turno.profesionales?.map(p => p.usuario?.id).filter(Boolean).join(',') || '',
+    profesional_nombres: turno.profesionales?.map(p => p.usuario?.nombre_mostrar).filter(Boolean).join(',') || '',
+    consultorio_id: turno.consultorio?.id,
+    consultorio_nombre: turno.consultorio?.nombre,
+    servicio_id: turno.servicio?.id,
+    servicio_nombre: turno.servicio?.nombre
+  }));
 }
 
-
-
-
-
-
-
-async function updateTurno(turnoId, data) {
-  const { inicio, fin, consultorio_id, estado, notas } = data;
-  
-
-  const fields = [];
-  const values = [];
-
-  if (inicio) {
-    fields.push('inicio = ?');
-    values.push(inicio);
-  }
-  if (fin) {
-    fields.push('fin = ?');
-    values.push(fin);
-  }
-  if (consultorio_id) {
-    fields.push('consultorio_id = ?');
-    values.push(consultorio_id);
-  }
-  if (estado) {
-    fields.push('estado = ?');
-    values.push(estado);
-  }
-  if (notas !== undefined) {
-    fields.push('notas = ?');
-    values.push(notas);
-  }
-
-  if (fields.length === 0) {
+async function updateTurno(turnoId, dataToUpdate) {
+  if (Object.keys(dataToUpdate).length === 0) {
     throw new Error('No fields to update');
   }
 
-  const sql = `UPDATE turnos SET ${fields.join(', ')} WHERE id = ?`;
-  values.push(turnoId);
+  const { data, error } = await supabase
+    .from('turnos')
+    .update(dataToUpdate)
+    .eq('id', turnoId)
+    .select('id'); // Select a minimal field to check for success
 
-  const [result] = await pool.query(sql, values);
-  return result;
+  if (error) throw error;
+  
+  return { affectedRows: data ? data.length : 0 };
 }
 
-
-
-
-
-
 async function getTurnoById(turnoId) {
-  const sql = `
-    SELECT 
-        t.*,
-        p.nombre AS paciente_nombre, 
-        p.apellido AS paciente_apellido,
-        GROUP_CONCAT(tp.profesional_id) AS profesional_ids
-    FROM turnos t
-    LEFT JOIN turno_profesionales tp ON t.id = tp.turno_id
-    LEFT JOIN pacientes p ON t.paciente_id = p.id
-    WHERE t.id = ?
-    GROUP BY t.id;
-  `;
-  const [rows] = await pool.query(sql, [turnoId]);
-  return rows[0] || null;
+  const { data, error } = await supabase
+    .from('turnos')
+    .select(`
+      *,
+      paciente:pacientes(nombre, apellido),
+      profesionales:turno_profesionales(profesional_id)
+    `)
+    .eq('id', turnoId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // Not found
+    throw error;
+  }
+  if (!data) return null;
+
+  // Format professional IDs to match the expected comma-separated string
+  const profesional_ids = data.profesionales?.map(p => p.profesional_id).join(',') || '';
+  
+  return {
+    ...data,
+    paciente_nombre: data.paciente?.nombre,
+    paciente_apellido: data.paciente?.apellido,
+    profesional_ids
+  };
 }
 
 module.exports = {
