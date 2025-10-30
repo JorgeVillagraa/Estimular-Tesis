@@ -4,6 +4,7 @@ import axios from "axios";
 import "../styles/Login.css";
 import useAuthStore from "../store/useAuthStore";
 import { IoEye, IoEyeOff } from "react-icons/io5";
+import logoEstimular from "../assets/logo_estimular.png";
 
 export default function PrimerRegistro() {
   const [form, setForm] = useState({
@@ -114,6 +115,12 @@ export default function PrimerRegistro() {
     }
     setLoading(true);
     try {
+      const seleccion =
+        form.tipoUsuario === "secretario"
+          ? "secretario"
+          : form.profesionId
+          ? Number(form.profesionId)
+          : null;
       const response = await axios.post(
         "http://localhost:5000/api/login/primer-registro",
         {
@@ -127,6 +134,7 @@ export default function PrimerRegistro() {
             form.tipoUsuario === "profesional"
               ? Number(form.profesionId)
               : null,
+          seleccion,
           foto_perfil: form.fotoPreview || null,
           nuevaContrasena: form.nuevaContrasena,
         }
@@ -150,7 +158,9 @@ export default function PrimerRegistro() {
     <div className="login-root">
       <div className="login-left">
         <div className="brand">
-          <div className="brand-logo">E</div>
+          <div className="brand-logo">
+            <img src={logoEstimular} alt="Logo Estimular" />
+          </div>
           <div className="brand-text">
             <h3>ESTIMULAR</h3>
             <p>Centro Terapéutico</p>

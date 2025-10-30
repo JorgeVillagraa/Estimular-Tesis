@@ -15,18 +15,6 @@ import CrearIntegrante from "../components/CrearIntegrante";
 import ReestablecerContraseña from "../components/ReestablecerContraseña";
 import useAuthStore from "../store/useAuthStore";
 
-const DEFAULT_ROLES = [
-  "psicologa",
-  "psicólogo",
-  "psicologa infantil",
-  "fonoaudiologa",
-  "fonoaudióloga",
-  "psicomotricista",
-  "terapeuta ocupacional",
-  "recepcionista",
-  "secretario/a",
-];
-
 // Custom hook to debounce a value (defined at module scope to follow Rules of Hooks)
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -45,19 +33,6 @@ function formatDateDMY(dateStr) {
   const mm = String(parsed.getMonth() + 1).padStart(2, "0");
   const yyyy = parsed.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
-}
-
-function calculateAge(dateStr) {
-  if (!dateStr) return null;
-  const birth = new Date(dateStr);
-  if (Number.isNaN(birth.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const monthDiff = today.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-    age -= 1;
-  }
-  return age >= 0 ? age : null;
 }
 
 function formatRole(member) {
@@ -82,7 +57,7 @@ export default function EquipoEstimular() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busqueda, setBusqueda] = useState("");
-  const [profesionFiltro, setProfesionFiltro] = useState("todas");
+  const [profesionFiltro, setProfesionFiltro] = useState("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const pageSize = 10;
@@ -91,54 +66,65 @@ export default function EquipoEstimular() {
   const [modalOpen, setModalOpen] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState(null);
+  const [profesiones, setProfesiones] = useState([]);
 
   const debouncedBusqueda = useDebounce(busqueda, 300);
   const skipPageEffectRef = useRef(false);
   const user = useAuthStore((s) => s.user);
 
-  const roleOptions = useMemo(() => {
-    const map = new Map();
-    const registerRole = (rawRole, tipo) => {
-      if (!rawRole) return;
-      const normalized = rawRole.toLowerCase();
-      if (map.has(normalized)) return;
-      map.set(normalized, {
-        value: normalized,
-        raw: rawRole,
-        label: formatRole({ rol_principal: rawRole, tipo }),
-      });
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await axios.get(
+          "http://localhost:5000/api/profesiones"
+        );
+        if (!active) return;
+        const listado = Array.isArray(data?.data) ? data.data : [];
+        setProfesiones(listado);
+      } catch (err) {
+        console.error("Error al obtener profesiones:", err);
+      }
+    })();
+    return () => {
+      active = false;
     };
+  }, []);
 
-    DEFAULT_ROLES.forEach((value) =>
-      registerRole(
-        value,
-        value.toLowerCase().includes("secret") ? "secretario" : "profesional"
-      )
-    );
-
-    items.forEach((item) => {
-      const rawRole =
-        (
-          item.rol_principal ||
-          item.profesion ||
-          (item.tipo === "secretario" ? "secretario/a" : "")
-        )?.trim() || "";
-      if (!rawRole) return;
-      registerRole(rawRole, item.tipo);
+  const departamentoOptions = useMemo(() => {
+    const map = new Map();
+    (Array.isArray(profesiones) ? profesiones : []).forEach((item) => {
+      const rawId =
+        item?.id_departamento ?? item?.departamento_id ?? item?.id ?? null;
+      const parsedId = Number.parseInt(rawId, 10);
+      const nombre = (item?.nombre || "").trim();
+      if (!nombre || Number.isNaN(parsedId) || map.has(parsedId)) return;
+      map.set(parsedId, { id: parsedId, label: nombre, raw: item });
     });
-
     return Array.from(map.values()).sort((a, b) =>
       a.label.localeCompare(b.label, "es")
     );
-  }, [items]);
+  }, [profesiones]);
 
-  const roleOptionMap = useMemo(() => {
-    const map = {};
-    roleOptions.forEach((opt) => {
-      map[opt.value] = opt;
+  const departamentoMap = useMemo(() => {
+    const map = new Map();
+    departamentoOptions.forEach((opt) => {
+      map.set(opt.id, opt);
     });
     return map;
-  }, [roleOptions]);
+  }, [departamentoOptions]);
+
+  const filtroOptions = useMemo(() => {
+    const base = [
+      { value: "all", label: "Todos los departamentos" },
+      ...departamentoOptions.map((opt) => ({
+        value: `dept:${opt.id}`,
+        label: opt.label,
+      })),
+    ];
+    base.push({ value: "secretario", label: "Secretaría" });
+    return base;
+  }, [departamentoOptions]);
 
   const isAdmin = useMemo(() => {
     const names = [];
@@ -167,7 +153,7 @@ export default function EquipoEstimular() {
   }, []);
 
   const fetchEquipo = useCallback(
-    async (search = "", pageNum = 1, profesionSel = "todas") => {
+    async (search = "", pageNum = 1, filtroSel = "all") => {
       setLoading(true);
       try {
         const params = {
@@ -175,11 +161,22 @@ export default function EquipoEstimular() {
           page: pageNum,
           pageSize,
           activo: true,
-          tipo: "todos",
         };
-        if (profesionSel && profesionSel !== "todas") {
-          params.profesion = profesionSel;
+        let tipoValue = "todos";
+        if (filtroSel === "secretario") {
+          tipoValue = "secretario";
+        } else if (
+          typeof filtroSel === "string" &&
+          filtroSel.startsWith("dept:")
+        ) {
+          tipoValue = "profesional";
+          const [, rawId] = filtroSel.split(":");
+          const parsedId = Number.parseInt(rawId, 10);
+          if (!Number.isNaN(parsedId)) {
+            params.departamentoId = parsedId;
+          }
         }
+        params.tipo = tipoValue;
         const { data } = await axios.get("http://localhost:5000/api/equipo", {
           params,
         });
@@ -250,10 +247,9 @@ export default function EquipoEstimular() {
                 setPage(1);
               }}
               className="btn outline-pink"
-              title="Filtrar por rol/profesión"
+              title="Filtrar por departamento o secretaría"
             >
-              <option value="todas">Todas las profesiones</option>
-              {roleOptions.map((opt) => (
+              {filtroOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -294,12 +290,11 @@ export default function EquipoEstimular() {
                 <thead>
                   <tr>
                     <th>Foto</th>
-                    <th>Rol</th>
                     <th>Nombre</th>
                     <th>DNI</th>
                     <th>Email</th>
                     <th>Teléfono</th>
-                    <th>Nacimiento / Edad</th>
+                    <th>Nacimiento</th>
                     <th className="col-actions">Acciones</th>
                   </tr>
                 </thead>
@@ -311,21 +306,42 @@ export default function EquipoEstimular() {
                       p.id_usuario ??
                       `${p.tipo}-${p.dni ?? ""}-${p.nombre ?? ""}`;
                     const isProfesional = p.tipo === "profesional";
-                    const isEditing =
-                      isProfesional && editId === p.id_profesional;
+                    const memberKey =
+                      p.id_usuario ??
+                      p.id_profesional ??
+                      p.id_secretario ??
+                      rowKey;
+                    const canEdit = isAdmin;
+                    const isEditing = canEdit && editId === memberKey;
                     const nombreCompleto = `${p.nombre || ""} ${
                       p.apellido || ""
                     }`.trim();
                     const fechaValue = p.fecha_nacimiento
                       ? String(p.fecha_nacimiento).slice(0, 10)
                       : "";
-                    const edad = calculateAge(fechaValue);
-                    const roleLabel = formatRole(p);
-                    const profesionValue = (
-                      isEditing
-                        ? editData.profesion ?? p.profesion ?? ""
-                        : p.profesion ?? ""
-                    ).toLowerCase();
+                    const selectedDepartamentoId = isEditing
+                      ? editData.profesionId ??
+                        editData.profesion_id ??
+                        p.profesion_id ??
+                        null
+                      : p.profesion_id ?? null;
+                    const departamentoLabel = (() => {
+                      if (p.tipo !== "profesional") return null;
+                      const depIdRaw =
+                        p.profesion_id ?? p.id_departamento ?? null;
+                      const depId =
+                        depIdRaw !== null && depIdRaw !== undefined
+                          ? Number(depIdRaw)
+                          : null;
+                      if (depId === null || Number.isNaN(depId)) return null;
+                      return departamentoMap.get(depId)?.label ?? null;
+                    })();
+                    const roleDisplay = departamentoLabel || formatRole(p);
+                    const endpointId =
+                      p.id_usuario ??
+                      p.id_profesional ??
+                      p.id_secretario ??
+                      null;
 
                     return (
                       <tr key={rowKey}>
@@ -355,63 +371,90 @@ export default function EquipoEstimular() {
                           </div>
                         </td>
                         <td>
-                          {isProfesional && isEditing ? (
-                            <select
-                              className="edit-select"
-                              value={profesionValue}
-                              onChange={(e) => {
-                                const opt = roleOptionMap[e.target.value];
-                                setEditData((ed) => ({
-                                  ...ed,
-                                  profesion: opt?.raw ?? "",
-                                }));
+                          {isEditing ? (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
                               }}
                             >
-                              <option value="">— Seleccionar —</option>
-                              {roleOptions
-                                .filter((opt) => !opt.value.includes("secret"))
-                                .map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                            </select>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <input
+                                  className="edit-input"
+                                  placeholder="Nombre"
+                                  value={editData.nombre ?? p.nombre ?? ""}
+                                  onChange={(e) =>
+                                    setEditData((ed) => ({
+                                      ...ed,
+                                      nombre: e.target.value,
+                                    }))
+                                  }
+                                />
+                                <input
+                                  className="edit-input"
+                                  placeholder="Apellido"
+                                  value={editData.apellido ?? p.apellido ?? ""}
+                                  onChange={(e) =>
+                                    setEditData((ed) => ({
+                                      ...ed,
+                                      apellido: e.target.value,
+                                    }))
+                                  }
+                                />
+                              </div>
+                              {isProfesional ? (
+                                <select
+                                  className="edit-select"
+                                  value={
+                                    selectedDepartamentoId !== null &&
+                                    selectedDepartamentoId !== undefined
+                                      ? String(selectedDepartamentoId)
+                                      : ""
+                                  }
+                                  onChange={(e) => {
+                                    const nextValue = e.target.value;
+                                    setEditData((ed) => ({
+                                      ...ed,
+                                      profesionId: nextValue
+                                        ? Number.parseInt(nextValue, 10)
+                                        : null,
+                                    }));
+                                  }}
+                                >
+                                  <option value="">— Seleccionar —</option>
+                                  {departamentoOptions.map((opt) => (
+                                    <option key={opt.id} value={opt.id}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : null}
+                            </div>
                           ) : (
-                            roleLabel
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                              }}
+                            >
+                              <span>{nombreCompleto || "—"}</span>
+                              {roleDisplay ? (
+                                <span
+                                  className="meta"
+                                  style={{
+                                    color: "var(--muted)",
+                                    fontSize: 12,
+                                  }}
+                                >
+                                  {roleDisplay}
+                                </span>
+                              ) : null}
+                            </div>
                           )}
                         </td>
                         <td>
                           {isEditing ? (
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <input
-                                className="edit-input"
-                                placeholder="Nombre"
-                                value={editData.nombre ?? p.nombre ?? ""}
-                                onChange={(e) =>
-                                  setEditData((ed) => ({
-                                    ...ed,
-                                    nombre: e.target.value,
-                                  }))
-                                }
-                              />
-                              <input
-                                className="edit-input"
-                                placeholder="Apellido"
-                                value={editData.apellido ?? p.apellido ?? ""}
-                                onChange={(e) =>
-                                  setEditData((ed) => ({
-                                    ...ed,
-                                    apellido: e.target.value,
-                                  }))
-                                }
-                              />
-                            </div>
-                          ) : (
-                            nombreCompleto || "—"
-                          )}
-                        </td>
-                        <td>
-                          {isProfesional && isEditing ? (
                             <input
                               className="edit-input"
                               value={editData.usuario?.dni ?? p.dni ?? ""}
@@ -479,9 +522,7 @@ export default function EquipoEstimular() {
                               }
                             />
                           ) : fechaValue ? (
-                            `${formatDateDMY(fechaValue)}${
-                              edad !== null ? ` (${edad} años)` : ""
-                            }`
+                            formatDateDMY(fechaValue)
                           ) : (
                             "—"
                           )}
@@ -496,42 +537,99 @@ export default function EquipoEstimular() {
                                   onClick={async () => {
                                     try {
                                       const payload = {};
-                                      const fields = [
+                                      const baseFields = [
                                         "nombre",
                                         "apellido",
                                         "fecha_nacimiento",
                                         "telefono",
                                         "email",
                                       ];
-                                      if (isProfesional) {
-                                        fields.push("profesion");
-                                      }
-                                      fields.forEach((k) => {
-                                        if (
-                                          editData[k] !== undefined &&
-                                          editData[k] !== p[k]
-                                        ) {
-                                          if (
-                                            k === "profesion" &&
-                                            !editData[k]
-                                          ) {
-                                            return;
-                                          }
+                                      baseFields.forEach((k) => {
+                                        if (editData[k] === undefined) return;
+                                        const originalValue =
+                                          p[k] !== undefined ? p[k] : null;
+                                        if (editData[k] !== originalValue) {
                                           payload[k] = editData[k];
                                         }
                                       });
-                                      if (editData.usuario) {
-                                        payload.usuario = editData.usuario;
+
+                                      if (isProfesional) {
+                                        const currentDepIdRaw =
+                                          p.profesion_id ??
+                                          p.id_departamento ??
+                                          null;
+                                        const currentDepId =
+                                          currentDepIdRaw !== null &&
+                                          currentDepIdRaw !== undefined
+                                            ? Number(currentDepIdRaw)
+                                            : null;
+                                        const nextDepIdRaw =
+                                          editData.profesionId ??
+                                          editData.profesion_id ??
+                                          null;
+                                        if (nextDepIdRaw !== undefined) {
+                                          const nextDepId =
+                                            Number(nextDepIdRaw);
+                                          if (
+                                            !Number.isNaN(nextDepId) &&
+                                            nextDepId !== currentDepId
+                                          ) {
+                                            payload.profesionId = nextDepId;
+                                          }
+                                        }
                                       }
+
+                                      if (editData.usuario) {
+                                        const usuarioPayload = {};
+                                        if (
+                                          editData.usuario.dni !== undefined &&
+                                          editData.usuario.dni !== p.dni
+                                        ) {
+                                          usuarioPayload.dni =
+                                            editData.usuario.dni;
+                                        }
+                                        if (editData.usuario.contrasena) {
+                                          usuarioPayload.contrasena =
+                                            editData.usuario.contrasena;
+                                        }
+                                        if (
+                                          editData.usuario.activo !==
+                                            undefined &&
+                                          editData.usuario.activo !==
+                                            p.usuario_activo
+                                        ) {
+                                          usuarioPayload.activo =
+                                            editData.usuario.activo;
+                                        }
+                                        if (
+                                          Object.keys(usuarioPayload).length > 0
+                                        ) {
+                                          payload.usuario = usuarioPayload;
+                                        }
+                                      }
+
+                                      if (Object.keys(payload).length === 0) {
+                                        setEditId(null);
+                                        setEditData({});
+                                        return;
+                                      }
+
+                                      if (!endpointId) {
+                                        throw new Error(
+                                          "No se encontró identificador del integrante"
+                                        );
+                                      }
+
+                                      const url =
+                                        p.tipo === "secretario"
+                                          ? `http://localhost:5000/api/equipo/secretarios/${endpointId}`
+                                          : `http://localhost:5000/api/equipo/${endpointId}`;
                                       Swal.fire({
                                         title: "Guardando...",
                                         allowOutsideClick: false,
                                         didOpen: () => Swal.showLoading(),
                                       });
-                                      await axios.put(
-                                        `http://localhost:5000/api/equipo/${p.id_profesional}`,
-                                        payload
-                                      );
+                                      await axios.put(url, payload);
                                       setEditId(null);
                                       setEditData({});
                                       await fetchEquipo(
@@ -571,21 +669,25 @@ export default function EquipoEstimular() {
                                   <MdClose size={18} />
                                 </button>
                               </>
-                            ) : isProfesional ? (
+                            ) : canEdit ? (
                               <>
                                 <button
                                   className="icon-btn edit"
                                   title="Editar"
                                   onClick={() => {
-                                    setEditId(p.id_profesional);
+                                    setEditId(memberKey);
                                     setEditData({
                                       nombre: p.nombre ?? "",
                                       apellido: p.apellido ?? "",
                                       fecha_nacimiento: fechaValue,
-                                      profesion: p.profesion ?? "",
+                                      profesionId:
+                                        p.profesion_id ??
+                                        p.id_departamento ??
+                                        null,
                                       email: p.email ?? "",
                                       telefono: p.telefono ?? "",
                                       usuario: { dni: p.dni },
+                                      tipo: p.tipo,
                                     });
                                   }}
                                 >
@@ -595,6 +697,14 @@ export default function EquipoEstimular() {
                                   className="icon-btn delete"
                                   title="Eliminar"
                                   onClick={async () => {
+                                    if (!endpointId) {
+                                      Swal.fire({
+                                        icon: "error",
+                                        title: "Error",
+                                        text: "No se encontró el identificador del integrante",
+                                      });
+                                      return;
+                                    }
                                     const conf = await Swal.fire({
                                       title: "¿Eliminar?",
                                       text: "Se realizará borrado lógico",
@@ -611,7 +721,7 @@ export default function EquipoEstimular() {
                                         didOpen: () => Swal.showLoading(),
                                       });
                                       await axios.delete(
-                                        `http://localhost:5000/api/equipo/${p.id_profesional}`
+                                        `http://localhost:5000/api/equipo/${endpointId}`
                                       );
                                       await fetchEquipo(
                                         busqueda,

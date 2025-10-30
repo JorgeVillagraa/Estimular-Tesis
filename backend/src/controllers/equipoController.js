@@ -173,12 +173,18 @@ const listEquipo = async (req, res) => {
         activo = 'true',
         profesion = '',
         tipo = 'todos',
+        departamentoId: departamentoIdParam,
+        departamento: departamentoParam,
     } = req.query || {};
+
+    const departamentoRaw = departamentoIdParam ?? departamentoParam ?? '';
+    const departamentoId = Number.parseInt(departamentoRaw, 10);
+    const filterByDepartamento = departamentoRaw !== '' && !Number.isNaN(departamentoId);
 
     const pageNum = Math.max(Number.parseInt(page, 10) || 1, 1);
     const size = Math.max(Number.parseInt(pageSize, 10) || 10, 1);
     const tipoFiltro = String(tipo || 'todos').toLowerCase();
-    const includeProfesionales = tipoFiltro === 'profesional' || tipoFiltro === 'todos';
+    const includeProfesionales = tipoFiltro === 'profesional' || tipoFiltro === 'todos' || filterByDepartamento;
     const includeSecretarios = tipoFiltro === 'secretario' || tipoFiltro === 'todos';
 
     const searchRaw = typeof search === 'string' ? search.trim() : '';
@@ -317,6 +323,17 @@ const listEquipo = async (req, res) => {
 
         const filtered = miembros.filter((member) => {
             if (activoOnly && member.usuario_activo === false) return false;
+
+            if (filterByDepartamento) {
+                if (member.tipo !== 'profesional') return false;
+                const memberDepartamentoId = Number.parseInt(
+                    member.profesion_id ?? member.id_departamento ?? member.departamento_id ?? null,
+                    10
+                );
+                if (Number.isNaN(memberDepartamentoId) || memberDepartamentoId !== departamentoId) {
+                    return false;
+                }
+            }
 
             if (profesionLower) {
                 const rolText = (member.rol_principal || '').toLowerCase();
@@ -657,6 +674,118 @@ const editarIntegrante = async (req, res) => {
     }
 };
 
+const editarSecretario = async (req, res) => {
+    const { id_secretario } = req.params;
+    const idValue = Number(id_secretario);
+    if (!id_secretario || Number.isNaN(idValue)) {
+        return res.status(400).json({ success: false, message: 'Falta id_secretario válido' });
+    }
+
+    const body = req.body || {};
+    const usuarioUpd = body.usuario || {};
+
+    try {
+        const allowedSecretario = ['nombre', 'apellido', 'telefono', 'email', 'fecha_nacimiento', 'foto_perfil'];
+        const secretarioPayload = {};
+        for (const k of allowedSecretario) {
+            if (body[k] !== undefined) secretarioPayload[k] = body[k];
+        }
+
+        let updatedSecretario = null;
+        if (Object.keys(secretarioPayload).length > 0) {
+            if (secretarioPayload.fecha_nacimiento) {
+                const d = new Date(secretarioPayload.fecha_nacimiento);
+                if (!Number.isNaN(d.getTime())) {
+                    secretarioPayload.fecha_nacimiento = d.toISOString().slice(0, 10);
+                }
+            }
+
+            let updateErr = null;
+            ({ data: updatedSecretario, error: updateErr } = await supabaseAdmin
+                .from('secretarios')
+                .update(secretarioPayload)
+                .eq('usuario_id', idValue)
+                .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                .maybeSingle());
+
+            if (updateErr && updateErr.code === '42703') {
+                ({ data: updatedSecretario, error: updateErr } = await supabaseAdmin
+                    .from('secretarios')
+                    .update(secretarioPayload)
+                    .eq('id', idValue)
+                    .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                    .maybeSingle());
+            }
+
+            if (updateErr) throw updateErr;
+
+            if (!updatedSecretario) {
+                let fetchErr = null;
+                ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                    .from('secretarios')
+                    .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                    .eq('usuario_id', idValue)
+                    .maybeSingle());
+
+                if (fetchErr && fetchErr.code === '42703') {
+                    ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                        .from('secretarios')
+                        .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                        .eq('id', idValue)
+                        .maybeSingle());
+                }
+
+                if (fetchErr) throw fetchErr;
+            }
+        } else {
+            let fetchErr = null;
+            ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                .from('secretarios')
+                .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                .eq('usuario_id', idValue)
+                .maybeSingle());
+
+            if (fetchErr && fetchErr.code === '42703') {
+                ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                    .from('secretarios')
+                    .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
+                    .eq('id', idValue)
+                    .maybeSingle());
+            }
+
+            if (fetchErr) throw fetchErr;
+        }
+
+        let updatedUser = null;
+        if (usuarioUpd && Object.keys(usuarioUpd).length > 0) {
+            const userPayload = {};
+            if (usuarioUpd.dni !== undefined) userPayload.dni = Number(usuarioUpd.dni);
+            if (usuarioUpd.activo !== undefined) userPayload.activo = !!usuarioUpd.activo;
+            if (usuarioUpd.contrasena) {
+                userPayload.password_hash = await bcrypt.hash(String(usuarioUpd.contrasena), 12);
+            }
+
+            if (Object.keys(userPayload).length > 0) {
+                let userUpdateErr = null;
+                ({ data: updatedUser, error: userUpdateErr } = await supabaseAdmin
+                    .from('usuarios')
+                    .update(userPayload)
+                    .eq('id_usuario', idValue)
+                    .select('id_usuario, dni, activo')
+                    .maybeSingle());
+
+                if (userUpdateErr) throw userUpdateErr;
+            }
+        }
+
+        const mappedSecretario = await mapSecretarioRowWithStorage(updatedSecretario);
+        return res.json({ success: true, data: { ...mappedSecretario, usuario: updatedUser || {} } });
+    } catch (err) {
+        console.error('editarSecretario error:', err);
+        return res.status(500).json({ success: false, message: 'Error al editar secretario', error: err.message });
+    }
+};
+
 // DELETE /api/equipo/:id_profesional
 const borrarIntegrante = async (req, res) => {
     const { id_profesional } = req.params;
@@ -715,4 +844,4 @@ const restablecerContrasena = async (req, res) => {
     }
 };
 
-module.exports = { listEquipo, crearIntegrante, editarIntegrante, borrarIntegrante, restablecerContrasena };
+module.exports = { listEquipo, crearIntegrante, editarIntegrante, editarSecretario, borrarIntegrante, restablecerContrasena };

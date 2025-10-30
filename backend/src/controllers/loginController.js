@@ -216,6 +216,46 @@ async function assignRoleToUser(usuarioId, rolId) {
   }
 }
 
+function normalizeText(text) {
+  if (!text) return '';
+  return String(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+async function fetchRoleIdForTipo(tipo) {
+  const normalizedTipo = normalizeText(tipo);
+  if (!normalizedTipo) return null;
+
+  const candidates = normalizedTipo === 'profesional'
+    ? ['profesional', 'professional']
+    : ['secretario', 'secretaria', 'secretario/a', 'secretaria/o'];
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('roles')
+      .select('id_rol, nombre_rol');
+
+    if (error) {
+      console.error('fetchRoleIdForTipo roles error:', error);
+      return null;
+    }
+
+    for (const row of data || []) {
+      const roleName = normalizeText(row?.nombre_rol);
+      if (roleName && candidates.some((candidate) => roleName === candidate || roleName.includes(candidate))) {
+        return Number(row.id_rol);
+      }
+    }
+  } catch (err) {
+    console.error('fetchRoleIdForTipo exception:', err);
+  }
+
+  return null;
+}
+
 function isProfessionalProfileComplete(row) {
   if (!row) return false;
   const required = [row.nombre, row.apellido, row.telefono, row.fecha_nacimiento];
@@ -646,6 +686,13 @@ const primerRegistro = async (req, res) => {
       return res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
     }
 
+    const roleId = await fetchRoleIdForTipo(resolvedTipo);
+    if (roleId) {
+      await assignRoleToUser(userId, roleId);
+    } else {
+      console.warn('primerRegistro: no se encontró rol para tipo', resolvedTipo);
+    }
+
     const perfil = await fetchUserProfile(userId);
     return res.json({ success: true, profile: perfil });
   } catch (err) {
@@ -676,6 +723,8 @@ const actualizarPerfil = async (req, res) => {
       tipoUsuario,
       foto_perfil,
       removeFoto,
+      dni,
+      nuevaContrasena,
     } = req.body || {};
 
     const currentProfile = await fetchUserProfile(userId);
@@ -702,6 +751,55 @@ const actualizarPerfil = async (req, res) => {
 
     if (currentProfile?.tipo && resolvedTipo !== currentProfile.tipo) {
       resolvedTipo = currentProfile.tipo;
+    }
+
+    const userPayload = {};
+    if (dni !== undefined) {
+      const dniStr = String(dni).trim();
+      if (!dniStr) {
+        return res.status(400).json({ error: 'DNI inválido' });
+      }
+      if (!isValidDni(dniStr)) {
+        return res.status(400).json({ error: 'DNI inválido. Debe tener entre 7 y 15 números.' });
+      }
+      const dniNum = Number(dniStr);
+      const { data: existingDni, error: dniErr } = await supabaseAdmin
+        .from('usuarios')
+        .select('id_usuario')
+        .eq('dni', dniNum)
+        .neq('id_usuario', Number(userId))
+        .maybeSingle();
+
+      if (dniErr && dniErr.code !== 'PGRST116') {
+        console.error('actualizarPerfil validar DNI error:', dniErr);
+        return res.status(500).json({ error: 'No se pudo validar el DNI' });
+      }
+      if (existingDni) {
+        return res.status(409).json({ error: 'El DNI ingresado ya está en uso' });
+      }
+      userPayload.dni = dniNum;
+    }
+
+    if (nuevaContrasena) {
+      if (!isSafePassword(nuevaContrasena)) {
+        return res.status(400).json({ error: 'Contraseña inválida o insegura' });
+      }
+      if (String(nuevaContrasena).toLowerCase() === String(DEFAULT_PASSWORD).toLowerCase()) {
+        return res.status(400).json({ error: 'Elegí una contraseña distinta a la genérica' });
+      }
+      userPayload.password_hash = await bcrypt.hash(String(nuevaContrasena), 12);
+    }
+
+    if (Object.keys(userPayload).length > 0) {
+      const { error: usuarioUpdateErr } = await supabaseAdmin
+        .from('usuarios')
+        .update(userPayload)
+        .eq('id_usuario', Number(userId));
+
+      if (usuarioUpdateErr) {
+        console.error('actualizarPerfil usuarios update error:', usuarioUpdateErr);
+        return res.status(500).json({ error: 'No se pudo actualizar las credenciales del usuario' });
+      }
     }
 
     let fotoUrlToStore;

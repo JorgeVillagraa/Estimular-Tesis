@@ -12,6 +12,9 @@ const initialState = {
   email: "",
   fecha_nacimiento: "",
   profesionId: "",
+  dni: "",
+  nuevaContrasena: "",
+  confirmarContrasena: "",
 };
 
 const normalizeString = (value) =>
@@ -91,11 +94,14 @@ export default function EditarProfesional() {
       profesionId: normalizeString(
         profile.departamento_id || profile.departamento?.id_departamento
       ),
+      dni: normalizeString(user?.dni ?? ""),
+      nuevaContrasena: "",
+      confirmarContrasena: "",
     });
     setFotoPreview(profile.foto_perfil || "");
     setFotoData(null);
     setRemoveFoto(false);
-  }, [profile]);
+  }, [profile, user?.dni]);
 
   const onFieldChange = useCallback((field, transform) => {
     return (event) => {
@@ -154,18 +160,39 @@ export default function EditarProfesional() {
     const apellido = normalizeString(form.apellido).trim();
     const telefono = normalizeString(form.telefono).trim();
     const email = normalizeString(form.email).trim();
+    const dni = normalizeString(form.dni).trim();
+    const nuevaPwd = normalizeString(form.nuevaContrasena).trim();
+    const confirmPwd = normalizeString(form.confirmarContrasena).trim();
     if (!nombre) return "Ingresá tu nombre";
     if (!apellido) return "Ingresá tu apellido";
     if (!telefono) return "Ingresá tu teléfono";
     if (!email) return "Ingresá tu email";
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) return "Email inválido";
+    if (!dni) return "Ingresá tu DNI";
+    if (!/^\d{7,15}$/.test(dni)) return "DNI inválido (7-15 dígitos)";
     if (isProfesional) {
       if (!normalizeString(form.fecha_nacimiento).trim())
         return "La fecha de nacimiento es obligatoria";
       const profesionIdStr = normalizeString(form.profesionId).trim();
       if (!profesionIdStr || Number.isNaN(Number(profesionIdStr))) {
         return "Seleccioná tu profesión";
+      }
+    }
+    if (nuevaPwd || confirmPwd) {
+      if (nuevaPwd.length < 8) {
+        return "La nueva contraseña debe tener al menos 8 caracteres";
+      }
+      if (nuevaPwd.toLowerCase() === "estimular_2025") {
+        return "Elegí una contraseña distinta a la genérica";
+      }
+      if (nuevaPwd !== confirmPwd) {
+        return "Las contraseñas no coinciden";
+      }
+      const forbidden =
+        /('|--|;|\/\*|\*\/|xp_|exec|union|select|insert|delete|update|drop|alter|create|shutdown)/i;
+      if (forbidden.test(nuevaPwd)) {
+        return "La contraseña contiene caracteres no permitidos";
       }
     }
     const fechaNacimientoValue = normalizeString(form.fecha_nacimiento).trim();
@@ -194,11 +221,16 @@ export default function EditarProfesional() {
         email: normalizeString(form.email).trim(),
         fecha_nacimiento: normalizeString(form.fecha_nacimiento).trim() || null,
         tipoUsuario: profile?.tipo || undefined,
+        dni: Number(normalizeString(form.dni).trim()),
       };
 
       if (isProfesional) {
         const profesionIdStr = normalizeString(form.profesionId).trim();
         payload.profesionId = profesionIdStr ? Number(profesionIdStr) : null;
+      }
+
+      if (normalizeString(form.nuevaContrasena).trim()) {
+        payload.nuevaContrasena = normalizeString(form.nuevaContrasena).trim();
       }
 
       if (fotoData) {
@@ -246,6 +278,11 @@ export default function EditarProfesional() {
         });
         setFotoData(null);
         setRemoveFoto(false);
+        setForm((prev) => ({
+          ...prev,
+          nuevaContrasena: "",
+          confirmarContrasena: "",
+        }));
       } catch (err) {
         console.error("Error actualizando perfil", err);
         Swal.fire({
@@ -295,55 +332,51 @@ export default function EditarProfesional() {
         </button>
       </header>
 
-
       <div className="form-photo">
-            <div>
-              <label htmlFor="foto_perfil">Foto de perfil</label>
-              <p className="help-text">
-                Se mostrará en el listado de profesionales y secretaría.
-              </p>
-              <input
-                id="foto_perfil"
-                type="file"
-                accept="image/*"
-                onChange={onFileChange}
-              />
-              <div className="form-photo__actions">
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() =>
-                    document.getElementById("foto_perfil")?.click()
-                  }
-                >
-                  Seleccionar nueva foto
-                </button>
-                {(fotoPreview || profile?.foto_perfil) && (
-                  <button
-                    type="button"
-                    className="btn-link danger"
-                    onClick={onRemovePhoto}
-                  >
-                    Quitar foto
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="form-photo__preview">
-              {fotoPreview ? (
-                <img src={fotoPreview} alt="Vista previa" />
-              ) : profile?.foto_perfil && !removeFoto ? (
-                <img src={profile.foto_perfil} alt="Foto actual" />
-              ) : (
-                <div className="placeholder-avatar">
-                  {`${(form.nombre?.[0] || "U").toUpperCase()}${(
-                    form.apellido?.[0] || "S"
-                  ).toUpperCase()}`}
-                </div>
-              )}
-            </div>
+        <div>
+          <label htmlFor="foto_perfil">Foto de perfil</label>
+          <p className="help-text">
+            Se mostrará en el listado de profesionales y secretaría.
+          </p>
+          <input
+            id="foto_perfil"
+            type="file"
+            accept="image/*"
+            onChange={onFileChange}
+          />
+          <div className="form-photo__actions">
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => document.getElementById("foto_perfil")?.click()}
+            >
+              Seleccionar nueva foto
+            </button>
+            {(fotoPreview || profile?.foto_perfil) && (
+              <button
+                type="button"
+                className="btn-link danger"
+                onClick={onRemovePhoto}
+              >
+                Quitar foto
+              </button>
+            )}
           </div>
-
+        </div>
+        <div className="form-photo__preview">
+          {fotoPreview ? (
+            <img src={fotoPreview} alt="Vista previa" />
+          ) : profile?.foto_perfil && !removeFoto ? (
+            <img src={profile.foto_perfil} alt="Foto actual" />
+          ) : (
+            <div className="placeholder-avatar">
+              {`${(form.nombre?.[0] || "U").toUpperCase()}${(
+                form.apellido?.[0] || "S"
+              ).toUpperCase()}`}
+            </div>
+          )}
+        </div>
+      </div>
 
       {loading ? (
         <div className="editar-profesional__loading">Cargando…</div>
@@ -388,6 +421,15 @@ export default function EditarProfesional() {
               />
             </div>
             <div className="form-group">
+              <label htmlFor="dni">DNI</label>
+              <input
+                id="dni"
+                value={form.dni}
+                onChange={onFieldChange("dni")}
+                required
+              />
+            </div>
+            <div className="form-group">
               <label htmlFor="fecha_nacimiento">Fecha de nacimiento</label>
               <input
                 id="fecha_nacimiento"
@@ -427,7 +469,30 @@ export default function EditarProfesional() {
             )}
           </div>
 
-          
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="nuevaContrasena">Nueva contraseña</label>
+              <input
+                id="nuevaContrasena"
+                type="password"
+                value={form.nuevaContrasena}
+                onChange={onFieldChange("nuevaContrasena")}
+                autoComplete="new-password"
+                placeholder="Dejar en blanco para mantener la actual"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="confirmarContrasena">Confirmar contraseña</label>
+              <input
+                id="confirmarContrasena"
+                type="password"
+                value={form.confirmarContrasena}
+                onChange={onFieldChange("confirmarContrasena")}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+
           <footer className="form-footer">
             <button
               type="button"

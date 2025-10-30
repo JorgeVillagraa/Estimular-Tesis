@@ -6,12 +6,6 @@ import withReactContent from "sweetalert2-react-content";
 const Alerta = withReactContent(Swal);
 
 /* ─────────────── Helpers ─────────────── */
-const SERVICIOS = [
-  { id: "psicologa", etiqueta: "Psicóloga" },
-  { id: "psicopedagoga", etiqueta: "Psicopedagoga" },
-  { id: "terapeuta_ocupacional", etiqueta: "Terapeuta Ocupacional" },
-  { id: "fonoaudiologa", etiqueta: "Fonoaudióloga" },
-];
 
 const normalizarTexto = (texto = "") =>
   texto
@@ -85,6 +79,36 @@ function useObrasSociales() {
   return { listaObras, cargando };
 }
 
+/* ───────── Hook: Profesiones ───────── */
+function useProfesiones() {
+  const [listaProfesiones, setListaProfesiones] = useState([]);
+  const [cargandoProfesiones, setCargandoProfesiones] = useState(true);
+
+  useEffect(() => {
+    let activo = true;
+    (async () => {
+      try {
+        const { data } = await axios.get(
+          "http://localhost:5000/api/profesiones"
+        );
+        if (!activo) return;
+        const registros = Array.isArray(data?.data) ? data.data : [];
+        setListaProfesiones(registros);
+      } catch (error) {
+        console.error("Error al cargar profesiones", error);
+        if (activo) setListaProfesiones([]);
+      } finally {
+        if (activo) setCargandoProfesiones(false);
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  return { listaProfesiones, cargandoProfesiones };
+}
+
 /* ───────── Componentes UI reutilizables ───────── */
 const Campo = ({ id, etiqueta, error, children }) => (
   <div className="field">
@@ -129,26 +153,41 @@ const GrupoCheckbox = ({
   opciones,
   valoresSeleccionados,
   onCambiar,
+  cargando = false,
+  mensajeVacio = "No hay opciones disponibles.",
 }) => {
+  const seleccion = Array.isArray(valoresSeleccionados)
+    ? valoresSeleccionados
+    : [];
   const alternarSeleccion = (idOpcion) => {
-    const conjunto = new Set(valoresSeleccionados);
+    const conjunto = new Set(seleccion);
     conjunto.has(idOpcion) ? conjunto.delete(idOpcion) : conjunto.add(idOpcion);
     onCambiar(Array.from(conjunto));
+  };
+  const mensajeEstilo = {
+    fontSize: 14,
+    color: "var(--muted, #666)",
   };
   return (
     <div className="field">
       <label className="label-entrevista">{etiqueta}</label>
       <div className="checkbox-grid">
-        {opciones.map((opcion) => (
-          <label key={opcion.id} className="checkbox-item">
-            <input
-              type="checkbox"
-              checked={valoresSeleccionados.includes(opcion.id)}
-              onChange={() => alternarSeleccion(opcion.id)}
-            />
-            <span>{opcion.etiqueta}</span>
-          </label>
-        ))}
+        {cargando ? (
+          <span style={mensajeEstilo}>Cargando opciones…</span>
+        ) : opciones.length === 0 ? (
+          <span style={mensajeEstilo}>{mensajeVacio}</span>
+        ) : (
+          opciones.map((opcion) => (
+            <label key={opcion.id} className="checkbox-item">
+              <input
+                type="checkbox"
+                checked={seleccion.includes(opcion.id)}
+                onChange={() => alternarSeleccion(opcion.id)}
+              />
+              <span>{opcion.etiqueta}</span>
+            </label>
+          ))
+        )}
       </div>
     </div>
   );
@@ -208,6 +247,7 @@ const SelectConOtra = ({
 /* ───────── Componente principal ───────── */
 export default function FormularioEntrevista() {
   const { listaObras } = useObrasSociales();
+  const { listaProfesiones, cargandoProfesiones } = useProfesiones();
 
   const { fechaMinima, fechaMaxima } = useMemo(() => {
     const hoy = new Date();
@@ -242,6 +282,17 @@ export default function FormularioEntrevista() {
     aceptar_terminos: false,
   });
 
+  const serviciosOpciones = useMemo(() => {
+    const registros = Array.isArray(listaProfesiones) ? listaProfesiones : [];
+    return registros
+      .map((prof) => ({
+        id: String(prof.id_departamento ?? prof.id ?? ""),
+        etiqueta: prof.nombre || "Profesión sin nombre",
+      }))
+      .filter((opt) => opt.id && opt.etiqueta)
+      .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));
+  }, [listaProfesiones]);
+
   const usarOtraObra = datos.tiene_obra_social && !datos.id_obra_social;
 
   const actualizarCampo = useCallback((campo, valor) => {
@@ -261,6 +312,23 @@ export default function FormularioEntrevista() {
       actualizarCampo("obra_social_texto", "");
     }
   };
+
+  useEffect(() => {
+    if (!serviciosOpciones.length) return;
+    setDatos((prev) => {
+      if (!Array.isArray(prev.servicios) || prev.servicios.length === 0) {
+        return prev;
+      }
+      const validos = new Set(serviciosOpciones.map((opt) => opt.id));
+      const filtrados = prev.servicios
+        .map((id) => String(id))
+        .filter((id) => validos.has(id));
+      if (filtrados.length === prev.servicios.length) {
+        return prev;
+      }
+      return { ...prev, servicios: filtrados };
+    });
+  }, [serviciosOpciones]);
 
   const [errores, setErrores] = useState({});
   const validarTodo = () => {
@@ -294,6 +362,14 @@ export default function FormularioEntrevista() {
         ? null
         : "Debe aceptar los términos.",
     };
+
+    if (
+      !cargandoProfesiones &&
+      serviciosOpciones.length > 0 &&
+      (!Array.isArray(datos.servicios) || datos.servicios.length === 0)
+    ) {
+      nuevosErrores.servicios = "Seleccione al menos un servicio.";
+    }
 
     if (datos.tiene_obra_social) {
       if (usarOtraObra) {
@@ -356,6 +432,13 @@ export default function FormularioEntrevista() {
       e.motivo_consulta = VALIDADORES.requerido("Motivo obligatorio.")(
         datos.motivo_consulta
       );
+      if (
+        !cargandoProfesiones &&
+        serviciosOpciones.length > 0 &&
+        (!Array.isArray(datos.servicios) || datos.servicios.length === 0)
+      ) {
+        e.servicios = "Seleccione al menos un servicio.";
+      }
     } else if (p === 5) {
       if (!datos.aceptar_terminos)
         e.aceptar_terminos = "Debe aceptar los términos.";
@@ -705,8 +788,10 @@ export default function FormularioEntrevista() {
               </Campo>
               <GrupoCheckbox
                 etiqueta="Servicios solicitados (puede elegir uno o varios)"
-                opciones={SERVICIOS}
+                opciones={serviciosOpciones}
                 valoresSeleccionados={datos.servicios}
+                cargando={cargandoProfesiones}
+                mensajeVacio="No hay servicios configurados en este momento."
                 onCambiar={(seleccion) =>
                   actualizarCampo("servicios", seleccion)
                 }
