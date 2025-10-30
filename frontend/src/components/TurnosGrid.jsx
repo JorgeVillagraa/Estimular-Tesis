@@ -91,7 +91,7 @@ const TimeSlotWrapper = ({ children, value }) => {
 
 // Componente Principal
 
-export default function TurnosGrid({ loggedInProfesionalId }) {
+export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, currentUserId = null }) {
   const [events, setEvents] = useState([]);
   const [consultoriosTurnos, setConsultoriosTurnos] = useState([]);
   const [todosConsultorios, setTodosConsultorios] = useState([]);
@@ -158,9 +158,17 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
 
   const handleEventAction = useCallback(async (turno, data, openPaymentModal = false) => {
     try {
-      await axios.put(`${API_BASE_URL}/api/turnos/${turno.id}`, data, {
-        headers: { 'X-User-ID': loggedInProfesionalId }
-      });
+      const headers = {};
+      const userHeaderId = currentUserId ?? loggedInProfesionalId;
+      if (userHeaderId !== null && userHeaderId !== undefined) {
+        headers['X-User-ID'] = userHeaderId;
+      }
+
+      await axios.put(
+        `${API_BASE_URL}/api/turnos/${turno.id}`,
+        data,
+        Object.keys(headers).length ? { headers } : {}
+      );
       fetchTurnos(currentDate);
       setSelectedEvent(null);
       
@@ -171,7 +179,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
       console.error("Error updating turno:", error);
       alert('Error al actualizar el turno: ' + (error.response?.data?.message || error.message));
     }
-  }, [currentDate, fetchTurnos, loggedInProfesionalId]);
+  }, [currentDate, fetchTurnos, loggedInProfesionalId, currentUserId]);
 
   const handleEventDrop = useCallback(async ({ event, start, end, resourceId }) => {
     handleEventAction(event, {
@@ -258,16 +266,20 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
     setMostrarSelectorFecha(false);
   };
 
-  const isEventDraggable = useCallback((event) => {
-    return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
-  }, [loggedInProfesionalId]);
+  const isEventDraggable = useCallback(
+    (event) => {
+      if (isAdmin) return true;
+      return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+    },
+    [isAdmin, loggedInProfesionalId]
+  );
 
   const eventPropGetter = useCallback((event) => {
     const statusClass = `event-${event.data.estado}`;
     const isMyEvent = event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
-    const highlightClass = isMyEvent ? 'highlighted-event' : '';
+    const highlightClass = isAdmin || isMyEvent ? 'highlighted-event' : '';
     return { className: `${statusClass} ${highlightClass}` };
-  }, [loggedInProfesionalId]);
+  }, [isAdmin, loggedInProfesionalId]);
 
   const formats = {
     timeGutterFormat: 'HH:mm',
@@ -321,6 +333,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
           onOpenPagos={handleOpenPagos}
           onOpenPaciente={handleOpenPaciente}
           loggedInProfesionalId={loggedInProfesionalId}
+          isAdmin={isAdmin}
         />
       )}
       {turnoForPago && (

@@ -1,5 +1,35 @@
 const turnoModel = require('../models/turnoModel');
 const notificacionModel = require('../models/notificacionModel');
+const { supabaseAdmin } = require('../config/db');
+
+function isAdminRoleName(value) {
+  if (!value) return false;
+  const normalized = String(value).toLowerCase();
+  return normalized.includes('admin');
+}
+
+async function userIsAdmin(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('usuario_roles')
+      .select('rol:roles ( id_rol, nombre_rol )')
+      .eq('usuario_id', Number(userId));
+
+    if (error) {
+      console.error('userIsAdmin roles error:', error);
+      return false;
+    }
+
+    return (data || [])
+      .map((row) => row?.rol?.nombre_rol)
+      .filter(Boolean)
+      .some((name) => isAdminRoleName(name));
+  } catch (err) {
+    console.error('userIsAdmin exception:', err);
+    return false;
+  }
+}
 
 /**
  * Maneja la solicitud para obtener los turnos de una fecha específica.
@@ -86,9 +116,10 @@ async function handleCreateTurno(req, res) {
 async function handleUpdateTurno(req, res) {
   const { id } = req.params;
   const dataToUpdate = req.body;
-  const loggedInUserId = req.headers['x-user-id']; // Autenticación fake
+  const loggedInUserIdHeader = req.headers['x-user-id'];
+  const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
 
-  if (!loggedInUserId) {
+  if (!loggedInUserId || Number.isNaN(loggedInUserId)) {
     return res.status(401).json({ success: false, message: 'No autorizado: Falta el ID de usuario.' });
   }
 
@@ -97,6 +128,7 @@ async function handleUpdateTurno(req, res) {
   }
 
   try {
+    const adminOverride = await userIsAdmin(loggedInUserId);
     // Permisos para actualizar
     const turno = await turnoModel.getTurnoById(id);
     if (!turno) {
@@ -104,7 +136,7 @@ async function handleUpdateTurno(req, res) {
     }
 
     const profesionalIds = turno.profesional_ids ? turno.profesional_ids.split(',') : [];
-    if (!profesionalIds.includes(String(loggedInUserId))) {
+    if (!adminOverride && !profesionalIds.includes(String(loggedInUserId))) {
       return res.status(403).json({ success: false, message: 'No tiene permisos para modificar este turno.' });
     }
 

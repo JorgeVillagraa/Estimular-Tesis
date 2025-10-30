@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
-import axios from 'axios';
-import API_BASE_URL from '../constants/api';
 import './../styles/TurnoModal.css';
 
-export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOpenPaciente, loggedInProfesionalId }) {
+export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOpenPaciente, loggedInProfesionalId, isAdmin = false }) {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -19,6 +17,7 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOp
 
   const { data: turno } = event;
   const isMyEvent = turno.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+  const canManageTurno = isAdmin || isMyEvent;
 
   const handleTimeSave = () => {
     const [startHour, startMinute] = startTime.split(':').map(Number);
@@ -72,7 +71,7 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOp
         </div>
 
         <div className="modal-body">
-          {isMyEvent ? (
+          {canManageTurno ? (
             <>
               <h3>Cambiar Estado</h3>
               <div className="modal-actions-grid">
