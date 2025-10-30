@@ -1,15 +1,22 @@
 const supabase = require('../config/db');
 const { formatNinoDetails } = require('../utils/ninoFormatter');
 
+function normalizeText(value) {
+  if (!value) return '';
+  return value
+    .toString()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+}
+
 function sanitizeSearchTerm(term) {
   return term.replace(/[%]/g, '').trim();
 }
 
 async function searchNinos(search = '', limit = 10) {
   const normalizedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 25);
-  let query = supabase
-    .from('ninos')
-    .select(`
+  const baseSelect = `
       id_nino,
       nombre,
       apellido,
@@ -36,7 +43,11 @@ async function searchNinos(search = '', limit = 10) {
           email
         )
       )
-    `)
+    `;
+
+  let query = supabase
+    .from('ninos')
+    .select(baseSelect)
     .limit(normalizedLimit)
     .order('nombre', { ascending: true });
 
@@ -51,7 +62,64 @@ async function searchNinos(search = '', limit = 10) {
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data || []).map((nino) => formatNinoDetails(nino));
+  let rows = Array.isArray(data) ? data : [];
+
+  if (trimmed && rows.length < normalizedLimit) {
+    const fallbackLimit = Math.min(normalizedLimit * 2, 50);
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('ninos')
+      .select(baseSelect)
+      .limit(fallbackLimit)
+      .order('nombre', { ascending: true });
+
+    if (!fallbackError && Array.isArray(fallbackData)) {
+      const mergedMap = new Map();
+      rows.forEach((row) => {
+        if (row?.id_nino) {
+          mergedMap.set(row.id_nino, row);
+        }
+      });
+      fallbackData.forEach((row) => {
+        if (row?.id_nino && !mergedMap.has(row.id_nino)) {
+          mergedMap.set(row.id_nino, row);
+        }
+      });
+      rows = Array.from(mergedMap.values());
+    }
+  }
+
+  const normalizedTerm = normalizeText(trimmed);
+
+  const formatted = rows.map((nino) => formatNinoDetails(nino));
+
+  if (!normalizedTerm) {
+    return formatted;
+  }
+
+  const filtered = formatted.filter((nino) => {
+    const fieldsToCheck = [
+      nino.paciente_nombre,
+      nino.paciente_apellido,
+      nino.paciente_dni,
+      nino.titular_nombre,
+    ];
+
+    if (Array.isArray(nino.paciente_responsables)) {
+      nino.paciente_responsables.forEach((responsable) => {
+        fieldsToCheck.push(responsable.nombre);
+        fieldsToCheck.push(responsable.apellido);
+        if (responsable.nombre || responsable.apellido) {
+          fieldsToCheck.push(
+            [responsable.nombre, responsable.apellido].filter(Boolean).join(' ')
+          );
+        }
+      });
+    }
+
+    return fieldsToCheck.some((field) => normalizeText(field).includes(normalizedTerm));
+  });
+
+  return filtered.slice(0, normalizedLimit);
 }
 
 async function getNinoById(id) {

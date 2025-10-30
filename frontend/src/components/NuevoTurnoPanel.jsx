@@ -121,7 +121,8 @@ export default function NuevoTurnoPanel({
           params: { search: ninoQuery.trim(), limit: 8 },
         })
         .then((response) => {
-          setNinoResultados(response.data?.data || []);
+          const apiData = response.data?.data;
+          setNinoResultados(Array.isArray(apiData) ? apiData : []);
         })
         .catch((error) => {
           console.error('Error al buscar niños:', error);
@@ -355,30 +356,30 @@ export default function NuevoTurnoPanel({
                     ×
                   </button>
                 )}
+                {!isSearchingNinos && ninoResultados.length > 0 && (
+                  <ul className="autocomplete-list">
+                    {ninoResultados.map((nino) => (
+                      <li key={nino.paciente_id || nino.id_nino}>
+                        <button type="button" onClick={() => handleSelectNino(nino)}>
+                          <span className="nombre">
+                            {[
+                              nino.paciente_nombre,
+                              nino.paciente_apellido,
+                            ]
+                              .filter(Boolean)
+                              .join(' ')
+                              .trim() || 'Sin nombre'}
+                          </span>
+                          <span className="detalle">
+                            DNI: {nino.paciente_dni || '—'} · Obra social: {nino.paciente_obra_social || 'Sin obra social'}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               {isSearchingNinos && <p className="autocomplete-hint">Buscando…</p>}
-              {!isSearchingNinos && ninoResultados.length > 0 && (
-                <ul className="autocomplete-list">
-                  {ninoResultados.map((nino) => (
-                    <li key={nino.paciente_id || nino.id_nino}>
-                      <button type="button" onClick={() => handleSelectNino(nino)}>
-                        <span className="nombre">
-                          {[
-                            nino.paciente_nombre,
-                            nino.paciente_apellido,
-                          ]
-                            .filter(Boolean)
-                            .join(' ')
-                            .trim() || 'Sin nombre'}
-                        </span>
-                        <span className="detalle">
-                          DNI: {nino.paciente_dni || '—'} · Obra social: {nino.paciente_obra_social || 'Sin obra social'}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
               {selectedNino && (
                 <div className="selected-nino-details">
                   <p>

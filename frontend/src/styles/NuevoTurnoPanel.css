@@ -168,7 +168,7 @@
   border-radius: 0.75rem;
   border: 1px solid #e5e7eb;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
-  z-index: 10;
+  z-index: 1200;
   max-height: 240px;
   overflow-y: auto;
   list-style: none;
