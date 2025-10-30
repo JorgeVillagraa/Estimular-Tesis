@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -22,6 +22,7 @@ import AsignarEntrevista from "./pages/AsignarEntrevista";
 import EquipoEstimular from "./pages/EquipoEstimular";
 import Turnos from "./pages/Turnos";
 import useAuthStore from "./store/useAuthStore";
+import { NotificacionProvider } from "./context/NotificacionContext";
 
 function ProtectedRoute({ children, allowIncompleteProfile = false }) {
   const token = useAuthStore((state) => state.token);
@@ -76,6 +77,8 @@ function DashboardRoutes() {
 
 export default function App() {
   const token = useAuthStore((state) => state.token);
+  const profile = useAuthStore((state) => state.profile);
+  const user = useAuthStore((state) => state.user);
   const setProfile = useAuthStore((state) => state.setProfile);
   const setUser = useAuthStore((state) => state.setUser);
   const setNeedsProfile = useAuthStore((state) => state.setNeedsProfile);
@@ -86,7 +89,7 @@ export default function App() {
 
     const fetchProfile = async () => {
       try {
-  const { data } = await axios.get(`${API_BASE_URL}/api/login/me`);
+        const { data } = await axios.get(`${API_BASE_URL}/api/login/me`);
         if (cancelled || !data) return;
         if (data.profile && typeof setProfile === "function") {
           setProfile(data.profile);
@@ -112,44 +115,59 @@ export default function App() {
     };
   }, [token, setProfile, setUser, setNeedsProfile]);
 
+  const loggedInProfesionalId = useMemo(() => {
+    if (profile?.id_profesional) {
+      return profile.id_profesional;
+    }
+    if (user?.id_profesional) {
+      return user.id_profesional;
+    }
+    if (user?.id) {
+      return user.id;
+    }
+    return null;
+  }, [profile?.id_profesional, user?.id_profesional, user?.id]);
+
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/formulario-entrevista" element={<Entrevista />} />
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <Login />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/primer-registro"
-          element={
-            <ProtectedRoute allowIncompleteProfile>
-              <PrimerRegistro />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/turnos"
-          element={
-            <ProtectedRoute>
-              <Navigate to="/dashboard/turnos" replace />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/*"
-          element={
-            <ProtectedRoute>
-              <DashboardRoutes />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+      <NotificacionProvider loggedInProfesionalId={loggedInProfesionalId}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/formulario-entrevista" element={<Entrevista />} />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/primer-registro"
+            element={
+              <ProtectedRoute allowIncompleteProfile>
+                <PrimerRegistro />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/turnos"
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard/turnos" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/*"
+            element={
+              <ProtectedRoute>
+                <DashboardRoutes />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </NotificacionProvider>
     </Router>
   );
 }
