@@ -44,6 +44,8 @@ export default function NuevoTurnoPanel({
     moneda: 'ARS',
     metodo_pago: 'efectivo',
     estado: 'pendiente',
+    repetir_semanas: '',
+    semana_por_medio: false,
   }));
   const [ninoQuery, setNinoQuery] = useState('');
   const [ninoResultados, setNinoResultados] = useState([]);
@@ -152,6 +154,8 @@ export default function NuevoTurnoPanel({
         moneda: 'ARS',
         metodo_pago: 'efectivo',
         estado: 'pendiente',
+        repetir_semanas: '',
+        semana_por_medio: false,
         date: moment(defaultDate || new Date()).format('YYYY-MM-DD'),
       }));
       setSelectedNino(null);
@@ -183,10 +187,10 @@ export default function NuevoTurnoPanel({
   }, [formData.departamento_id, formOptions.profesionales]);
 
   const handleInputChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -257,21 +261,31 @@ export default function NuevoTurnoPanel({
     setIsSubmitting(true);
 
     try {
-      const inicio = moment(
+      const baseStartMoment = moment(
         `${formData.date} ${formData.startTime}`,
         'YYYY-MM-DD HH:mm'
-      ).toISOString();
+      );
 
+      if (!baseStartMoment.isValid()) {
+        setErrorMessage('La fecha y hora seleccionadas no son válidas.');
+        setIsSubmitting(false);
+        return;
+      }
       const duracionMin = Math.max(parseInt(formData.duracion_min, 10) || 30, 5);
+      const repeatWeeks = Math.max(parseInt(formData.repetir_semanas, 10) || 0, 0);
+      const intervalDays = formData.semana_por_medio ? 14 : 7;
 
-      const payload = {
+      const profesionalIdsSeleccionados = formData.profesional_ids
+        .map((id) => Number(id))
+        .filter((id) => !Number.isNaN(id));
+
+      const basePayload = {
         departamento_id: Number(formData.departamento_id),
         consultorio_id: formData.consultorio_id ? Number(formData.consultorio_id) : null,
-        inicio,
         duracion_min: duracionMin,
-  nino_id: selectedNino.paciente_id || selectedNino.id_nino,
+        nino_id: selectedNino.paciente_id || selectedNino.id_nino,
         notas: formData.notas?.trim() || null,
-        profesional_ids: formData.profesional_ids.map((id) => Number(id)).filter((id) => !Number.isNaN(id)),
+        profesional_ids: profesionalIdsSeleccionados,
         precio:
           formData.precio === ''
             ? null
@@ -281,28 +295,64 @@ export default function NuevoTurnoPanel({
         estado: formData.estado,
       };
 
-      const response = await axios.post(`${API_BASE_URL}/api/turnos`, payload, {
-        headers: loggedInProfesionalId
-          ? { 'X-User-ID': loggedInProfesionalId }
-          : undefined,
-      });
-
-      setSuccessMessage('Turno creado correctamente.');
-      setSelectedNino(null);
-      setNinoQuery('');
-      setFormData((prev) => ({
-        ...prev,
-        consultorio_id: '',
-        notas: '',
-        profesional_ids: payload.profesional_ids,
-        precio: '',
+      const payloads = Array.from({ length: repeatWeeks + 1 }, (_, index) => ({
+        ...basePayload,
+        inicio: baseStartMoment.clone().add(index * intervalDays, 'days').toISOString(),
       }));
 
-      if (onCreated) {
-        onCreated(response.data?.data);
+      const createdTurnos = [];
+      let creationError = null;
+
+      for (let index = 0; index < payloads.length; index += 1) {
+        try {
+          const response = await axios.post(`${API_BASE_URL}/api/turnos`, payloads[index], {
+            headers: loggedInProfesionalId
+              ? { 'X-User-ID': loggedInProfesionalId }
+              : undefined,
+          });
+          createdTurnos.push(response.data?.data);
+        } catch (error) {
+          creationError = error;
+          break;
+        }
+      }
+
+      if (createdTurnos.length > 0) {
+        const mensaje =
+          createdTurnos.length === 1
+            ? 'Turno creado correctamente.'
+            : `Se programaron ${createdTurnos.length} turnos en total.`;
+        setSuccessMessage(mensaje);
+        setSelectedNino(null);
+        setNinoQuery('');
+        setFormData((prev) => ({
+          ...prev,
+          consultorio_id: '',
+          notas: '',
+          profesional_ids: profesionalIdsSeleccionados,
+          precio: '',
+          repetir_semanas: '',
+          semana_por_medio: false,
+        }));
+
+        if (onCreated) {
+          onCreated(createdTurnos[0]);
+        }
+      }
+
+      if (creationError) {
+        console.error('Error al crear turnos repetidos:', creationError);
+        const mensajeError =
+          creationError.response?.data?.message ||
+          'No se pudieron crear todos los turnos de la serie.';
+        setErrorMessage(mensajeError);
+      }
+
+      if (createdTurnos.length === 0 && !creationError) {
+        setErrorMessage('No se pudo crear el turno. Intente nuevamente.');
       }
     } catch (error) {
-      console.error('Error al crear el turno:', error);
+      console.error('Error al preparar la creación de turnos:', error);
       const message =
         error.response?.data?.message || 'No se pudo crear el turno. Intente nuevamente.';
       setErrorMessage(message);
@@ -603,6 +653,43 @@ export default function NuevoTurnoPanel({
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="form-section">
+              <label htmlFor="repetir_semanas">Repetir semanalmente</label>
+              <div className="repeat-weekly-inputs">
+                <input
+                  id="repetir_semanas"
+                  name="repetir_semanas"
+                  type="number"
+                  min="0"
+                  max="52"
+                  step="1"
+                  value={formData.repetir_semanas}
+                  onChange={(event) => {
+                    handleInputChange(event);
+                    resetMessages();
+                  }}
+                  placeholder="0"
+                />
+                <label className="repeat-checkbox" htmlFor="semana_por_medio">
+                  <input
+                    id="semana_por_medio"
+                    name="semana_por_medio"
+                    type="checkbox"
+                    checked={Boolean(formData.semana_por_medio)}
+                    onChange={(event) => {
+                      handleInputChange(event);
+                      resetMessages();
+                    }}
+                  />
+                  Crear semana por medio
+                </label>
+                <span className="repeat-hint">
+                  Semanas adicionales después de la fecha seleccionada (0 = sin repetición). Si marcas
+                  «Semana por medio» se crearán cada dos semanas.
+                </span>
               </div>
             </div>
 
