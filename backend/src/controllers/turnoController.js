@@ -35,18 +35,58 @@ async function userIsAdmin(userId) {
  * Maneja la solicitud para obtener los turnos de una fecha específica.
  */
 async function handleGetTurnos(req, res) {
-  const { date } = req.query;
+  const { date, estado, nino_id, disponible, desde, hasta, limit = 50 } = req.query || {};
 
   if (!date) {
-    return res.status(400).json({ success: false, message: 'El parámetro \'date\' es requerido.' });
+    try {
+      let query = supabaseAdmin
+        .from('turnos')
+        .select('id, departamento_id, inicio, fin, duracion_min, consultorio_id, estado, nino_id', { count: 'exact' })
+        .order('inicio', { ascending: true })
+        .limit(Number(limit) || 50);
+
+      if (estado) query = query.eq('estado', estado);
+      if (nino_id) query = query.eq('nino_id', Number(nino_id));
+
+      if (String(disponible) === 'true') {
+        query = query.is('nino_id', null);
+        if (!estado) query = query.eq('estado', 'pendiente');
+      }
+
+      if (desde) {
+        const fromDate = new Date(desde);
+        if (!Number.isNaN(fromDate.getTime())) {
+          query = query.gte('inicio', fromDate.toISOString());
+        }
+      }
+
+      if (hasta) {
+        const toDate = new Date(hasta);
+        if (!Number.isNaN(toDate.getTime())) {
+          query = query.lte('inicio', toDate.toISOString());
+        }
+      }
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+
+      return res.json({
+        success: true,
+        data: data || [],
+        total: typeof count === 'number' ? count : Array.isArray(data) ? data.length : 0,
+      });
+    } catch (error) {
+      console.error('Error al obtener los turnos (lista):', error);
+      return res.status(500).json({ success: false, message: 'Error al obtener los turnos.' });
+    }
   }
 
   try {
     const turnos = await turnoModel.getTurnosByDate(date);
-    res.json({ success: true, data: turnos });
+    return res.json({ success: true, data: turnos });
   } catch (error) {
     console.error('Error al obtener los turnos:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+    return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 }
 
