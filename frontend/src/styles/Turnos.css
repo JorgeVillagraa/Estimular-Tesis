@@ -138,3 +138,17 @@
 .floating-create-turno-btn:active {
   transform: translateY(1px);
 }
+
+.toolbar-show-consultorios {
+  margin-left: 1rem;
+}
+
+.toolbar-show-consultorios button {
+  min-width: 220px;
+  white-space: nowrap;
+}
+
+.toolbar-show-consultorios button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

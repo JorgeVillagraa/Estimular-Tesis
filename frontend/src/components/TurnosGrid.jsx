@@ -50,7 +50,13 @@ const SimpleEvent = ({ event }) => (
 );
 
 // Toolbar
-const CustomToolbar = ({ label, onNavigate }) => {
+const CustomToolbar = ({
+  label,
+  onNavigate,
+  onShowAllConsultorios,
+  canShowAllConsultorios,
+  isShowingAll,
+}) => {
   return (
     <div className="rbc-toolbar">
       <span className="rbc-btn-group">
@@ -60,6 +66,16 @@ const CustomToolbar = ({ label, onNavigate }) => {
       </span>
       <StatusLegend />
       <span className="rbc-toolbar-label">{label}</span>
+      <span className="rbc-btn-group toolbar-show-consultorios">
+        <button
+          type="button"
+          onClick={onShowAllConsultorios}
+          disabled={!canShowAllConsultorios}
+          aria-pressed={isShowingAll}
+        >
+          {isShowingAll ? 'Ver consultorios con turnos' : 'Mostrar todos los consultorios'}
+        </button>
+      </span>
     </div>
   );
 };
@@ -75,7 +91,9 @@ const TimeSlotWrapper = ({ children, value }) => {
 
 export default function TurnosGrid({ loggedInProfesionalId }) {
   const [events, setEvents] = useState([]);
-  const [consultorios, setConsultorios] = useState([]);
+  const [consultoriosTurnos, setConsultoriosTurnos] = useState([]);
+  const [todosConsultorios, setTodosConsultorios] = useState([]);
+  const [mostrarTodosConsultorios, setMostrarTodosConsultorios] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [turnoForPago, setTurnoForPago] = useState(null);
@@ -86,9 +104,12 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
   const fetchTurnos = useCallback(async (date) => {
     try {
       const formattedDate = moment(date).format('YYYY-MM-DD');
-      const res = await axios.get(`${API_BASE_URL}/api/turnos?date=${formattedDate}`);
+      const [turnosRes, formDataRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/turnos?date=${formattedDate}`),
+        axios.get(`${API_BASE_URL}/api/turnos/form-data`),
+      ]);
       
-      const formattedEvents = res.data.data.map(turno => ({
+      const formattedEvents = turnosRes.data.data.map(turno => ({
         id: turno.id,
         title: `${turno.paciente_nombre} ${turno.paciente_apellido}`,
         start: new Date(turno.inicio),
@@ -99,7 +120,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
       setEvents(formattedEvents);
 
       const resourcesMap = new Map();
-      res.data.data.forEach((turno) => {
+      (turnosRes.data.data || []).forEach((turno) => {
         if (turno.consultorio_id) {
           resourcesMap.set(turno.consultorio_id, {
             resourceId: turno.consultorio_id,
@@ -108,30 +129,25 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
         }
       });
 
+      const consultoriosCatalogo = formDataRes.data?.data?.consultorios || [];
+      const catalogoResources = consultoriosCatalogo.map((consultorio) => ({
+        resourceId: consultorio.id,
+        resourceTitle: consultorio.nombre || `Consultorio ${consultorio.id}`,
+      }));
+      setTodosConsultorios(catalogoResources);
+
       const resources = Array.from(resourcesMap.values()).sort((a, b) => {
         if (a.resourceId === null) return 1;
         if (b.resourceId === null) return -1;
         return a.resourceId - b.resourceId;
       });
 
-      if (
-        resources.length !== consultorios.length ||
-        resources.some((resource, index) => {
-          const current = consultorios[index];
-          if (!current) return true;
-          return (
-            current.resourceId !== resource.resourceId ||
-            current.resourceTitle !== resource.resourceTitle
-          );
-        })
-      ) {
-        setConsultorios(resources);
-      }
+      setConsultoriosTurnos(resources);
 
     } catch (error) {
       console.error("Error fetching turnos:", error);
     }
-  }, [consultorios]);
+  }, []);
 
   useEffect(() => {
     fetchTurnos(currentDate);
@@ -212,6 +228,12 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
     setMostrarNuevoTurno(false);
   }, [currentDate, fetchTurnos]);
 
+  const handleMostrarTodosConsultorios = () => {
+    setMostrarTodosConsultorios((prev) => !prev);
+  };
+
+  const calendarResources = mostrarTodosConsultorios ? todosConsultorios : consultoriosTurnos;
+
   const isEventDraggable = useCallback((event) => {
     return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
   }, [loggedInProfesionalId]);
@@ -237,7 +259,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
         onSelectEvent={handleSelectEvent}
         defaultView="day"
         views={['day']}
-        resources={consultorios}
+  resources={calendarResources}
         resourceIdAccessor="resourceId"
         resourceTitleAccessor="resourceTitle"
         startAccessor="start"
@@ -254,7 +276,14 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
         formats={formats}
         eventPropGetter={eventPropGetter}
         components={{
-          toolbar: CustomToolbar,
+          toolbar: (toolbarProps) => (
+            <CustomToolbar
+              {...toolbarProps}
+              onShowAllConsultorios={handleMostrarTodosConsultorios}
+              canShowAllConsultorios={todosConsultorios.length > 0}
+              isShowingAll={mostrarTodosConsultorios}
+            />
+          ),
           timeSlotWrapper: TimeSlotWrapper,
           event: SimpleEvent
         }}
