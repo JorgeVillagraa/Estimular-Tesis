@@ -56,6 +56,7 @@ const CustomToolbar = ({
   onShowAllConsultorios,
   canShowAllConsultorios,
   isShowingAll,
+  onOpenDatePicker,
 }) => {
   return (
     <div className="rbc-toolbar">
@@ -63,6 +64,7 @@ const CustomToolbar = ({
         <button type="button" onClick={() => onNavigate('PREV')}>&lt; Anterior</button>
         <button type="button" onClick={() => onNavigate('TODAY')}>Hoy</button>
         <button type="button" onClick={() => onNavigate('NEXT')}>Siguiente &gt;</button>
+        <button type="button" onClick={onOpenDatePicker}>Ir a fecha…</button>
       </span>
       <StatusLegend />
       <span className="rbc-toolbar-label">{label}</span>
@@ -95,6 +97,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
   const [todosConsultorios, setTodosConsultorios] = useState([]);
   const [mostrarTodosConsultorios, setMostrarTodosConsultorios] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [mostrarSelectorFecha, setMostrarSelectorFecha] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [turnoForPago, setTurnoForPago] = useState(null);
   const [pacienteParaVer, setPacienteParaVer] = useState(null);
@@ -234,6 +237,27 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
 
   const calendarResources = mostrarTodosConsultorios ? todosConsultorios : consultoriosTurnos;
 
+  const handleOpenDatePicker = () => {
+    setMostrarSelectorFecha(true);
+  };
+
+  const handleCloseDatePicker = () => {
+    setMostrarSelectorFecha(false);
+  };
+
+  const handleDateSubmit = (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const dateValue = formData.get('goto-date');
+    if (dateValue) {
+      const selected = moment(dateValue, 'YYYY-MM-DD').toDate();
+      if (!Number.isNaN(selected.getTime())) {
+        setCurrentDate(selected);
+      }
+    }
+    setMostrarSelectorFecha(false);
+  };
+
   const isEventDraggable = useCallback((event) => {
     return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
   }, [loggedInProfesionalId]);
@@ -282,6 +306,7 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
               onShowAllConsultorios={handleMostrarTodosConsultorios}
               canShowAllConsultorios={todosConsultorios.length > 0}
               isShowingAll={mostrarTodosConsultorios}
+              onOpenDatePicker={handleOpenDatePicker}
             />
           ),
           timeSlotWrapper: TimeSlotWrapper,
@@ -324,6 +349,25 @@ export default function TurnosGrid({ loggedInProfesionalId }) {
         defaultDate={currentDate}
         loggedInProfesionalId={loggedInProfesionalId}
       />
+      {mostrarSelectorFecha && (
+        <div className="goto-date-overlay" role="dialog" aria-modal="true">
+          <form className="goto-date-dialog" onSubmit={handleDateSubmit}>
+            <h3>Ir a fecha</h3>
+            <label htmlFor="goto-date">Seleccionar fecha</label>
+            <input
+              id="goto-date"
+              name="goto-date"
+              type="date"
+              defaultValue={moment(currentDate).format('YYYY-MM-DD')}
+              required
+            />
+            <div className="goto-date-actions">
+              <button type="button" onClick={handleCloseDatePicker}>Cancelar</button>
+              <button type="submit">Ir</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
