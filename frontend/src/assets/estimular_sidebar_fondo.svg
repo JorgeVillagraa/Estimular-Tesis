@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1536" viewBox="0 0 1024 1536" xmlns="http://www.w3.org/2000/svg">
+  <!-- Base background -->
+  <rect width="1024" height="1536" fill="#F45172"/>
+  
+  <!-- Soft circular accents (top-left) -->
+  <g opacity="0.18">
+    <circle cx="140" cy="150" r="180" fill="#FF8AA3"/>
+    <circle cx="140" cy="150" r="300" fill="#FF8AA3"/>
+  </g>
+
+  <!-- Soft arc bottom-right -->
+  <g opacity="0.22">
+    <circle cx="964" cy="1476" r="220" fill="none" stroke="#FF8AA3" stroke-width="80"/>
+  </g>
+
+  <!-- Small circle top-right -->
+  <g opacity="0.25">
+    <circle cx="944" cy="160" r="55" fill="#FF8AA3"/>
+  </g>
+
+  <!-- Dot cluster (top-right area) -->
+  <g opacity="0.2" transform="translate(764, 380)">
+    <!-- 4x4 subtle dot grid -->
+    <circle cx="0" cy="0" r="6" fill="#FF8AA3"/>
+    <circle cx="34" cy="0" r="6" fill="#FF8AA3"/>
+    <circle cx="68" cy="0" r="6" fill="#FF8AA3"/>
+    <circle cx="102" cy="0" r="6" fill="#FF8AA3"/>
+
+    <circle cx="0" cy="34" r="6" fill="#FF8AA3"/>
+    <circle cx="34" cy="34" r="6" fill="#FF8AA3"/>
+    <circle cx="68" cy="34" r="6" fill="#FF8AA3"/>
+    <circle cx="102" cy="34" r="6" fill="#FF8AA3"/>
+
+    <circle cx="0" cy="68" r="6" fill="#FF8AA3"/>
+    <circle cx="34" cy="68" r="6" fill="#FF8AA3"/>
+    <circle cx="68" cy="68" r="6" fill="#FF8AA3"/>
+    <circle cx="102" cy="68" r="6" fill="#FF8AA3"/>
+
+    <circle cx="0" cy="102" r="6" fill="#FF8AA3"/>
+    <circle cx="34" cy="102" r="6" fill="#FF8AA3"/>
+    <circle cx="68" cy="102" r="6" fill="#FF8AA3"/>
+    <circle cx="102" cy="102" r="6" fill="#FF8AA3"/>
+  </g>
+
+  <!-- Small abstract blob bottom-left -->
+  <g opacity="0.22" transform="translate(64, 1130) rotate(-12)">
+    <path d="M42 0c12 0 22 10 22 22s-10 22-22 22H22C10 44 0 34 0 22S10 0 22 0h20z" fill="#FF8AA3"/>
+  </g>
+</svg>

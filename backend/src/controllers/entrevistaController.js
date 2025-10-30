@@ -1,7 +1,6 @@
-const supabase = require('../config/db');
+const { supabaseAdmin } = require('../config/db');
 
 const enviarFormularioEntrevista = async (req, res) => {
-  
   const body = req.body || {};
 
   const candidatoBody = body.candidato || {
@@ -11,7 +10,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     dni_nino: body.dni_nino,
     certificado_discapacidad: body.certificado_discapacidad,
     id_obra_social: body.id_obra_social,
-    obra_social_texto: body.obra_social_texto || body.obra_social, // texto libre si vino en plano
+    obra_social_texto: body.obra_social_texto || body.obra_social,
     motivo_consulta: body.motivo_consulta,
   };
 
@@ -20,6 +19,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     apellido_responsable: body.apellido_responsable,
     telefono: body.telefono,
     email: body.email,
+    dni: body.dni_responsable,
     parentesco: body.parentesco,
     es_principal: body.es_principal === undefined ? true : body.es_principal,
   };
@@ -29,22 +29,20 @@ const enviarFormularioEntrevista = async (req, res) => {
   let insertedResponsable = null;
 
   try {
-    // 1) Si no viene id_obra_social y hay texto libre, crear obra_social como 'pendiente'
     let idObra = candidatoBody.id_obra_social ?? null;
     if (!idObra && candidatoBody.obra_social_texto && candidatoBody.obra_social_texto.trim().length > 0) {
       const nombre = candidatoBody.obra_social_texto.trim();
-      const { data: obraData, error: obraErr } = await supabase
+      const { data: obraData, error: obraErr } = await supabaseAdmin
         .from('obras_sociales')
         .insert([{ nombre_obra_social: nombre, estado: 'pendiente' }])
-        .select()
-        .single();
+        .select('id_obra_social, nombre_obra_social, estado')
+        .maybeSingle();
 
       if (obraErr) throw obraErr;
-      idObra = obraData.id_obra_social;
+      idObra = obraData?.id_obra_social || null;
       createdObraId = idObra;
     }
 
-    // 2) Insertar candidato (usar columnas con nombres explícitos)
     const candidatoInsert = {
       nombre_nino: candidatoBody.nombre_nino,
       apellido_nino: candidatoBody.apellido_nino,
@@ -55,49 +53,48 @@ const enviarFormularioEntrevista = async (req, res) => {
       motivo_consulta: candidatoBody.motivo_consulta,
     };
 
-    const { data: candidato, error: errorCandidato } = await supabase
+    const { data: candidato, error: errorCandidato } = await supabaseAdmin
       .from('candidatos')
       .insert([candidatoInsert])
-      .select()
-      .single();
+      .select(
+        'id_candidato, nombre_nino, apellido_nino, fecha_nacimiento, dni_nino, certificado_discapacidad, id_obra_social, motivo_consulta'
+      )
+      .maybeSingle();
 
     if (errorCandidato) {
-      // si hubo creación de obra en este flujo, intentar borrarla (cleanup)
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorCandidato;
     }
-    insertedCandidato = candidato; // guardamos para posible rollback
+    insertedCandidato = candidato;
 
-    // 3) Insertar responsable
     const responsableInsert = {
       nombre: responsableBody.nombre_responsable,
       apellido: responsableBody.apellido_responsable,
       telefono: responsableBody.telefono || null,
       email: responsableBody.email || null,
+      dni: responsableBody.dni || null,
       creado_en: new Date().toISOString(),
     };
 
-    const { data: responsable, error: errorResponsable } = await supabase
+    const { data: responsable, error: errorResponsable } = await supabaseAdmin
       .from('responsables')
       .insert([responsableInsert])
-      .select()
-      .single();
+      .select('id_responsable, nombre, apellido, telefono, email, dni')
+      .maybeSingle();
 
     if (errorResponsable) {
-      // rollback candidato + obra si aplica
-      if (insertedCandidato) {
-        await supabase.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+      if (insertedCandidato?.id_candidato) {
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
       }
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorResponsable;
     }
     insertedResponsable = responsable;
 
-    // 4) Insertar relación N:M en candidato_responsables usando ids explícitos
     const relacionInsert = {
       id_candidato: insertedCandidato.id_candidato,
       id_responsable: insertedResponsable.id_responsable,
@@ -105,44 +102,41 @@ const enviarFormularioEntrevista = async (req, res) => {
       es_principal: responsableBody.es_principal ?? true,
     };
 
-    const { data: relacionData, error: errorRelacion } = await supabase
+    const { data: relacionData, error: errorRelacion } = await supabaseAdmin
       .from('candidato_responsables')
       .insert([relacionInsert])
-      .select()
-      .single();
+      .select('id_candidato_responsable, id_candidato, id_responsable, parentesco, es_principal')
+      .maybeSingle();
 
     if (errorRelacion) {
-      // rollback responsable, candidato, obra si aplica
-      if (insertedResponsable) {
-        await supabase.from('responsables').delete().eq('id_responsable', insertedResponsable.id_responsable);
+      if (insertedResponsable?.id_responsable) {
+        await supabaseAdmin
+          .from('responsables')
+          .delete()
+          .eq('id_responsable', insertedResponsable.id_responsable);
       }
-      if (insertedCandidato) {
-        await supabase.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
+      if (insertedCandidato?.id_candidato) {
+        await supabaseAdmin.from('candidatos').delete().eq('id_candidato', insertedCandidato.id_candidato);
       }
       if (createdObraId) {
-        await supabase.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
+        await supabaseAdmin.from('obras_sociales').delete().eq('id_obra_social', createdObraId);
       }
       throw errorRelacion;
     }
 
-    // éxito
     return res.status(201).json({
       success: true,
       data: {
         candidato: insertedCandidato,
         responsable: insertedResponsable,
         relacion: relacionData,
-      }
+      },
     });
-
   } catch (error) {
     console.error('Error en enviarFormularioEntrevista:', error);
 
-    // mapear errores comunes a códigos HTTP más útiles
     const msg = error?.message || error?.msg || JSON.stringify(error);
     let status = 500;
-
-    // detectar unique constraint / duplicate
     const lower = String(msg).toLowerCase();
     if (lower.includes('duplicate') || lower.includes('unique') || lower.includes('already exists') || error?.code === '23505') {
       status = 409;
@@ -151,7 +145,7 @@ const enviarFormularioEntrevista = async (req, res) => {
     return res.status(status).json({
       success: false,
       message: 'Error al crear candidato',
-      error: msg
+      error: msg,
     });
   }
 };

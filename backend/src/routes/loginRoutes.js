@@ -1,10 +1,22 @@
-// const express = require("express");
+const express = require("express");
+const {
+  registrarUsuario,
+  loginUsuario,
+  primerRegistro,
+  actualizarPerfil,
+  obtenerPerfilActual,
+} = require("../controllers/loginController");
 
-// const { registrarUsuario, loginUsuario } = require("../controllers/loginController");
+const router = express.Router();
 
-// const router = express.Router();
+// Soporte legacy: POST /api/login
+router.post("/", loginUsuario);
 
-// router.post("/register", registrarUsuario);
-// router.post("/login", loginUsuario);
+// Rutas nuevas
+router.post("/login", loginUsuario);
+router.post("/register", registrarUsuario);
+router.post("/primer-registro", primerRegistro);
+router.put("/perfil", actualizarPerfil);
+router.get("/me", obtenerPerfilActual);
 
-// module.exports = router;
+module.exports = router;

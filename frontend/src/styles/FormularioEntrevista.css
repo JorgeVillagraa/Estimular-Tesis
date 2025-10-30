@@ -1,143 +1,538 @@
-.entrevista__form fieldset {
-  margin-bottom: 1.5rem;
-  background: transparent;
-  box-shadow: var(--color-rosa1) 0px 0px 8px;
-  border-radius: 12px;
-  padding: 2rem;
-}
-
-.entrevista__form legend {
-  font-size: 1.2rem;
-  padding-bottom: 2rem;
-  font-weight: 700;
-  color: var(--color-rosa1);
-  letter-spacing: 1px;
-  text-align: center;
-}
+/* ===========================
+   Base: Mobile-first
+=========================== */
 
 .entrevista__formulario {
-  flex: 1 1 60vw;
-  max-width: 120vw;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
   background: var(--color-fondo);
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .entrevista__titulo {
   color: var(--color-text);
-  font-size: 2.8rem;
   font-weight: 700;
+  margin: 0 0 6px 0;
+  text-align: center;
+  /* tipografía fluida */
+  font-size: clamp(1.6rem, 3.8vw, 2.8rem);
+}
+.entrevista__progreso {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 8px 0;
+}
+.entrevista__progreso-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 182, 193, 0.18);
+  border: 1px solid rgba(255, 182, 193, 0.35);
+  overflow: hidden;
+}
+.entrevista__progreso-fill {
+  height: 100%;
+  background: var(--color-rosa1);
+  transition: width 220ms ease;
+}
+.entrevista__pasos-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.entrevista__pasos-dots .paso-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-rosa1);
+  background: transparent;
+  cursor: pointer;
+}
+.entrevista__pasos-dots .paso-dot.activo {
+  background: var(--color-rosa1);
+}
+.entrevista__pasos-dots .paso-dot.completado {
+  background: rgba(255, 182, 193, 0.6);
+}
+
+.field {
   margin-bottom: 0.5rem;
+}
+
+.entrevista__radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .entrevista__subtitulo {
   color: var(--color-text);
-  font-size: 1.25rem;
-  margin-bottom: 1.9rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: clamp(0.95rem, 2.2vw, 1.25rem);
+  line-height: 1.35;
+}
+
+.entrevista__screen {
+  /* Cada pantalla (step) ocupa el alto del viewport y evita scroll */
+  min-height: 100dvh;
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .entrevista__form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  width: 120%;
-  max-width: 1200px;
-  padding: 2rem;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 880px; /* buen ancho de lectura */
+  padding: 0.85rem;
   border-radius: 16px;
-  box-shadow: 10px 10px 20px var(--color-rosa1);
-  margin-bottom: 2rem;
+  box-shadow: 0 6px 18px rgb(255, 6, 176);
+  /* Eliminamos margin-bottom para evitar crecimiento extra */
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(3px);
+  flex: 1 1 auto; /* que el form ocupe el alto disponible */
+}
+
+/* Contenedor del contenido de cada paso, sin scroll y ajustado */
+.entrevista__contenido {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.85rem;
+  overflow: hidden; /* evitamos scroll interno */
+}
+
+/* Barra de navegación inferior de pasos */
+.entrevista__nav {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto; /* empuja al final del contenedor */
+}
+
+.entrevista__nav .btn-nav {
+  background: var(--color-rosa1);
+  color: var(--color-fondo);
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+.entrevista__nav .btn-outline {
+  background: transparent;
+  color: var(--color-rosa1);
+  border: 2px solid var(--color-rosa1);
+}
+.entrevista__nav .btn-nav[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.entrevista__nav .btn-nav:hover:not([disabled]) {
+  filter: brightness(1.08);
+}
+.entrevista__nav .btn-outline:hover:not([disabled]) {
+  background: rgba(255, 182, 193, 0.08);
+}
+
+/* Accesibilidad: sólo mostrar focus para teclado */
+.entrevista__input:focus-visible,
+.btn-opcion:focus-visible,
+.btn-nav:focus-visible,
+.paso-dot:focus-visible,
+.entrevista__checkbox:focus-visible,
+select.entrevista__input:focus-visible,
+textarea.entrevista__input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.25);
+  border-color: var(--color-rosa1);
+}
+
+.entrevista__form fieldset {
+  margin: 0 0 1.2rem 0;
+  background: transparent;
+  border: 1px solid rgba(255, 182, 193, 0.35);
+  box-shadow: 0 0 8px rgba(255, 182, 193, 0.18);
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.entrevista__form legend {
+  font-weight: 700;
+  color: var(--color-rosa1);
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding-bottom: 0.5rem;
+  font-size: clamp(1rem, 2.4vw, 1.2rem);
 }
 
 .label-entrevista {
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.98rem;
   font-weight: 600;
   color: var(--color-text);
   display: block;
 }
 
-.label-informacion-entrevista {
+.label-informacion-entrevista,
+.label-vacio-entrevista {
   font-size: 1rem;
   font-weight: 600;
   color: var(--color-rosa1);
   display: block;
   text-align: center;
-}
-
-.label-vacio-entrevista {
-  margin-bottom: 1.2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-rosa1);
-  display: block;
-}
-
-.entrevista__input,
-textarea.entrevista__input {
   margin-bottom: 1rem;
-  font-size: 1.05rem;
-  padding: 0.5rem 1.2rem;
+}
+
+/* Inputs */
+.entrevista__input,
+textarea.entrevista__input,
+select.entrevista__input {
+  margin-bottom: 0.9rem;
+  font-size: 1rem;
+  padding: 0.65rem 1rem;
   border: 1.5px solid var(--color-border);
   border-radius: 14px;
   background: var(--color-fondo);
   color: var(--color-text);
   outline: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   width: 100%;
-  resize: vertical;
+  box-sizing: border-box;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 44px; /* touch target */
 }
 
 textarea.entrevista__input {
-  min-height: 200px;
-  max-height: 400px;
-  resize:none;
+  min-height: 140px;
+  max-height: 240px;
+  resize: vertical;
 }
 
-select.entrevista__input{
-  margin-top:0.5rem;
+/* Fieldsets en grilla en pantallas medianas para reducir altura */
+@media (min-width: 720px) {
+  .entrevista__form fieldset {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1rem;
+  }
+  .entrevista__form fieldset > .field {
+    margin-bottom: 0;
+  }
+  .entrevista__radio-group {
+    grid-column: 1 / -1;
+  }
 }
 
-.entrevista__input:focus {
+/* Dispositivos de poca altura: compactar aún más */
+@media (max-height: 700px) {
+  .entrevista__titulo {
+    font-size: clamp(1.3rem, 3.4vw, 2.1rem);
+  }
+  .entrevista__subtitulo {
+    font-size: clamp(0.9rem, 2vw, 1.05rem);
+    margin-bottom: 0.8rem;
+  }
+  .entrevista__form legend {
+    padding-bottom: 0.35rem;
+  }
+  .entrevista__form fieldset {
+    padding: 0.65rem;
+  }
+  .entrevista__input,
+  textarea.entrevista__input,
+  select.entrevista__input {
+    min-height: 40px;
+    padding: 0.5rem 0.8rem;
+  }
+  textarea.entrevista__input {
+    min-height: 100px;
+    max-height: 180px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrevista__progreso-fill {
+    transition: none !important;
+  }
+}
+
+select.entrevista__input {
+  margin-top: 0.4rem;
+}
+
+.entrevista__input:focus,
+textarea.entrevista__input:focus,
+select.entrevista__input:focus {
   border-color: var(--color-rosa1);
   box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.25);
 }
 
+/* Fechas */
 .entrevista__input-fecha {
   display: flex;
   gap: 0.8rem;
 }
-
 .entrevista__input-fecha input {
   flex: 1;
   text-align: center;
 }
 
-.entrevista__terminos-container {
-  display: flex;
-  margin-top: 1rem;
-  align-items: center;
-  gap: 0.7rem;
-  font-size: 1rem;
-  font-weight: 500;
+/* Botones Sí/No */
+.btn-opcion {
+  padding: 0.6rem 1.1rem;
+  margin: 0.6rem 0.35rem;
+  border: 1.5px solid var(--color-border);
+  background: #f9f9f9;
+  cursor: pointer;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  min-height: 44px; /* touch target */
+}
+.btn-opcion:hover {
+  border-color: var(--color-rosa1);
+  color: var(--color-rosa1);
+}
+.btn-opcion.activo {
+  background: var(--color-rosa1);
+  color: #fff;
+  border-color: var(--color-rosa2);
 }
 
-.entrevista__aceptar-terminos {
-  width: 30px;
-  height: 30px;
+/* Errores y helper */
+.error-message {
+  display: block;
+  font-size: 0.92rem;
+  margin: -0.2rem 0 0.8rem 0;
+  color: var(--color-rojo1);
+  font-weight: 700;
+}
+.max-caracteres {
+  display: block;
+  font-size: 0.82rem;
+  margin-top: 0.15rem;
+  color: var(--color-gris-label);
+  text-align: right;
+}
+
+/* ===========================
+   Términos + Confidencialidad
+=========================== */
+.entrevista__mensaje-confidencialidad {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 182, 193, 0.08) 0%,
+    rgba(255, 182, 193, 0.03) 100%
+  );
+  border: 1px solid rgba(255, 182, 193, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 0.7rem;
+  text-align: left;
+  box-shadow: 0 2px 10px rgba(255, 182, 193, 0.15);
+}
+.entrevista__mensaje-confidencialidad p {
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-weight: 500;
+  margin: 0;
+}
+
+.entrevista__terminos-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.9rem 1rem;
+  border: 1.5px solid rgba(255, 182, 193, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 182, 193, 0.08) 0%,
+    rgba(255, 182, 193, 0.04) 100%
+  );
+  box-shadow: 0 2px 10px rgba(255, 182, 193, 0.18);
+  margin-top: 0.9rem;
+}
+
+.entrevista__label-terminos {
+  color: var(--color-rosa2);
+  cursor: pointer;
+  font-weight: 700;
+}
+.entrevista__label-terminos::after {
+  content: " • obligatorio";
+  margin-left: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-rosa1);
+  background: rgba(255, 182, 193, 0.18);
+  border: 1px solid rgba(255, 182, 193, 0.35);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.entrevista__aceptar-terminos,
+.entrevista__checkbox {
+  width: 26px;
+  height: 26px;
   border-radius: 6px;
   border: 1.5px solid var(--color-border);
   appearance: none;
   cursor: pointer;
   position: relative;
+  background: var(--color-fondo);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
 }
-
-.entrevista__aceptar-terminos:checked {
+.entrevista__aceptar-terminos:hover,
+.entrevista__checkbox:hover {
+  border-color: var(--color-rosa1);
+  box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.25);
+}
+.entrevista__aceptar-terminos:checked,
+.entrevista__checkbox:checked {
   background: var(--color-rosa1);
   border-color: var(--color-rosa1);
 }
+.entrevista__aceptar-terminos:checked::after,
+.entrevista__checkbox:checked::after {
+  content: "✓";
+  color: var(--color-fondo);
+  font-size: 0.9rem;
+  font-weight: 700;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+}
 
-.entrevista__aceptar-terminos:checked::after {
+/* Llamado sutil si no está marcado (navegadores modernos) */
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 182, 193, 0.35);
+  }
+  60% {
+    box-shadow: 0 0 0 10px rgba(255, 182, 193, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 182, 193, 0);
+  }
+}
+.entrevista__form:not(:has(#aceptar_terminos:checked))
+  .entrevista__terminos-container {
+  animation: pulseGlow 1.6s ease-out infinite;
+}
+
+/* Botón enviar */
+.entrevista__boton {
+  background: var(--color-rosa1);
+  color: var(--color-fondo);
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  font-weight: 700;
+  border: none;
+  border-radius: 14px;
+  padding: 1rem;
+  margin-top: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+  width: 100%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  min-height: 48px; /* touch target */
+}
+.entrevista__boton:hover {
+  background: var(--color-rosa2);
+}
+.entrevista__boton:active {
+  transform: translateY(-2px);
+}
+
+/* Desactivar visualmente si no se aceptan términos (opcional) */
+.entrevista__form:not(:has(#aceptar_terminos:checked)) .entrevista__boton {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: saturate(0.75);
+}
+
+/* ===========================
+   Checkboxes de Servicios
+=========================== */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 columnas en móviles medianos */
+  gap: 0.75rem 0.9rem;
+  margin-top: 0.5rem;
+}
+@media (max-width: 420px) {
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  } /* 1 columna en teléfonos chicos */
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-fondo);
+  color: var(--color-text);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  min-height: 44px; /* touch target */
+}
+.checkbox-item:hover {
+  border-color: var(--color-rosa1);
+  box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.18);
+}
+.checkbox-item input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-fondo);
+  appearance: none;
+  outline: none;
+  position: relative;
+  display: inline-block;
+  flex: 0 0 22px;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.checkbox-item input[type="checkbox"]:focus {
+  border-color: var(--color-rosa1);
+  box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.25);
+}
+.checkbox-item input[type="checkbox"]:checked {
+  background: var(--color-rosa1);
+  border-color: var(--color-rosa1);
+}
+.checkbox-item input[type="checkbox"]:checked::after {
   content: "✓";
   color: var(--color-fondo);
   font-size: 0.9rem;
@@ -146,81 +541,63 @@ select.entrevista__input{
   left: 50%;
   transform: translate(-50%, -52%);
 }
-
-.entrevista__label-terminos {
-  color: var(--color-rosa2);
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.entrevista__boton {
-  background: var(--color-rosa1);
-  color: var(--color-fondo);
-  font-size: 1.2rem;
+.checkbox-item > span {
   font-weight: 600;
-  border: none;
-  border-radius: 14px;
-  padding: 1rem;
-  margin-top: 1.6rem;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
-  width: 100%;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  line-height: 1;
+}
+.checkbox-item:has(input[type="checkbox"]:checked) {
+  background: rgba(255, 182, 193, 0.08);
+  border-color: var(--color-rosa1);
+}
+.checkbox-item input[type="checkbox"]:checked + span {
+  color: var(--color-rosa1);
 }
 
-.entrevista__boton:active {
-  transform: translateY(-2px);
-}
-
-.error-message {
-  display: block;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-  color: var(--color-rojo1);
-  font-weight: bold;
-}
-
-.max-caracteres {
-  display: block;
-  font-size: 0.8rem;
-  margin-top: 0.2rem;
-  color: var(--color-gris-label);
-  text-align: right;
-}
-
-.btn-opcion {
-  padding: 0.5rem 1rem;
-  margin: 0.8rem 0.3rem ;
-  border: 1px solid #ccc;
-  background: #f9f9f9;
-  cursor: pointer;
-  border-radius: 6px;
-}
-
-.btn-opcion.activo {
-  background: var(--color-rosa1);
-  color: white;
-  border-color: var(--color-rosa2);
-}
-
-
-@media (max-width: 1200px) {
-  .entrevista__form {
-    width: 100%;
-    padding: 1.5rem;
-  }
+/* ===========================
+   Breakpoints mayores
+=========================== */
+/* Tablets (≥ 768px) */
+@media (min-width: 768px) {
   .entrevista__formulario {
-    flex: 1 1 80vw;
+    padding: 24px;
   }
-  .entrevista__titulo {
-    font-size: 2.2rem;
+  .entrevista__form {
+    padding: 1.25rem;
   }
-  .entrevista__subtitulo {
-    font-size: 1.1rem;
+  .entrevista__form fieldset {
+    padding: 1.25rem;
   }
-  .entrevista__boton {
-    font-size: 1rem;
-    padding: 0.8rem;
+}
+
+/* Notebooks (≥ 1024px) */
+@media (min-width: 1024px) {
+  .entrevista__form {
+    padding: 1.6rem;
   }
- 
+  .entrevista__form fieldset {
+    padding: 1.6rem;
+  }
+  .checkbox-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Pantallas grandes (≥ 1440px) */
+@media (min-width: 1440px) {
+  .entrevista__formulario {
+    max-width: 1200px;
+  }
+  .entrevista__form {
+    max-width: 1000px;
+  }
+}
+
+/* ===========================
+   Accesibilidad/Preferencias
+=========================== */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }

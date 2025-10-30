@@ -6,22 +6,26 @@ import 'swiper/css/pagination';
 import '../styles/Testimonios.css';
 
 
-import persona1 from '../assets/persona_prueba1.png';
+import testimonio1 from '../assets/testimonio1.jpg' ;
+import testimonio2 from '../assets/testimonio2.jpg' ;
+import testimonio3 from '../assets/testimonio3.jpg' ;
+
+
 const data = [
   { 
-    quote: '“Hemos visto un progreso increíble en nuestro hijo desde que comenzó la terapia.”', 
-    name: 'Familia Pérez',
-    image: persona1
+    quote: '“Todos los avances en mis hijos son en gran medida gracias al aporte de este gran equipo que acompaña con amor compromiso y siempre buscando soluciones ante cada nueva situacion ”', 
+    name: 'Erica Costilla',
+    image: testimonio1
   },
   {
-    quote: '“El equipo es increíblemente atento y profesional.”',
-    name: 'Familia Rodríguez',
-    image: persona1
+    quote: "Gracias equipo Estimular, por la dedicación, el compromiso, el cariño y la responsabilidad hacia mi hijo. Les agradezco, porque sus logros y evolución son notorios y significativos.",
+    name: "Familia Rodríguez",
+    image: testimonio2
   },
   {
-    quote: '“Recomendaría este centro a cualquier familia que busque apoyo.”',
-    name: 'Familia Fernández',
-    image: persona1
+    quote: '“El trabajo en equipo hace que los sueños se hagan realidad. No es magia, es compromiso y amor por los demás. ¡Los avances son increíbles! Muchas gracias de todo corazón.”',
+    name: 'Familia 3',
+    image: testimonio3
   },
 ];
 

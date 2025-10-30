@@ -12,7 +12,7 @@ export const profesionales = [
   },
   {
     id:2,
-    nombre: "Ivana Garcia",
+    nombre: "Ivanna Garcia",
     profesion: "Fonoaudióloga",
     telefono: "3813679893",
     foto: persona_prueba1,

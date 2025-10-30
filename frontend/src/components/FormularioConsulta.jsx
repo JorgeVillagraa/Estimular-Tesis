@@ -6,12 +6,9 @@ import API_BASE_URL from "../constants/api";
 
 import "../styles/FormularioConsulta.css";
 
-
 const MySwal = withReactContent(Swal);
 
-
 export default function FormularioConsulta() {
-
   const [form, setForm] = useState({
     nombre: "",
     apellido: "",
@@ -20,18 +17,19 @@ export default function FormularioConsulta() {
     mensaje: "",
   });
 
-  const [status, setStatus] = useState(null);
-  
+  const [_status, setStatus] = useState(null);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post(API_BASE_URL+"/api/contact/enviar-mail", form);
+      const res = await axios.post(
+        `${API_BASE_URL}/api/contact/enviar-mail`,
+        form
+      );
 
       if (res.data.success) {
         setStatus({ success: true, message: res.data.message });
@@ -41,23 +39,21 @@ export default function FormularioConsulta() {
           email: "",
           servicio: "",
           mensaje: "",
-        })
+        });
         MySwal.fire({
-          icon: 'success',
-          title: 'Consulta enviada',
-          text: 'Gracias por contactarnos, te responderemos a la brevedad.',
+          icon: "success",
+          title: "Consulta enviada",
+          text: "Gracias por contactarnos, te responderemos a la brevedad.",
         });
       } else {
         setStatus({ success: false, message: res.data.message });
         MySwal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Hubo un problema al enviar tu consulta. Por favor, intenta nuevamente más tarde.',
+          icon: "error",
+          title: "Error",
+          text: "Hubo un problema al enviar tu consulta. Por favor, intenta nuevamente más tarde.",
         });
       }
-
-    }
-    catch (err) {
+    } catch (err) {
       setStatus({
         success: false,
         message: err.response?.data?.message || "Error al enviar la consulta.",
@@ -125,10 +121,7 @@ export default function FormularioConsulta() {
           required
           placeholder="Hola estoy interesado/a en..."
         />
-        <p className="max-caracteres">
-          {" "}
-          Max 250 caracteres{" "}
-        </p>
+        <p className="max-caracteres"> Max 250 caracteres </p>
         <button type="submit" className="content-form-btn">
           Enviar
         </button>
