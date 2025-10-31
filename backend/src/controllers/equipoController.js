@@ -33,6 +33,39 @@ function normalizeRoleLabel(value = '') {
         .trim();
 }
 
+function mapRoleDisplayName(rawName = '') {
+    const normalized = normalizeRoleLabel(rawName);
+    if (!normalized) return rawName || null;
+    if (
+        normalized === 'recepcion'
+        || normalized === 'recepcionista'
+        || normalized === 'recepcionist'
+        || normalized === 'secretario'
+        || normalized === 'secretaria'
+    ) {
+        return 'Recepción';
+    }
+    return rawName;
+}
+
+function normalizeTipo(value = '') {
+    const base = String(value || '')
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .toLowerCase()
+        .trim();
+    if (!base) return '';
+    if (base.startsWith('recepcion')) return 'recepcion';
+    if (base.startsWith('secretar')) return 'recepcion';
+    if (base === 'recepcionista' || base === 'recepcionist') return 'recepcion';
+    if (base === 'secretaria') return 'recepcion';
+    return base;
+}
+
+function isRecepcionTipo(value) {
+    return normalizeTipo(value) === 'recepcion';
+}
+
 async function resolveRoleIdsFromInputs(inputs = []) {
     const numericIds = new Set();
     const roleNames = new Set();
@@ -181,7 +214,7 @@ async function fetchRolesForUsers(userIds = []) {
             }
             map[usuarioId].push({
                 id: row.rol_id ?? row.rol?.id_rol ?? null,
-                nombre: row.rol?.nombre_rol ?? null,
+                nombre: mapRoleDisplayName(row.rol?.nombre_rol ?? null),
             });
         }
         return map;
@@ -234,7 +267,7 @@ async function mapProfesionalRowWithStorage(row) {
     };
 }
 
-async function mapSecretarioRowWithStorage(row) {
+async function mapRecepcionRowWithStorage(row) {
     if (!row) return row;
     const foto = await resolveStorageAsset(row.foto_perfil);
     return {
@@ -264,9 +297,9 @@ const listEquipo = async (req, res) => {
 
     const pageNum = Math.max(Number.parseInt(page, 10) || 1, 1);
     const size = Math.max(Number.parseInt(pageSize, 10) || 10, 1);
-    const tipoFiltro = String(tipo || 'todos').toLowerCase();
-    const includeProfesionales = tipoFiltro === 'profesional' || tipoFiltro === 'todos' || filterByDepartamento;
-    const includeSecretarios = tipoFiltro === 'secretario' || tipoFiltro === 'todos';
+    const tipoFiltroNormalizado = normalizeTipo(tipo || 'todos') || 'todos';
+    const includeProfesionales = tipoFiltroNormalizado === 'profesional' || tipoFiltroNormalizado === 'todos' || filterByDepartamento;
+    const includeRecepcion = tipoFiltroNormalizado === 'recepcion' || tipoFiltroNormalizado === 'todos';
 
     const searchRaw = typeof search === 'string' ? search.trim() : '';
     const profesionRaw = typeof profesion === 'string' ? profesion.trim() : '';
@@ -300,40 +333,40 @@ const listEquipo = async (req, res) => {
             profesionalesData = await Promise.all((data || []).map((row) => mapProfesionalRowWithStorage(row)));
         }
 
-        let secretariosData = [];
-        if (includeSecretarios) {
-            let secretariosResult = await supabaseAdmin
+        let recepcionData = [];
+        if (includeRecepcion) {
+            let recepcionResult = await supabaseAdmin
                 .from('secretarios')
                 .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                 .order('apellido', { ascending: true });
 
-            if (secretariosResult.error && secretariosResult.error.code === '42703') {
-                secretariosResult = await supabaseAdmin
+            if (recepcionResult.error && recepcionResult.error.code === '42703') {
+                recepcionResult = await supabaseAdmin
                     .from('secretarios')
                     .select('id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                     .order('apellido', { ascending: true });
             }
 
-            if (secretariosResult.error) throw secretariosResult.error;
-            const secretariosRaw = secretariosResult.data || [];
-            secretariosData = await Promise.all(secretariosRaw.map((row) => mapSecretarioRowWithStorage(row)));
+            if (recepcionResult.error) throw recepcionResult.error;
+            const recepcionRaw = recepcionResult.data || [];
+            recepcionData = await Promise.all(recepcionRaw.map((row) => mapRecepcionRowWithStorage(row)));
         }
 
-        const secretarioUserIds = secretariosData
+        const recepcionUserIds = recepcionData
             .map((row) => Number(row.usuario_id ?? row.id))
             .filter((id) => !Number.isNaN(id));
 
-        let usuariosSecretarios = [];
-        if (secretarioUserIds.length > 0) {
+        let usuariosRecepcion = [];
+        if (recepcionUserIds.length > 0) {
             const { data, error } = await supabaseAdmin
                 .from('usuarios')
                 .select('id_usuario, dni, activo, password_hash')
-                .in('id_usuario', secretarioUserIds);
+                .in('id_usuario', recepcionUserIds);
             if (error) throw error;
-            usuariosSecretarios = data || [];
+            usuariosRecepcion = data || [];
         }
         const usuariosMap = new Map();
-        usuariosSecretarios.forEach((user) => {
+        usuariosRecepcion.forEach((user) => {
             if (!user) return;
             usuariosMap.set(Number(user.id_usuario), user);
         });
@@ -365,7 +398,7 @@ const listEquipo = async (req, res) => {
             });
         });
 
-        secretariosData.forEach((row) => {
+        recepcionData.forEach((row) => {
             const userId = Number(row.usuario_id ?? row.id);
             if (!userId || Number.isNaN(userId)) {
                 return;
@@ -373,8 +406,9 @@ const listEquipo = async (req, res) => {
             const user = usuariosMap.get(userId) || {};
             userIds.add(userId);
             miembros.push({
-                tipo: 'secretario',
+                tipo: 'recepcion',
                 id_usuario: userId,
+                id_recepcion: row.id,
                 id_secretario: row.id,
                 nombre: row.nombre || null,
                 apellido: row.apellido || null,
@@ -384,7 +418,7 @@ const listEquipo = async (req, res) => {
                 foto_perfil: row.foto_perfil || null,
                 foto_perfil_url: row.foto_perfil_url || row.foto_perfil || null,
                 foto_perfil_path: row.foto_perfil_path || null,
-                profesion: null,
+                profesion: 'Recepción',
                 profesion_id: null,
                 dni: user?.dni ?? null,
                 password_hash: user?.password_hash ?? null,
@@ -399,7 +433,7 @@ const listEquipo = async (req, res) => {
             member.rol_principal = memberRoles[0]?.nombre
                 || (member.tipo === 'profesional'
                     ? (member.profesion || 'Profesional')
-                    : 'Secretario/a');
+                    : 'Recepción');
         });
 
         const filtered = miembros.filter((member) => {
@@ -486,16 +520,21 @@ const crearIntegrante = async (req, res) => {
         contrasena,
     } = body;
 
-    const normalizedTipo = String(tipo || 'profesional').toLowerCase();
+    const normalizedTipo = normalizeTipo(tipo || 'profesional') || 'profesional';
+    const isRecepcion = normalizedTipo === 'recepcion';
     const rolesSeleccionados = Array.isArray(body.rolesSeleccionados)
         ? body.rolesSeleccionados
         : [];
     const esAdminFlag = body.es_admin ?? body.esAdmin ?? body.admin ?? body.rolAdmin ?? false;
 
-    const baseRoleName = normalizedTipo === 'secretario' ? 'SECRETARIO' : 'PROFESIONAL';
+    const baseRoleName = isRecepcion ? 'RECEPCION' : 'PROFESIONAL';
     const requestedRoles = new Set();
     requestedRoles.add(baseRoleName);
-    if (normalizedTipo === 'secretario') {
+    if (isRecepcion) {
+        requestedRoles.add('Recepcion');
+        requestedRoles.add('Recepción');
+        requestedRoles.add('Recepcionista');
+        requestedRoles.add('Recepciónista');
         requestedRoles.add('Secretario');
         requestedRoles.add('Secretaria');
     } else {
@@ -595,8 +634,8 @@ const crearIntegrante = async (req, res) => {
             return res.status(201).json({ success: true, data: mappedProfesional });
         }
 
-        // Secretarios
-        const secretarioPayloadBase = {
+        // Recepción (tabla legacy secretarios)
+        const recepcionPayloadBase = {
             nombre,
             apellido,
             telefono: telefono || null,
@@ -605,28 +644,28 @@ const crearIntegrante = async (req, res) => {
             foto_perfil: foto_perfil || null,
         };
 
-        let secretario = null;
-        let secretarioErr = null;
+        let recepcionRow = null;
+        let recepcionErr = null;
         let hasUsuarioIdColumn = true;
 
-        ({ data: secretario, error: secretarioErr } = await supabaseAdmin
+        ({ data: recepcionRow, error: recepcionErr } = await supabaseAdmin
             .from('secretarios')
             .upsert([
                 {
-                    ...secretarioPayloadBase,
+                    ...recepcionPayloadBase,
                     usuario_id: insertedUsuario.id_usuario,
                 },
             ], { onConflict: 'usuario_id', ignoreDuplicates: false })
             .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
             .maybeSingle());
 
-        if (secretarioErr && secretarioErr.code === '42703') {
+        if (recepcionErr && recepcionErr.code === '42703') {
             hasUsuarioIdColumn = false;
-            ({ data: secretario, error: secretarioErr } = await supabaseAdmin
+            ({ data: recepcionRow, error: recepcionErr } = await supabaseAdmin
                 .from('secretarios')
                 .upsert([
                     {
-                        ...secretarioPayloadBase,
+                        ...recepcionPayloadBase,
                         id: insertedUsuario.id_usuario,
                     },
                 ], { onConflict: 'id', ignoreDuplicates: false })
@@ -634,7 +673,7 @@ const crearIntegrante = async (req, res) => {
                 .maybeSingle());
         }
 
-        if (secretarioErr && ['428C9'].includes(secretarioErr.code)) {
+        if (recepcionErr && ['428C9'].includes(recepcionErr.code)) {
             try {
                 const overridePayload = {
                     id: insertedUsuario.id_usuario,
@@ -649,21 +688,32 @@ const crearIntegrante = async (req, res) => {
                     overridePayload.usuario_id = insertedUsuario.id_usuario;
                 }
 
-                secretario = await upsertWithIdentityOverride(
+                recepcionRow = await upsertWithIdentityOverride(
                     'secretarios',
                     overridePayload,
                     { onConflict: 'id' }
                 );
-                secretarioErr = null;
+                recepcionErr = null;
             } catch (overrideErr) {
-                secretarioErr = overrideErr;
+                recepcionErr = overrideErr;
             }
         }
 
-        if (secretarioErr) throw secretarioErr;
+        if (recepcionErr) throw recepcionErr;
 
-        const mappedSecretario = await mapSecretarioRowWithStorage(secretario);
-        return res.status(201).json({ success: true, data: mappedSecretario });
+        const mappedRecepcion = await mapRecepcionRowWithStorage(recepcionRow);
+        const recepcionId = mappedRecepcion?.usuario_id ?? mappedRecepcion?.id ?? null;
+        return res.status(201).json({
+            success: true,
+            data: {
+                ...mappedRecepcion,
+                id_recepcion: mappedRecepcion?.id ?? recepcionId,
+                id_secretario: mappedRecepcion?.id ?? recepcionId,
+                tipo: 'recepcion',
+                profesion: 'Recepción',
+                profesion_id: null,
+            },
+        });
     } catch (err) {
         if (insertedUsuario) {
             try {
@@ -799,44 +849,45 @@ const editarIntegrante = async (req, res) => {
     }
 };
 
-const editarSecretario = async (req, res) => {
-    const { id_secretario } = req.params;
-    const idValue = Number(id_secretario);
-    if (!id_secretario || Number.isNaN(idValue)) {
-        return res.status(400).json({ success: false, message: 'Falta id_secretario válido' });
+const editarRecepcion = async (req, res) => {
+    const { id_recepcion, id_secretario, id } = req.params || {};
+    const rawId = id_recepcion ?? id_secretario ?? id;
+    const idValue = Number(rawId);
+    if (!rawId || Number.isNaN(idValue)) {
+        return res.status(400).json({ success: false, message: 'Falta identificador válido para recepción' });
     }
 
     const body = req.body || {};
     const usuarioUpd = body.usuario || {};
 
     try {
-        const allowedSecretario = ['nombre', 'apellido', 'telefono', 'email', 'fecha_nacimiento', 'foto_perfil'];
-        const secretarioPayload = {};
-        for (const k of allowedSecretario) {
-            if (body[k] !== undefined) secretarioPayload[k] = body[k];
+        const allowedRecepcion = ['nombre', 'apellido', 'telefono', 'email', 'fecha_nacimiento', 'foto_perfil'];
+        const recepcionPayload = {};
+        for (const k of allowedRecepcion) {
+            if (body[k] !== undefined) recepcionPayload[k] = body[k];
         }
 
-        let updatedSecretario = null;
-        if (Object.keys(secretarioPayload).length > 0) {
-            if (secretarioPayload.fecha_nacimiento) {
-                const d = new Date(secretarioPayload.fecha_nacimiento);
+        let updatedRecepcion = null;
+        if (Object.keys(recepcionPayload).length > 0) {
+            if (recepcionPayload.fecha_nacimiento) {
+                const d = new Date(recepcionPayload.fecha_nacimiento);
                 if (!Number.isNaN(d.getTime())) {
-                    secretarioPayload.fecha_nacimiento = d.toISOString().slice(0, 10);
+                    recepcionPayload.fecha_nacimiento = d.toISOString().slice(0, 10);
                 }
             }
 
             let updateErr = null;
-            ({ data: updatedSecretario, error: updateErr } = await supabaseAdmin
+            ({ data: updatedRecepcion, error: updateErr } = await supabaseAdmin
                 .from('secretarios')
-                .update(secretarioPayload)
+                .update(recepcionPayload)
                 .eq('usuario_id', idValue)
                 .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                 .maybeSingle());
 
             if (updateErr && updateErr.code === '42703') {
-                ({ data: updatedSecretario, error: updateErr } = await supabaseAdmin
+                ({ data: updatedRecepcion, error: updateErr } = await supabaseAdmin
                     .from('secretarios')
-                    .update(secretarioPayload)
+                    .update(recepcionPayload)
                     .eq('id', idValue)
                     .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                     .maybeSingle());
@@ -844,16 +895,16 @@ const editarSecretario = async (req, res) => {
 
             if (updateErr) throw updateErr;
 
-            if (!updatedSecretario) {
+            if (!updatedRecepcion) {
                 let fetchErr = null;
-                ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                ({ data: updatedRecepcion, error: fetchErr } = await supabaseAdmin
                     .from('secretarios')
                     .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                     .eq('usuario_id', idValue)
                     .maybeSingle());
 
                 if (fetchErr && fetchErr.code === '42703') {
-                    ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                    ({ data: updatedRecepcion, error: fetchErr } = await supabaseAdmin
                         .from('secretarios')
                         .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                         .eq('id', idValue)
@@ -864,14 +915,14 @@ const editarSecretario = async (req, res) => {
             }
         } else {
             let fetchErr = null;
-            ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+            ({ data: updatedRecepcion, error: fetchErr } = await supabaseAdmin
                 .from('secretarios')
                 .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                 .eq('usuario_id', idValue)
                 .maybeSingle());
 
             if (fetchErr && fetchErr.code === '42703') {
-                ({ data: updatedSecretario, error: fetchErr } = await supabaseAdmin
+                ({ data: updatedRecepcion, error: fetchErr } = await supabaseAdmin
                     .from('secretarios')
                     .select('id, usuario_id, nombre, apellido, telefono, email, fecha_nacimiento, foto_perfil')
                     .eq('id', idValue)
@@ -903,11 +954,23 @@ const editarSecretario = async (req, res) => {
             }
         }
 
-        const mappedSecretario = await mapSecretarioRowWithStorage(updatedSecretario);
-        return res.json({ success: true, data: { ...mappedSecretario, usuario: updatedUser || {} } });
+        const mappedRecepcion = await mapRecepcionRowWithStorage(updatedRecepcion);
+        const recepcionId = mappedRecepcion?.id ?? idValue;
+        return res.json({
+            success: true,
+            data: {
+                ...mappedRecepcion,
+                id_recepcion: recepcionId,
+                id_secretario: recepcionId,
+                tipo: 'recepcion',
+                profesion: 'Recepción',
+                profesion_id: null,
+                usuario: updatedUser || {},
+            },
+        });
     } catch (err) {
-        console.error('editarSecretario error:', err);
-        return res.status(500).json({ success: false, message: 'Error al editar secretario', error: err.message });
+        console.error('editarRecepcion error:', err);
+        return res.status(500).json({ success: false, message: 'Error al editar recepción', error: err.message });
     }
 };
 
@@ -969,4 +1032,4 @@ const restablecerContrasena = async (req, res) => {
     }
 };
 
-module.exports = { listEquipo, crearIntegrante, editarIntegrante, editarSecretario, borrarIntegrante, restablecerContrasena };
+module.exports = { listEquipo, crearIntegrante, editarIntegrante, editarRecepcion, borrarIntegrante, restablecerContrasena };

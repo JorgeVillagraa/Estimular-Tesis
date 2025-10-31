@@ -35,12 +35,20 @@ function formatDateDMY(dateStr) {
 
 function formatRole(member) {
   const raw = (member?.rol_principal || member?.profesion || "").trim();
+  const tipo = String(member?.tipo || "").toLowerCase();
   const normalized = raw.toLowerCase();
   if (!raw) {
-    return member?.tipo === "secretario" ? "Secretario/a" : "Profesional";
+    if (["recepcion", "recepción", "secretario", "secretaria"].includes(tipo)) {
+      return "Recepción";
+    }
+    return "Profesional";
   }
-  if (normalized.includes("secret")) {
-    return "Secretario/a";
+  if (
+    normalized.includes("recepcion") ||
+    normalized.includes("recepción") ||
+    normalized.includes("secretar")
+  ) {
+    return "Recepción";
   }
   return raw
     .split(" ")
@@ -120,7 +128,7 @@ export default function EquipoEstimular() {
         label: opt.label,
       })),
     ];
-    base.push({ value: "secretario", label: "Secretaría" });
+    base.push({ value: "recepcion", label: "Recepción" });
     return base;
   }, [departamentoOptions]);
 
@@ -160,9 +168,15 @@ export default function EquipoEstimular() {
           pageSize,
           activo: true,
         };
+        const normalizedFiltro = String(filtroSel).toLowerCase();
         let tipoValue = "todos";
-        if (filtroSel === "secretario") {
-          tipoValue = "secretario";
+        if (
+          normalizedFiltro === "recepcion" ||
+          normalizedFiltro === "recepción" ||
+          normalizedFiltro === "secretario" ||
+          normalizedFiltro === "secretaria"
+        ) {
+          tipoValue = "recepcion";
         } else if (
           typeof filtroSel === "string" &&
           filtroSel.startsWith("dept:")
@@ -245,7 +259,7 @@ export default function EquipoEstimular() {
                 setPage(1);
               }}
               className="btn outline-pink"
-              title="Filtrar por departamento o secretaría"
+              title="Filtrar por departamento o recepción"
             >
               {filtroOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -298,15 +312,18 @@ export default function EquipoEstimular() {
                 </thead>
                 <tbody>
                   {items.map((p) => {
+                    const tipoNormalized = String(p.tipo || "").toLowerCase();
                     const rowKey =
                       p.id_profesional ??
+                      p.id_recepcion ??
                       p.id_secretario ??
                       p.id_usuario ??
-                      `${p.tipo}-${p.dni ?? ""}-${p.nombre ?? ""}`;
-                    const isProfesional = p.tipo === "profesional";
+                      `${tipoNormalized}-${p.dni ?? ""}-${p.nombre ?? ""}`;
+                    const isProfesional = tipoNormalized === "profesional";
                     const memberKey =
                       p.id_usuario ??
                       p.id_profesional ??
+                      p.id_recepcion ??
                       p.id_secretario ??
                       rowKey;
                     const canEdit = isAdmin;
@@ -338,6 +355,7 @@ export default function EquipoEstimular() {
                     const endpointId =
                       p.id_usuario ??
                       p.id_profesional ??
+                      p.id_recepcion ??
                       p.id_secretario ??
                       null;
 
@@ -618,9 +636,13 @@ export default function EquipoEstimular() {
                                         );
                                       }
 
+                                      const tipoForUpdate = String(
+                                        p.tipo || ""
+                                      ).toLowerCase();
                                       const url =
-                                        p.tipo === "secretario"
-                                          ? `http://localhost:5000/api/equipo/secretarios/${endpointId}`
+                                        tipoForUpdate === "recepcion" ||
+                                        tipoForUpdate === "secretario"
+                                          ? `http://localhost:5000/api/equipo/recepcion/${endpointId}`
                                           : `http://localhost:5000/api/equipo/${endpointId}`;
                                       Swal.fire({
                                         title: "Guardando...",

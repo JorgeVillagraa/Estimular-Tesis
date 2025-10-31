@@ -410,6 +410,125 @@ input[type="date"].edit-input {
   gap: 6px;
 }
 
+.section-help {
+  margin-bottom: 0.75rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.relationship-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+.relationship-search input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--neutral-300);
+  font-size: 0.96rem;
+  background: #fff;
+  color: var(--neutral-700);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.relationship-search input:focus {
+  outline: 2px solid rgba(255, 111, 166, 0.25);
+  border-color: var(--pink-1);
+}
+
+.inline-loader {
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding-left: 4px;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.search-results li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 239, 247, 0.4);
+  border: 1px solid rgba(255, 174, 209, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  gap: 12px;
+}
+.search-results .result-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--neutral-600);
+  font-size: 0.94rem;
+}
+
+.search-empty {
+  font-size: 0.9rem;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.relationship-list {
+  margin-top: 1rem;
+}
+
+.row-principal {
+  border-left: 3px solid var(--pink-1);
+  background: rgba(255, 239, 247, 0.45);
+}
+
+.cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cell-strong {
+  font-weight: 700;
+  color: var(--neutral-700);
+}
+
+.muted-text {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.tag.principal {
+  background: rgba(255, 111, 166, 0.15);
+  color: var(--pink-1);
+}
+
+.modal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--neutral-700);
+  font-size: 0.95rem;
+}
+.modal-row span:first-child {
+  font-weight: 600;
+  color: var(--muted);
+}
+
 /* Pagination */
 .paginacion-sweeper {
   display: flex;
@@ -516,5 +635,9 @@ input[type="date"].edit-input {
   }
   .col-actions {
     min-width: 120px;
+  }
+  .search-results li {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

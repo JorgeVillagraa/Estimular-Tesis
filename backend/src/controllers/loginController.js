@@ -56,7 +56,7 @@ async function fetchUserRoles(idUsuario) {
     return (data || [])
       .map((row) => ({
         id: row.rol_id ?? row.rol?.id_rol ?? null,
-        nombre: row.rol?.nombre_rol ?? null,
+        nombre: mapRoleDisplayName(row.rol?.nombre_rol ?? null),
       }))
       .filter((r) => r.id || r.nombre);
   } catch (err) {
@@ -116,7 +116,7 @@ async function fetchProfessionalProfile(idUsuario) {
   }
 }
 
-async function fetchSecretaryProfile(idUsuario) {
+async function fetchRecepcionProfile(idUsuario) {
   try {
     let data = null;
     let error = null;
@@ -137,15 +137,16 @@ async function fetchSecretaryProfile(idUsuario) {
 
     if (error) {
       if (error.code !== 'PGRST116') {
-        console.error('fetchSecretaryProfile error:', error);
+        console.error('fetchRecepcionProfile error:', error);
       }
       return null;
     }
     if (!data) return null;
     const foto = await resolveStorageAsset(data.foto_perfil);
     return {
-      tipo: 'secretario',
-      id_secretario: data.usuario_id ?? data.id,
+      tipo: 'recepcion',
+      id_recepcion: data.id ?? data.usuario_id ?? null,
+      id_secretario: data.id ?? data.usuario_id ?? null,
       nombre: data.nombre,
       apellido: data.apellido,
       telefono: data.telefono,
@@ -154,9 +155,11 @@ async function fetchSecretaryProfile(idUsuario) {
       foto_perfil: foto.signedUrl || data.foto_perfil,
       foto_perfil_url: foto.signedUrl || null,
       foto_perfil_path: foto.path,
+      profesion: 'Recepción',
+      profesion_id: null,
     };
   } catch (err) {
-    console.error('fetchSecretaryProfile exception:', err);
+    console.error('fetchRecepcionProfile exception:', err);
     return null;
   }
 }
@@ -164,8 +167,8 @@ async function fetchSecretaryProfile(idUsuario) {
 async function fetchUserProfile(idUsuario) {
   const profesional = await fetchProfessionalProfile(idUsuario);
   if (profesional) return profesional;
-  const secretario = await fetchSecretaryProfile(idUsuario);
-  if (secretario) return secretario;
+  const recepcion = await fetchRecepcionProfile(idUsuario);
+  if (recepcion) return recepcion;
   return null;
 }
 
@@ -225,13 +228,46 @@ function normalizeText(text) {
     .trim();
 }
 
+function normalizeTipo(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) return '';
+  if (
+    normalized.startsWith('recepcion') ||
+    normalized.startsWith('recepcionist') ||
+    normalized.startsWith('secretar')
+  ) {
+    return 'recepcion';
+  }
+  if (normalized === 'professional') return 'profesional';
+  return normalized;
+}
+
+function isRecepcionTipo(value) {
+  return normalizeTipo(value) === 'recepcion';
+}
+
+function mapRoleDisplayName(rawName) {
+  const normalized = normalizeText(rawName);
+  if (!normalized) return rawName || null;
+  if (
+    normalized === 'recepcion' ||
+    normalized === 'recepcionista' ||
+    normalized === 'recepcionist' ||
+    normalized === 'secretario' ||
+    normalized === 'secretaria'
+  ) {
+    return 'Recepción';
+  }
+  return rawName;
+}
+
 async function fetchRoleIdForTipo(tipo) {
-  const normalizedTipo = normalizeText(tipo);
+  const normalizedTipo = normalizeTipo(tipo);
   if (!normalizedTipo) return null;
 
   const candidates = normalizedTipo === 'profesional'
     ? ['profesional', 'professional']
-    : ['secretario', 'secretaria', 'secretario/a', 'secretaria/o'];
+    : ['recepcion', 'recepcionista', 'recepcionist', 'secretario', 'secretaria', 'secretario/a', 'secretaria/o'];
 
   try {
     const { data, error } = await supabaseAdmin
@@ -483,8 +519,8 @@ const primerRegistro = async (req, res) => {
     let resolvedProfesionId = null;
 
     if (typeof seleccion === 'string' && seleccion.trim() !== '') {
-      if (seleccion === 'secretario') {
-        resolvedTipo = 'secretario';
+      if (isRecepcionTipo(seleccion)) {
+        resolvedTipo = 'recepcion';
       } else if (!Number.isNaN(Number(seleccion))) {
         resolvedTipo = 'profesional';
         resolvedProfesionId = Number(seleccion);
@@ -492,7 +528,10 @@ const primerRegistro = async (req, res) => {
     }
 
     if (!resolvedTipo && typeof tipoUsuario === 'string' && tipoUsuario.trim() !== '') {
-      resolvedTipo = tipoUsuario.trim().toLowerCase();
+      const tipoNormalizado = normalizeTipo(tipoUsuario);
+      if (tipoNormalizado === 'profesional' || tipoNormalizado === 'recepcion') {
+        resolvedTipo = tipoNormalizado;
+      }
     }
 
     if (resolvedProfesionId === null && profesionId !== undefined && profesionId !== null && !Number.isNaN(Number(profesionId))) {
@@ -500,14 +539,14 @@ const primerRegistro = async (req, res) => {
     }
 
     if (!resolvedTipo) {
-      resolvedTipo = resolvedProfesionId ? 'profesional' : 'secretario';
+      resolvedTipo = resolvedProfesionId ? 'profesional' : 'recepcion';
     }
 
     if (resolvedTipo === 'profesional' && !resolvedProfesionId) {
       return res.status(400).json({ error: 'Seleccioná una profesión válida' });
     }
 
-    if (resolvedTipo !== 'profesional' && resolvedTipo !== 'secretario') {
+    if (resolvedTipo !== 'profesional' && resolvedTipo !== 'recepcion') {
       return res.status(400).json({ error: 'Tipo de usuario inválido' });
     }
 
@@ -527,9 +566,9 @@ const primerRegistro = async (req, res) => {
       // ignorar
     }
 
-    let existingSecretario = null;
-    let secretariosHasUsuarioIdColumn = true;
-    if (resolvedTipo === 'secretario') {
+    let existingRecepcion = null;
+    let recepcionHasUsuarioIdColumn = true;
+    if (resolvedTipo === 'recepcion') {
       try {
         const { data: secRow, error: secErr } = await supabaseAdmin
           .from('secretarios')
@@ -537,16 +576,16 @@ const primerRegistro = async (req, res) => {
           .eq('usuario_id', Number(userId))
           .maybeSingle();
         if (!secErr || secErr.code === 'PGRST116') {
-          existingSecretario = secRow || null;
-          secretariosHasUsuarioIdColumn = true;
+          existingRecepcion = secRow || null;
+          recepcionHasUsuarioIdColumn = true;
         } else if (secErr && ['42703', 'PGRST204'].includes(secErr.code)) {
-          secretariosHasUsuarioIdColumn = false;
+          recepcionHasUsuarioIdColumn = false;
         }
       } catch (e) {
-        secretariosHasUsuarioIdColumn = false;
+        recepcionHasUsuarioIdColumn = false;
       }
 
-      if (!secretariosHasUsuarioIdColumn) {
+      if (!recepcionHasUsuarioIdColumn) {
         try {
           const { data: secRowById, error: secErrById } = await supabaseAdmin
             .from('secretarios')
@@ -554,7 +593,7 @@ const primerRegistro = async (req, res) => {
             .eq('id', Number(userId))
             .maybeSingle();
           if (!secErrById || secErrById.code === 'PGRST116') {
-            existingSecretario = secRowById || existingSecretario;
+            existingRecepcion = secRowById || existingRecepcion;
           }
         }
         catch (e) {
@@ -612,43 +651,43 @@ const primerRegistro = async (req, res) => {
         console.warn('primerRegistro profesional_departamentos warning:', linkErr.message);
       }
     } else {
-      const existingSecretarioPath = existingSecretario?.foto_perfil || null;
-      let uploadedSecretarioFoto = null;
+      const existingRecepcionPath = existingRecepcion?.foto_perfil || null;
+      let uploadedRecepcionFoto = null;
       if (foto_perfil && typeof foto_perfil === 'string' && foto_perfil.startsWith('data:image')) {
-        uploadedSecretarioFoto = await uploadProfileImageIfNeeded(userId, foto_perfil, {
-          previousPath: existingSecretarioPath,
+        uploadedRecepcionFoto = await uploadProfileImageIfNeeded(userId, foto_perfil, {
+          previousPath: existingRecepcionPath,
         });
       }
 
-      let secretarioFotoPath = existingSecretarioPath;
-      if (uploadedSecretarioFoto?.path) {
-        secretarioFotoPath = uploadedSecretarioFoto.path;
+      let recepcionFotoPath = existingRecepcionPath;
+      if (uploadedRecepcionFoto?.path) {
+        recepcionFotoPath = uploadedRecepcionFoto.path;
       } else if (typeof foto_perfil === 'string' && isHttpUrl(foto_perfil)) {
-        secretarioFotoPath = foto_perfil;
+        recepcionFotoPath = foto_perfil;
       }
 
-      const secretarioPayload = {
+      const recepcionPayload = {
         nombre,
         apellido,
         telefono,
         email: email || null,
         fecha_nacimiento: String(fecha_nacimiento),
-        foto_perfil: secretarioFotoPath || null,
+        foto_perfil: recepcionFotoPath || null,
       };
 
-      if (secretariosHasUsuarioIdColumn) {
-        secretarioPayload.usuario_id = userId;
+      if (recepcionHasUsuarioIdColumn) {
+        recepcionPayload.usuario_id = userId;
       }
 
-      let secretarioErr = null;
-      ({ error: secretarioErr } = await supabaseAdmin
+      let recepcionErr = null;
+      ({ error: recepcionErr } = await supabaseAdmin
         .from('secretarios')
-        .upsert([secretarioPayload], {
-          onConflict: secretariosHasUsuarioIdColumn ? 'usuario_id' : 'id',
+        .upsert([recepcionPayload], {
+          onConflict: recepcionHasUsuarioIdColumn ? 'usuario_id' : 'id',
           ignoreDuplicates: false,
         }));
 
-      if (secretarioErr && ['42703', '428C9', 'PGRST204'].includes(secretarioErr.code)) {
+      if (recepcionErr && ['42703', '428C9', 'PGRST204'].includes(recepcionErr.code)) {
         try {
           const overridePayload = {
             id: userId,
@@ -657,22 +696,22 @@ const primerRegistro = async (req, res) => {
             telefono,
             email: email || null,
             fecha_nacimiento: String(fecha_nacimiento),
-            foto_perfil: secretarioFotoPath || null,
+            foto_perfil: recepcionFotoPath || null,
           };
-          if (secretariosHasUsuarioIdColumn) {
+          if (recepcionHasUsuarioIdColumn) {
             overridePayload.usuario_id = userId;
           }
 
           await upsertWithIdentityOverride('secretarios', overridePayload, { onConflict: 'id' });
-          secretarioErr = null;
+          recepcionErr = null;
         } catch (overrideErr) {
-          secretarioErr = overrideErr;
+          recepcionErr = overrideErr;
         }
       }
 
-      if (secretarioErr) {
-        console.error('primerRegistro upsert secretarios error:', secretarioErr);
-        return res.status(500).json({ error: 'No se pudo actualizar el perfil de secretario' });
+      if (recepcionErr) {
+        console.error('primerRegistro upsert secretarios error:', recepcionErr);
+        return res.status(500).json({ error: 'No se pudo actualizar el perfil de recepción' });
       }
     }
 
@@ -736,21 +775,21 @@ const actualizarPerfil = async (req, res) => {
 
     let resolvedTipo = null;
     if (typeof tipoUsuario === 'string' && tipoUsuario.trim()) {
-      resolvedTipo = tipoUsuario.trim().toLowerCase();
+      resolvedTipo = normalizeTipo(tipoUsuario);
     } else if (currentProfile?.tipo) {
-      resolvedTipo = currentProfile.tipo;
+      resolvedTipo = normalizeTipo(currentProfile.tipo);
     } else if (profesionId !== undefined && profesionId !== null && profesionId !== '') {
       resolvedTipo = 'profesional';
     } else {
-      resolvedTipo = 'secretario';
+      resolvedTipo = 'recepcion';
     }
 
-    if (resolvedTipo !== 'profesional' && resolvedTipo !== 'secretario') {
+    if (resolvedTipo !== 'profesional' && resolvedTipo !== 'recepcion') {
       return res.status(400).json({ error: 'Tipo de usuario inválido' });
     }
 
-    if (currentProfile?.tipo && resolvedTipo !== currentProfile.tipo) {
-      resolvedTipo = currentProfile.tipo;
+    if (currentProfile?.tipo && resolvedTipo !== normalizeTipo(currentProfile.tipo)) {
+      resolvedTipo = normalizeTipo(currentProfile.tipo);
     }
 
     const userPayload = {};
@@ -908,40 +947,40 @@ const actualizarPerfil = async (req, res) => {
         }
       }
     } else {
-      const secretarioPayload = {};
-      if (nombre !== undefined) secretarioPayload.nombre = nombre;
-      if (apellido !== undefined) secretarioPayload.apellido = apellido;
+      const recepcionPayload = {};
+      if (nombre !== undefined) recepcionPayload.nombre = nombre;
+      if (apellido !== undefined) recepcionPayload.apellido = apellido;
       if (telefono !== undefined) {
         const telefonoNormalizado = telefono === null ? null : String(telefono).trim();
-        secretarioPayload.telefono = !telefonoNormalizado ? null : telefonoNormalizado;
+        recepcionPayload.telefono = !telefonoNormalizado ? null : telefonoNormalizado;
       }
       if (email !== undefined) {
         const emailNormalizado = email === null ? null : String(email).trim();
-        secretarioPayload.email = emailNormalizado || null;
+        recepcionPayload.email = emailNormalizado || null;
       }
       if (fecha_nacimiento !== undefined) {
         if (fecha_nacimiento) {
           if (!isValidDateYYYYMMDD(String(fecha_nacimiento))) {
             return res.status(400).json({ error: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
           }
-          secretarioPayload.fecha_nacimiento = String(fecha_nacimiento);
+          recepcionPayload.fecha_nacimiento = String(fecha_nacimiento);
         } else {
-          secretarioPayload.fecha_nacimiento = null;
+          recepcionPayload.fecha_nacimiento = null;
         }
       }
       if (fotoUrlToStore !== undefined) {
-        secretarioPayload.foto_perfil = fotoUrlToStore;
+        recepcionPayload.foto_perfil = fotoUrlToStore;
       }
 
-      if (Object.keys(secretarioPayload).length === 0) {
+      if (Object.keys(recepcionPayload).length === 0) {
         return res.status(400).json({ error: 'No hay cambios para actualizar' });
       }
 
-      const basePayload = { ...secretarioPayload };
+      const basePayload = { ...recepcionPayload };
       const numericUserId = Number(userId);
 
-      let secretariosHasUsuarioIdColumn = true;
-      let existingSecretario = null;
+      let recepcionHasUsuarioIdColumn = true;
+      let existingRecepcion = null;
 
       try {
         const { data: secretarioByUsuario, error: secretarioByUsuarioError } = await supabaseAdmin
@@ -952,22 +991,22 @@ const actualizarPerfil = async (req, res) => {
 
         if (secretarioByUsuarioError && secretarioByUsuarioError.code !== 'PGRST116') {
           if (['42703', 'PGRST204'].includes(secretarioByUsuarioError.code)) {
-            secretariosHasUsuarioIdColumn = false;
+            recepcionHasUsuarioIdColumn = false;
           } else {
             throw secretarioByUsuarioError;
           }
         } else if (secretarioByUsuario) {
-          existingSecretario = secretarioByUsuario;
+          existingRecepcion = secretarioByUsuario;
         }
       } catch (lookupErr) {
         if (lookupErr && ['42703', 'PGRST204'].includes(lookupErr.code)) {
-          secretariosHasUsuarioIdColumn = false;
+          recepcionHasUsuarioIdColumn = false;
         } else {
           console.warn('actualizarPerfil secretario lookup warn:', lookupErr);
         }
       }
 
-      if (!existingSecretario) {
+      if (!existingRecepcion) {
         try {
           const { data: secretarioById, error: secretarioByIdError } = await supabaseAdmin
             .from('secretarios')
@@ -976,7 +1015,7 @@ const actualizarPerfil = async (req, res) => {
             .maybeSingle();
 
           if (!secretarioByIdError || secretarioByIdError.code === 'PGRST116') {
-            existingSecretario = secretarioById || null;
+            existingRecepcion = secretarioById || null;
           } else if (!['42703', 'PGRST204'].includes(secretarioByIdError.code)) {
             console.warn('actualizarPerfil secretario lookup by id warn:', secretarioByIdError);
           }
@@ -986,8 +1025,8 @@ const actualizarPerfil = async (req, res) => {
       }
 
       try {
-        if (existingSecretario) {
-          const targetColumn = secretariosHasUsuarioIdColumn ? 'usuario_id' : 'id';
+        if (existingRecepcion) {
+          const targetColumn = recepcionHasUsuarioIdColumn ? 'usuario_id' : 'id';
           const { error: updateErr } = await supabaseAdmin
             .from('secretarios')
             .update(basePayload)
@@ -995,30 +1034,30 @@ const actualizarPerfil = async (req, res) => {
 
           if (updateErr && updateErr.code !== 'PGRST116') {
             if (['42703', 'PGRST204'].includes(updateErr.code)) {
-              secretariosHasUsuarioIdColumn = false;
-              existingSecretario = null;
+              recepcionHasUsuarioIdColumn = false;
+              existingRecepcion = null;
             } else {
               throw updateErr;
             }
           }
 
           if (updateErr && updateErr.code === 'PGRST116') {
-            existingSecretario = null;
+            existingRecepcion = null;
           }
         }
 
-        if (!existingSecretario) {
+        if (!existingRecepcion) {
           const insertPayload = {
             ...basePayload,
             id: numericUserId,
-            ...(secretariosHasUsuarioIdColumn ? { usuario_id: numericUserId } : {}),
+            ...(recepcionHasUsuarioIdColumn ? { usuario_id: numericUserId } : {}),
           };
 
           await upsertWithIdentityOverride('secretarios', insertPayload, { onConflict: 'id' });
         }
-      } catch (secretarioErr) {
-        console.error('actualizarPerfil secretarios error:', secretarioErr);
-        return res.status(500).json({ error: 'No se pudo actualizar el perfil de secretario' });
+      } catch (recepcionErr) {
+        console.error('actualizarPerfil secretarios error:', recepcionErr);
+        return res.status(500).json({ error: 'No se pudo actualizar el perfil de recepción' });
       }
     }
 

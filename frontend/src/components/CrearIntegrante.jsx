@@ -20,13 +20,13 @@ const initialData = {
 
 const ROLE_API_NAME = {
   profesional: "PROFESIONAL",
-  secretario: "SECRETARIO",
+  recepcion: "RECEPCION",
   admin: "ADMIN",
 };
 
 const ROLE_LABEL = {
   profesional: "Profesional",
-  secretario: "Secretaría",
+  recepcion: "Recepción",
   admin: "Admin",
 };
 
@@ -81,7 +81,7 @@ export default function CrearIntegrante({ onClose, onCreated }) {
   const actualizar = useCallback((clave, valor) => {
     setData((prev) => {
       if (clave === "tipo") {
-        const tipoNext = valor === "secretario" ? "secretario" : "profesional";
+        const tipoNext = valor === "recepcion" ? "recepcion" : "profesional";
         return {
           ...prev,
           tipo: tipoNext,
@@ -246,7 +246,7 @@ export default function CrearIntegrante({ onClose, onCreated }) {
     }
 
     const payload = {
-      tipo: data.tipo === "secretario" ? "secretario" : "profesional",
+      tipo: data.tipo === "recepcion" ? "recepcion" : "profesional",
       nombre: normalize(data.nombre),
       apellido: normalize(data.apellido),
       telefono: normalize(data.telefono) || null,
@@ -493,13 +493,13 @@ export default function CrearIntegrante({ onClose, onCreated }) {
                       <button
                         type="button"
                         className={`integrante-option ${
-                          data.tipo === "secretario"
+                          data.tipo === "recepcion"
                             ? "integrante-option--active"
                             : ""
                         }`}
-                        onClick={() => actualizar("tipo", "secretario")}
+                        onClick={() => actualizar("tipo", "recepcion")}
                       >
-                        Secretaría
+                        Recepción
                       </button>
                     </div>
                   </div>
