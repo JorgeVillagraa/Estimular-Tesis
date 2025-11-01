@@ -409,7 +409,7 @@ export default function Responsables() {
   return (
     <section className="ninos-page">
       <div className="ninos-top">
-        <h1 className="ninos-title">Responsables</h1>
+        <h1 className="ninos-title">Padres, Madres y Tutores</h1>
         <div className="ninos-controls">
           <form
             className="busqueda-form"
@@ -476,7 +476,7 @@ export default function Responsables() {
                     const isEditing = editId === r.id_responsable;
                     return (
                       <tr key={r.id_responsable}>
-                        <td className="col-dni">
+                        <td className="col-dni" data-label="DNI">
                           {isEditing ? (
                             <input
                               type="text"
@@ -493,7 +493,7 @@ export default function Responsables() {
                             r.dni || "—"
                           )}
                         </td>
-                        <td className="col-name">
+                        <td className="col-name" data-label="Nombre">
                           {isEditing ? (
                             <input
                               type="text"
@@ -510,7 +510,7 @@ export default function Responsables() {
                             r.nombre || "—"
                           )}
                         </td>
-                        <td className="col-last">
+                        <td className="col-last" data-label="Apellido">
                           {isEditing ? (
                             <input
                               type="text"
@@ -527,7 +527,7 @@ export default function Responsables() {
                             r.apellido || "—"
                           )}
                         </td>
-                        <td>
+                        <td data-label="Teléfono">
                           {isEditing ? (
                             <input
                               type="text"
@@ -544,7 +544,7 @@ export default function Responsables() {
                             r.telefono || "—"
                           )}
                         </td>
-                        <td>
+                        <td data-label="Email">
                           {isEditing ? (
                             <input
                               type="email"
@@ -561,7 +561,7 @@ export default function Responsables() {
                             r.email || "—"
                           )}
                         </td>
-                        <td className="col-actions">
+                        <td className="col-actions" data-label="Acciones">
                           <div className="row-actions">
                             {isEditing ? (
                               <>
@@ -750,7 +750,7 @@ export default function Responsables() {
                             key={rel.id_nino_responsable}
                             className={rel.es_principal ? "row-principal" : ""}
                           >
-                            <td>
+                            <td data-label="Nombre">
                               <div className="cell-stack">
                                 <span className="cell-strong">
                                   {rel.nino?.nombre || "—"}{" "}
@@ -763,8 +763,8 @@ export default function Responsables() {
                                 )}
                               </div>
                             </td>
-                            <td>{rel.nino?.dni || "—"}</td>
-                            <td>
+                            <td data-label="DNI">{rel.nino?.dni || "—"}</td>
+                            <td data-label="Parentesco">
                               <input
                                 className="table-input"
                                 value={rel.parentescoDraft ?? ""}
@@ -778,7 +778,7 @@ export default function Responsables() {
                                 placeholder="Ej: hijo"
                               />
                             </td>
-                            <td>
+                            <td data-label="Principal">
                               <label className="inline-check">
                                 <input
                                   type="checkbox"
@@ -789,13 +789,13 @@ export default function Responsables() {
                                 {rel.es_principal ? "Sí" : "No"}
                               </label>
                             </td>
-                            <td>
+                            <td data-label="Fecha nacimiento">
                               {rel.nino?.fecha_nacimiento
                                 ? formatDateDMY(rel.nino.fecha_nacimiento)
                                 : "—"}
                             </td>
-                            <td>{rel.nino?.tipo || "—"}</td>
-                            <td className="col-actions">
+                            <td data-label="Tipo">{rel.nino?.tipo || "—"}</td>
+                            <td className="col-actions" data-label="Acciones">
                               <div className="row-actions">
                                 <button
                                   className="icon-btn danger"

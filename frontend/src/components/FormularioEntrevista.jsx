@@ -3,6 +3,11 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import {
+  normalizePhone,
+  isPhoneValid,
+  PHONE_INPUT_HELPER,
+} from "../utils/phone";
 const Alerta = withReactContent(Swal);
 
 /* ─────────────── Helpers ─────────────── */

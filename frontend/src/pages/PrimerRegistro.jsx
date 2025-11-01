@@ -180,7 +180,7 @@ export default function PrimerRegistro() {
         </div>
         <div className="left-content">
           <h1>
-            Bienvenido, completá tu <span>perfil</span>
+            Bienvenid@, completá tu <span>perfil</span>
           </h1>
           <p>Estos datos son necesarios para comenzar a usar el sistema.</p>
         </div>

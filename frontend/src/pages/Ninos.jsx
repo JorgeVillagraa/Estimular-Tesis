@@ -64,7 +64,9 @@ export default function Ninos() {
     let mounted = true;
     (async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/obras-sociales");
+        const res = await axios.get("http://localhost:5000/api/obras-sociales", {
+          params: { estado: "activa", pageSize: 500 },
+        });
         if (mounted) setObrasSociales(res?.data?.data || []);
       } catch (e) {
         // Evitar fallo silencioso y ayudar en debug si la petición falla
@@ -481,7 +483,7 @@ export default function Ninos() {
                       c.obra_social?.nombre_obra_social || null;
                     return (
                       <tr key={c.id_nino}>
-                        <td className="col-dni">
+                        <td className="col-dni" data-label="DNI">
                           {isEditing ? (
                             <input
                               className="edit-input"
@@ -498,7 +500,7 @@ export default function Ninos() {
                             c.dni || "—"
                           )}
                         </td>
-                        <td className="col-name">
+                        <td className="col-name" data-label="Nombre">
                           {isEditing ? (
                             <input
                               className="edit-input"
@@ -515,7 +517,7 @@ export default function Ninos() {
                             c.nombre || "—"
                           )}
                         </td>
-                        <td className="col-last">
+                        <td className="col-last" data-label="Apellido">
                           {isEditing ? (
                             <input
                               className="edit-input"
@@ -532,7 +534,7 @@ export default function Ninos() {
                             c.apellido || "—"
                           )}
                         </td>
-                        <td className="col-dniNac">
+                        <td className="col-dniNac" data-label="Edad">
                           {isEditing ? (
                             <input
                               type="date"
@@ -559,7 +561,7 @@ export default function Ninos() {
                             "—"
                           )}
                         </td>
-                        <td className="col-cert">
+                        <td className="col-cert" data-label="Certificado">
                           {isEditing ? (
                             <select
                               className="edit-select"
@@ -586,7 +588,7 @@ export default function Ninos() {
                             "NO"
                           )}
                         </td>
-                        <td className="col-os">
+                        <td className="col-os" data-label="Obra social">
                           {isEditing ? (
                             <select
                               className="edit-select"
@@ -621,7 +623,7 @@ export default function Ninos() {
                           )}
                         </td>
 
-                        <td>
+                        <td data-label="Tipo">
                           {isEditing ? (
                             <select
                               value={editData.tipo ?? c.tipo ?? "candidato"}
@@ -639,7 +641,7 @@ export default function Ninos() {
                             c.tipo
                           )}
                         </td>
-                        <td className="col-actions">
+                        <td className="col-actions" data-label="Acciones">
                           <div className="row-actions">
                             <button
                               className="icon-btn info"
@@ -1002,7 +1004,7 @@ export default function Ninos() {
                             key={rel.id_nino_responsable}
                             className={rel.es_principal ? "row-principal" : ""}
                           >
-                            <td>
+                            <td data-label="Nombre">
                               <div className="cell-stack">
                                 <span className="cell-strong">
                                   {rel.responsable?.nombre || "—"}{" "}
@@ -1015,14 +1017,16 @@ export default function Ninos() {
                                 )}
                               </div>
                             </td>
-                            <td>{rel.responsable?.dni || "—"}</td>
-                            <td className="cell-stack">
+                            <td data-label="DNI">
+                              {rel.responsable?.dni || "—"}
+                            </td>
+                            <td className="cell-stack" data-label="Contacto">
                               <span>{rel.responsable?.telefono || "—"}</span>
                               <span className="muted-text">
                                 {rel.responsable?.email || "—"}
                               </span>
                             </td>
-                            <td>
+                            <td data-label="Parentesco">
                               <input
                                 className="table-input"
                                 value={rel.parentescoDraft ?? ""}
@@ -1036,7 +1040,7 @@ export default function Ninos() {
                                 placeholder="Ej: madre"
                               />
                             </td>
-                            <td>
+                            <td data-label="Principal">
                               <label className="inline-check">
                                 <input
                                   type="checkbox"
@@ -1047,7 +1051,7 @@ export default function Ninos() {
                                 {rel.es_principal ? "Sí" : "No"}
                               </label>
                             </td>
-                            <td className="col-actions">
+                            <td className="col-actions" data-label="Acciones">
                               <div className="row-actions">
                                 <button
                                   className="icon-btn danger"

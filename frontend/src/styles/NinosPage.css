@@ -231,11 +231,18 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.18);
+  background: linear-gradient(
+    135deg,
+    rgba(229, 0, 125, 0.28),
+    rgba(233, 30, 99, 0.2)
+  );
+  backdrop-filter: blur(6px);
   z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1.5rem;
+  animation: overlayFade 160ms ease-out;
 }
 .modal-info {
   background: #fff;
@@ -256,6 +263,14 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+@keyframes overlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 .modal-close {
@@ -610,34 +625,133 @@ input[type="date"].edit-input {
     grid-template-columns: 1fr;
     gap: 8px 0;
   }
-  .table thead {
-    display: table-header-group;
-  }
   .card.ninos-card {
     padding: 1rem;
-  }
-  .row-actions {
-    justify-content: flex-start;
-    margin-top: 8px;
-  }
-  .search {
-    width: 100%;
   }
   .ninos-top {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 12px;
+  }
+  .ninos-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .busqueda-form {
+    width: 100%;
+  }
+  .search {
+    width: 100%;
+    min-width: 0;
   }
   .action-buttons {
     width: 100%;
-    display: flex;
-    gap: 8px;
+    justify-content: space-between;
+    flex-wrap: wrap;
   }
-  .col-actions {
-    min-width: 120px;
+  .action-buttons .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .action-buttons select {
+    width: 100%;
+  }
+  .table {
+    min-width: 100%;
+    border: 0;
+    box-shadow: none;
+  }
+  .table thead {
+    display: none;
+  }
+  .table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .table tbody tr {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--neutral-300);
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    background: #fff;
+  }
+  .table tbody tr.row-principal {
+    border-left-width: 4px;
+    padding-left: 18px;
+  }
+  .table tbody tr td {
+    padding: 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border: 0;
+  }
+  .table tbody tr td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--muted);
+    flex: 0 0 45%;
+    max-width: 45%;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+  }
+  .table tbody tr td[data-label="Acciones"],
+  .table tbody tr td[data-label="Principal"],
+  .table tbody tr td[data-label="Parentesco"] {
+    align-items: flex-start;
+  }
+  .table-input,
+  .row-actions,
+  .inline-check,
+  .cell-stack {
+    width: 100%;
+  }
+  .row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .row-actions .icon-btn {
+    margin-right: 6px;
+    margin-bottom: 6px;
   }
   .search-results li {
     flex-direction: column;
     align-items: flex-start;
+    gap: 6px;
+    width: 100%;
+  }
+  .paginacion-sweeper {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .ninos-title {
+    font-size: 1.6rem;
+    margin-left: 0;
+    text-align: center;
+  }
+  .action-buttons {
+    gap: 6px;
+  }
+  .action-buttons .btn {
+    flex: 1 1 100%;
+  }
+  .relationship-search input {
+    font-size: 0.9rem;
+  }
+  .modal-info {
+    width: calc(100vw - 32px);
+    padding: 1.2rem 1rem;
+  }
+  .modal-close {
+    top: 12px;
+    right: 12px;
   }
 }

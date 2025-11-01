@@ -1,117 +1,240 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import "../styles/CrearNino.css";
 
+const initialNino = {
+  nombre: "",
+  apellido: "",
+  dni: "",
+  fecha_nacimiento: "",
+  certificado_discapacidad: false,
+  id_obra_social: "",
+  obra_social_texto: "",
+  tipo: "candidato",
+};
+
+const initialResponsable = {
+  nombre: "",
+  apellido: "",
+  telefono: "",
+  email: "",
+  parentesco: "",
+  dni: "",
+};
+
+const PARENTESCO_OPTIONS = [
+  { value: "madre", label: "Madre" },
+  { value: "padre", label: "Padre" },
+  { value: "tutor", label: "Tutor" },
+  { value: "otro", label: "Otro" },
+];
+
 export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [nino, setNino] = useState(initialNino);
+  const [responsable, setResponsable] = useState(initialResponsable);
   const [foundResponsable, setFoundResponsable] = useState(null);
-
-  const [form, setForm] = useState({
-    nombre: "",
-    apellido: "",
-    dni: "",
-    fecha_nacimiento: "",
-    certificado_discapacidad: false,
-    id_obra_social: "",
-    obra_social_texto: "",
-    tipo: "candidato",
-  });
-
-  const [responsable, setResponsable] = useState({
-    nombre: "",
-    apellido: "",
-    telefono: "",
-    email: "",
-    parentesco: "",
-    dni: "",
-  });
+  const [parentescoOption, setParentescoOption] = useState("");
+  const lookupMemoRef = useRef({ dni: null, status: null });
 
   useEffect(() => {
-    setFoundResponsable(null);
-    if (!responsable.dni || responsable.dni.trim().length === 0) return;
-    const t = setTimeout(async () => {
+    if (foundResponsable && parentescoOption === "otro") {
+      setResponsable((prev) => ({ ...prev, parentesco: "otro" }));
+    }
+  }, [foundResponsable, parentescoOption]);
+
+  const obrasActivas = useMemo(() => {
+    const lista = Array.isArray(obrasSociales) ? obrasSociales : [];
+    const estadosActivos = [
+      "activa",
+      "activo",
+      "habilitada",
+      "habilitado",
+      "vigente",
+    ];
+
+    return lista.filter((obra) => {
+      if (!obra) return false;
+      const estado = String(obra.estado ?? obra.status ?? "")
+        .toLowerCase()
+        .trim();
+      const flags = [obra.activa, obra.activo, obra.habilitada, obra.habilitado];
+      if (flags.some((flag) => flag === true || flag === 1 || flag === "1")) {
+        return true;
+      }
+      if (flags.some((flag) => String(flag).toLowerCase() === "si")) {
+        return true;
+      }
+      if (estado) {
+        return estadosActivos.includes(estado);
+      }
+      return true;
+    });
+  }, [obrasSociales]);
+
+  const selectedObraId = String(nino.id_obra_social || "");
+
+  const handleSelectObra = (obraId) => {
+    const normalizedId = obraId ? String(obraId) : "";
+    setNino((prev) => {
+      const sameSelection = String(prev.id_obra_social || "") === normalizedId;
+      return {
+        ...prev,
+        id_obra_social: sameSelection ? "" : normalizedId,
+        obra_social_texto: "",
+      };
+    });
+  };
+
+  const handleClearObra = () => {
+    setNino((prev) => ({
+      ...prev,
+      id_obra_social: "",
+    }));
+  };
+
+  useEffect(() => {
+    const dni = (responsable.dni || "").trim();
+    if (!dni) {
+      setFoundResponsable(null);
+      setParentescoOption("");
+      setResponsable((prev) => ({ ...prev, parentesco: "" }));
+      if (lookupMemoRef.current.dni !== null || lookupMemoRef.current.status !== null) {
+        lookupMemoRef.current = { dni: null, status: null };
+      }
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/responsables?dni=${responsable.dni}`
+        const { data } = await axios.get(
+          `http://localhost:5000/api/responsables?dni=${dni}`
         );
-        const items = res?.data?.data || [];
+        const items = data?.data || [];
         if (items.length > 0) {
-          const r = items[0];
-          setFoundResponsable(r);
+          const existing = items[0];
+          setFoundResponsable(existing);
           setResponsable((prev) => ({
             ...prev,
-            nombre: r.nombre || prev.nombre,
-            apellido: r.apellido || prev.apellido,
-            telefono: r.telefono || prev.telefono,
-            email: r.email || prev.email,
+            nombre: existing.nombre || prev.nombre,
+            apellido: existing.apellido || prev.apellido,
+            telefono: existing.telefono || prev.telefono,
+            email: existing.email || prev.email,
           }));
-          Swal.fire({
-            icon: "info",
-            title: "Responsable existente",
-            timer: 1200,
-            showConfirmButton: false,
-          });
+          if (
+            lookupMemoRef.current.dni !== dni ||
+            lookupMemoRef.current.status !== "existing"
+          ) {
+            Swal.fire({
+              icon: "info",
+              title: "Responsable existente",
+              text: "Se reutilizará el registro encontrado.",
+              timer: 1400,
+              showConfirmButton: false,
+            });
+            lookupMemoRef.current = { dni, status: "existing" };
+          }
         } else {
           setFoundResponsable(null);
+          if (
+            lookupMemoRef.current.dni !== dni ||
+            lookupMemoRef.current.status !== "missing"
+          ) {
+            Swal.fire({
+              icon: "warning",
+              title: "Responsable no registrado",
+              text: "No encontramos ese DNI. Completa los datos para crearlo.",
+              timer: 1600,
+              showConfirmButton: false,
+            });
+            lookupMemoRef.current = { dni, status: "missing" };
+          }
         }
-      } catch {
-        // ignore lookup errors
+      } catch (err) {
+        console.warn("Error buscando responsable", err?.message || err);
       }
     }, 600);
-    return () => clearTimeout(t);
+
+    return () => clearTimeout(timeout);
   }, [responsable.dni]);
 
   const validarPaso1 = () => {
-    if (!form.nombre.trim()) return "El nombre del niño es obligatorio";
-    if (!form.apellido.trim()) return "El apellido del niño es obligatorio";
+    if (!nino.nombre.trim()) {
+      return "El nombre del niño es obligatorio";
+    }
+    if (!nino.apellido.trim()) {
+      return "El apellido del niño es obligatorio";
+    }
     return null;
   };
 
   const handleSubmit = async () => {
-    const v = validarPaso1();
-    if (v) return Swal.fire({ icon: "error", title: "Faltan datos", text: v });
-    if (!responsable.dni)
+    const validation = validarPaso1();
+    if (validation) {
+      return Swal.fire({ icon: "error", title: "Faltan datos", text: validation });
+    }
+    if (!responsable.dni) {
       return Swal.fire({
         icon: "warning",
         title: "DNI requerido",
-        text: "Ingrese DNI del responsable",
+        text: "Ingrese el DNI del responsable.",
       });
+    }
+
+    const parentescoLimpio = (responsable.parentesco || "").trim();
+    if (parentescoOption === "otro" && !foundResponsable) {
+      if (!parentescoLimpio) {
+        return Swal.fire({
+          icon: "warning",
+          title: "Parentesco requerido",
+          text: "Especificá el parentesco cuando selecciones la opción Otro.",
+        });
+      }
+    } else if (!parentescoLimpio) {
+      return Swal.fire({
+        icon: "warning",
+        title: "Parentesco requerido",
+        text: "Seleccioná un parentesco válido.",
+      });
+    }
+
     setLoading(true);
     try {
       const payload = {
-        nombre: form.nombre,
-        apellido: form.apellido,
-        dni: form.dni || null,
-        fecha_nacimiento: form.fecha_nacimiento || null,
-        certificado_discapacidad: !!form.certificado_discapacidad,
-        id_obra_social: form.id_obra_social || null,
-        obra_social_texto: form.obra_social_texto || null,
-        tipo: form.tipo,
+        nombre: nino.nombre,
+        apellido: nino.apellido,
+        dni: nino.dni || null,
+        fecha_nacimiento: nino.fecha_nacimiento || null,
+        certificado_discapacidad: !!nino.certificado_discapacidad,
+        id_obra_social: nino.id_obra_social || null,
+        obra_social_texto: nino.obra_social_texto || null,
+        tipo: nino.tipo,
         responsable: {
           nombre: foundResponsable?.nombre || responsable.nombre,
           apellido: foundResponsable?.apellido || responsable.apellido,
           telefono: foundResponsable?.telefono || responsable.telefono || null,
           email: foundResponsable?.email || responsable.email || null,
-          parentesco: responsable.parentesco || null,
-          dni: responsable.dni || null,
+          parentesco: parentescoLimpio || null,
+          dni: responsable.dni,
         },
       };
+
       const res = await axios.post("http://localhost:5000/api/ninos", payload);
       if (res?.data?.success) {
         Swal.fire({
           icon: "success",
-          title: "Creado",
-          timer: 1200,
+          title: "Niño creado",
+          timer: 1400,
           showConfirmButton: false,
         });
-        onCreated && onCreated(res.data.data);
+        onCreated?.(res.data.data);
       } else {
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: res?.data?.message || "No se pudo crear",
+          text: res?.data?.message || "No se pudo crear el niño",
         });
       }
     } catch (err) {
@@ -128,14 +251,26 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
     }
   };
 
+  const close = () => {
+    onClose?.();
+    setTimeout(() => {
+      setStep(1);
+      setNino(initialNino);
+      setResponsable(initialResponsable);
+      setFoundResponsable(null);
+      setParentescoOption("");
+      lookupMemoRef.current = { dni: null, status: null };
+    }, 200);
+  };
+
   return (
-    <div className="crear-overlay" onClick={() => onClose && onClose()}>
+    <div className="crear-overlay" onClick={close}>
       <div
         className="crear-modal"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
-        <button className="crear-close" onClick={() => onClose && onClose()}>
+        <button className="crear-close" onClick={close}>
           &times;
         </button>
         <h2>Agregar niño</h2>
@@ -148,28 +283,29 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
                 Nombre
                 <input
                   className="input-wide"
-                  value={form.nombre}
-                  onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                  value={nino.nombre}
+                  onChange={(e) => setNino({ ...nino, nombre: e.target.value })}
+                  type="text"
                 />
               </label>
               <label>
                 Apellido
                 <input
                   className="input-wide"
-                  value={form.apellido}
-                  onChange={(e) =>
-                    setForm({ ...form, apellido: e.target.value })
-                  }
+                  value={nino.apellido}
+                  onChange={(e) => setNino({ ...nino, apellido: e.target.value })}
+                  type="text"
                 />
               </label>
             </div>
-            <div className="foNrm-row">
+            <div className="form-row">
               <label>
                 DNI
                 <input
                   className="input-small"
-                  value={form.dni}
-                  onChange={(e) => setForm({ ...form, dni: e.target.value })}
+                  value={nino.dni}
+                  onChange={(e) => setNino({ ...nino, dni: e.target.value })}
+                  type="text"
                 />
               </label>
               <label>
@@ -177,9 +313,9 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
                 <input
                   className="input-small"
                   type="date"
-                  value={form.fecha_nacimiento}
+                  value={nino.fecha_nacimiento}
                   onChange={(e) =>
-                    setForm({ ...form, fecha_nacimiento: e.target.value })
+                    setNino({ ...nino, fecha_nacimiento: e.target.value })
                   }
                 />
               </label>
@@ -188,10 +324,10 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
               <label>
                 Certificado discapacidad
                 <select
-                  value={form.certificado_discapacidad ? "si" : "no"}
+                  value={nino.certificado_discapacidad ? "si" : "no"}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
+                    setNino({
+                      ...nino,
                       certificado_discapacidad: e.target.value === "si",
                     })
                   }
@@ -203,8 +339,8 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
               <label>
                 Tipo
                 <select
-                  value={form.tipo}
-                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  value={nino.tipo}
+                  onChange={(e) => setNino({ ...nino, tipo: e.target.value })}
                 >
                   <option value="candidato">candidato</option>
                   <option value="paciente">paciente</option>
@@ -212,35 +348,74 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
               </label>
             </div>
             <label>
-              Obra social (seleccionar)
-              <select
-                value={form.id_obra_social || ""}
-                onChange={(e) =>
-                  setForm({ ...form, id_obra_social: e.target.value || "" })
-                }
-              >
-                <option value="">-- Seleccionar obra social --</option>
-                {obrasSociales.map((o) => (
-                  <option key={o.id_obra_social} value={o.id_obra_social}>
-                    {o.nombre_obra_social}
-                  </option>
-                ))}
-              </select>
+              Obra social activa
+              {obrasActivas.length > 0 ? (
+                <div className="obras-selector">
+                  <div
+                    className="obras-scroll"
+                    role="listbox"
+                    aria-label="Obras sociales activas"
+                  >
+                    {obrasActivas.map((obra) => {
+                      const obraId = String(
+                        obra.id_obra_social ?? obra.id ?? obra.uuid ?? ""
+                      );
+                      if (!obraId) return null;
+                      const selected = selectedObraId === obraId;
+                      return (
+                        <button
+                          key={obraId}
+                          type="button"
+                          className={`obra-pill${selected ? " selected" : ""}`}
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => handleSelectObra(obraId)}
+                        >
+                          {obra.nombre_obra_social || "Sin nombre"}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className={`obra-pill clear${selectedObraId ? "" : " selected"}`}
+                      role="option"
+                      aria-selected={!selectedObraId}
+                      onClick={handleClearObra}
+                    >
+                      Sin obra social
+                    </button>
+                  </div>
+                  <span className="muted">
+                    Podés seleccionar una de las obras sociales activas o dejar sin selección para escribir una manualmente.
+                  </span>
+                </div>
+              ) : (
+                <span className="muted">
+                  No hay obras sociales activas disponibles. Podés escribirla manualmente.
+                </span>
+              )}
             </label>
-            <label>
-              Obra social (texto libre)
-              <input
-                value={form.obra_social_texto}
-                onChange={(e) =>
-                  setForm({ ...form, obra_social_texto: e.target.value })
-                }
-                placeholder="Si no está en la lista, escribe el nombre"
-              />
-            </label>
+            {!nino.id_obra_social && (
+              <label>
+                Obra social (texto libre)
+                <input
+                  value={nino.obra_social_texto}
+                  onChange={(e) =>
+                    setNino({
+                      ...nino,
+                      obra_social_texto: e.target.value,
+                      id_obra_social: "",
+                    })
+                  }
+                  type="text"
+                  placeholder="Si no está en la lista, escribe el nombre"
+                />
+              </label>
+            )}
             <div className="crear-actions">
               <button
                 className="btn outline"
-                onClick={() => onClose && onClose()}
+                onClick={close}
                 disabled={loading}
               >
                 Cancelar
@@ -256,8 +431,7 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
           <div className="crear-step">
             <h3>Responsable</h3>
             <p className="muted">
-              Ingrese el DNI del responsable (sin puntos ni espacios). Si
-              existe, se autocompletará.
+              Ingrese el DNI del responsable (sin puntos ni espacios). Si existe, se reutilizará el registro.
             </p>
             <div className="form-row">
               <label>
@@ -271,37 +445,48 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
                       dni: e.target.value.replace(/\D/g, ""),
                     })
                   }
+                  type="text"
                   placeholder="Ej: 44028630"
                 />
               </label>
             </div>
-            {!foundResponsable && (
+
+            {foundResponsable ? (
+              <div className="found-box">
+                <strong>Responsable existente:</strong>
+                <div>
+                  {foundResponsable.nombre} {foundResponsable.apellido}
+                </div>
+                <div>
+                  {foundResponsable.email || "—"} • {foundResponsable.telefono || "—"}
+                </div>
+                <div className="muted">
+                  Se utilizará este responsable, puedes ajustar el parentesco si corresponde.
+                </div>
+              </div>
+            ) : (
               <>
                 <div className="form-row">
                   <label>
-                    Nombre
+                    Nombre responsable
                     <input
                       className="input-wide"
                       value={responsable.nombre}
                       onChange={(e) =>
-                        setResponsable({
-                          ...responsable,
-                          nombre: e.target.value,
-                        })
+                        setResponsable({ ...responsable, nombre: e.target.value })
                       }
+                      type="text"
                     />
                   </label>
                   <label>
-                    Apellido
+                    Apellido responsable
                     <input
                       className="input-wide"
                       value={responsable.apellido}
                       onChange={(e) =>
-                        setResponsable({
-                          ...responsable,
-                          apellido: e.target.value,
-                        })
+                        setResponsable({ ...responsable, apellido: e.target.value })
                       }
+                      type="text"
                     />
                   </label>
                 </div>
@@ -312,39 +497,70 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
                       className="input-small"
                       value={responsable.telefono}
                       onChange={(e) =>
-                        setResponsable({
-                          ...responsable,
-                          telefono: e.target.value,
-                        })
+                        setResponsable({ ...responsable, telefono: e.target.value })
                       }
+                      type="text"
                     />
                   </label>
                   <label>
                     Email
                     <input
                       className="input-small"
-                      type="email"
                       value={responsable.email}
                       onChange={(e) =>
-                        setResponsable({
-                          ...responsable,
-                          email: e.target.value,
-                        })
+                        setResponsable({ ...responsable, email: e.target.value })
                       }
+                      type="email"
                     />
                   </label>
                 </div>
               </>
             )}
+
             <label>
               Parentesco
-              <input
-                value={responsable.parentesco}
-                onChange={(e) =>
-                  setResponsable({ ...responsable, parentesco: e.target.value })
-                }
-              />
+              <select
+                value={parentescoOption}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setParentescoOption(value);
+                  if (!value) {
+                    setResponsable((prev) => ({ ...prev, parentesco: "" }));
+                  } else if (value === "otro") {
+                    setResponsable((prev) => ({
+                      ...prev,
+                      parentesco: foundResponsable ? "otro" : "",
+                    }));
+                  } else {
+                    setResponsable((prev) => ({ ...prev, parentesco: value }));
+                  }
+                }}
+              >
+                <option value="">Seleccioná un parentesco</option>
+                {PARENTESCO_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
+            {parentescoOption === "otro" && !foundResponsable && (
+              <label>
+                Especificá parentesco
+                <input
+                  value={responsable.parentesco}
+                  onChange={(e) =>
+                    setResponsable({
+                      ...responsable,
+                      parentesco: e.target.value,
+                    })
+                  }
+                  type="text"
+                  placeholder="Ej: tía"
+                />
+              </label>
+            )}
+
             <div className="crear-actions">
               <button
                 className="btn outline"
@@ -367,3 +583,4 @@ export default function CrearNino({ onClose, onCreated, obrasSociales = [] }) {
     </div>
   );
 }
+
