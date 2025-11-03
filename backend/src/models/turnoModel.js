@@ -11,38 +11,223 @@ function buildDayRange(dateString) {
   };
 }
 
-function formatProfesionales(profesionales = []) {
-  const ids = [];
+function normalizeProfessionalId(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function fetchProfesionalesDetailsByUsuarioIds(usuarioIds = []) {
+  const uniqueIds = Array.from(
+    new Set(
+      (usuarioIds || [])
+        .map((value) => normalizeProfessionalId(value))
+        .filter((id) => id !== null)
+    )
+  );
+
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data: usuariosData, error: usuariosError } = await supabase
+    .from('usuarios')
+    .select('id_usuario, persona_id, activo')
+    .in('id_usuario', uniqueIds);
+  if (usuariosError) throw usuariosError;
+
+  const personaIdSet = new Set();
+  usuariosData.forEach((row) => {
+    const personaId = normalizeProfessionalId(row?.persona_id);
+    if (personaId) {
+      personaIdSet.add(personaId);
+    }
+  });
+
+  const personaIds = Array.from(personaIdSet);
+
+  let personasData = [];
+  if (personaIds.length > 0) {
+    const { data, error } = await supabase
+      .from('personas')
+      .select('id, nombre, apellido, telefono, email')
+      .in('id', personaIds);
+    if (error) throw error;
+    personasData = data || [];
+  }
+
+  const personaMap = new Map();
+  personasData.forEach((row) => {
+    personaMap.set(row.id, row);
+  });
+
+  let profesionalDepartamentos = [];
+  if (personaIds.length > 0) {
+    const { data, error } = await supabase
+      .from('profesional_departamentos')
+      .select('profesional_id, departamento_id')
+      .in('profesional_id', personaIds);
+    if (error) throw error;
+    profesionalDepartamentos = data || [];
+  }
+
+  const departamentoIdSet = new Set();
+  profesionalDepartamentos.forEach((row) => {
+    const depId = normalizeProfessionalId(row?.departamento_id);
+    if (depId) departamentoIdSet.add(depId);
+  });
+
+  const departamentoIds = Array.from(departamentoIdSet);
+
+  let departamentosData = [];
+  if (departamentoIds.length > 0) {
+    const { data, error } = await supabase
+      .from('profesiones')
+      .select('id_departamento, nombre')
+      .in('id_departamento', departamentoIds);
+    if (error) throw error;
+    departamentosData = data || [];
+  }
+
+  const departamentoMap = new Map();
+  departamentosData.forEach((row) => {
+    departamentoMap.set(row.id_departamento, row);
+  });
+
+  const { data: rolesLinksData, error: rolesLinksError } = await supabase
+    .from('usuario_roles')
+    .select('usuario_id, rol_id')
+    .in('usuario_id', uniqueIds);
+  if (rolesLinksError) throw rolesLinksError;
+
+  const roleIdSet = new Set();
+  (rolesLinksData || []).forEach((row) => {
+    const rolId = normalizeProfessionalId(row?.rol_id);
+    if (rolId) roleIdSet.add(rolId);
+  });
+
+  const roleIds = Array.from(roleIdSet);
+
+  let rolesCatalogData = [];
+  if (roleIds.length > 0) {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('id_rol, nombre_rol')
+      .in('id_rol', roleIds);
+    if (error) throw error;
+    rolesCatalogData = data || [];
+  }
+
+  const roleIdToName = new Map();
+  rolesCatalogData.forEach((row) => {
+    roleIdToName.set(row.id_rol, row.nombre_rol || null);
+  });
+
+  const userRolesMap = new Map();
+  (rolesLinksData || []).forEach((row) => {
+    const userId = normalizeProfessionalId(row?.usuario_id);
+    const rolId = normalizeProfessionalId(row?.rol_id);
+    if (!userId || !rolId) return;
+    const current = userRolesMap.get(userId) || [];
+    const rolNombre = roleIdToName.get(rolId) || null;
+    if (rolNombre) {
+      current.push(rolNombre);
+    }
+    userRolesMap.set(userId, current);
+  });
+
+  const departamentoByPersona = new Map();
+  profesionalDepartamentos.forEach((row) => {
+    const personaId = normalizeProfessionalId(row?.profesional_id);
+    if (!personaId) return;
+    const depId = normalizeProfessionalId(row?.departamento_id);
+    if (!departamentoByPersona.has(personaId)) {
+      departamentoByPersona.set(personaId, []);
+    }
+    if (depId) {
+      const list = departamentoByPersona.get(personaId);
+      if (!list.includes(depId)) {
+        list.push(depId);
+      }
+    }
+  });
+
+  const resultMap = new Map();
+
+  usuariosData.forEach((row) => {
+    const usuarioId = normalizeProfessionalId(row?.id_usuario);
+    if (!usuarioId) return;
+    const personaId = normalizeProfessionalId(row?.persona_id);
+    const persona = personaId ? personaMap.get(personaId) : null;
+
+    const depIds = personaId ? departamentoByPersona.get(personaId) || [] : [];
+    const primaryDepId = depIds.length > 0 ? depIds[0] : null;
+    const departamento = primaryDepId ? departamentoMap.get(primaryDepId) : null;
+
+    resultMap.set(usuarioId, {
+      id_profesional: usuarioId,
+      usuario_id: usuarioId,
+      persona_id: personaId || null,
+      nombre: persona?.nombre || null,
+      apellido: persona?.apellido || null,
+      telefono: persona?.telefono || null,
+      email: persona?.email || null,
+      id_departamento: primaryDepId,
+      departamento_nombre: departamento?.nombre || null,
+      roles: userRolesMap.get(usuarioId) || [],
+      activo: row?.activo,
+      departamento_ids: depIds,
+    });
+  });
+
+  return resultMap;
+}
+
+function formatProfesionales(profesionales = [], profesionalesDetailsMap = new Map()) {
+  const uniqueIds = new Set();
   const nombres = [];
   const detalle = [];
 
   profesionales.forEach((item) => {
-    const profesional = item?.profesional;
-    if (!profesional) return;
+    if (!item) return;
 
-    const idProfesional = profesional.id_profesional;
-    if (idProfesional) {
-      ids.push(String(idProfesional));
+    const rawId =
+      item?.profesional_id ??
+      item?.professional_id ??
+      item?.usuario_id ??
+      item?.id_profesional ??
+      null;
+    const profesionalId = normalizeProfessionalId(rawId);
+    const info = profesionalId ? profesionalesDetailsMap.get(profesionalId) : null;
+
+    if (profesionalId) {
+      uniqueIds.add(String(profesionalId));
     }
 
-    const nombre = [profesional.nombre, profesional.apellido]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-    if (nombre) {
-      nombres.push(nombre);
+    const nombreCompleto = info
+      ? [info.nombre, info.apellido].filter(Boolean).join(' ').trim()
+      : null;
+
+    if (nombreCompleto) {
+      nombres.push(nombreCompleto);
     }
 
     detalle.push({
-      id_profesional: idProfesional || null,
-      nombre: profesional.nombre || null,
-      apellido: profesional.apellido || null,
+      id_profesional: profesionalId || null,
+      usuario_id: profesionalId || null,
+      persona_id: info?.persona_id ?? null,
+      nombre: info?.nombre ?? null,
+      apellido: info?.apellido ?? null,
+      telefono: info?.telefono ?? null,
+      email: info?.email ?? null,
+      departamento_id: info?.id_departamento ?? null,
+      departamento_nombre: info?.departamento_nombre ?? null,
+      roles: info?.roles ?? [],
       rol_en_turno: item?.rol_en_turno || 'responsable',
     });
   });
 
   return {
-    ids: ids.join(','),
+    ids: Array.from(uniqueIds).join(','),
     nombres: nombres.join(', '),
     detalle,
   };
@@ -100,12 +285,8 @@ async function getTurnosByDate(date) {
         nombre
       ),
       profesionales:turno_profesionales (
-        rol_en_turno,
-        profesional:profesionales!turno_profesionales_profesional_id_fkey (
-          id_profesional,
-          nombre,
-          apellido
-        )
+        profesional_id,
+        rol_en_turno
       )
     `)
     .gte('inicio', start)
@@ -114,8 +295,21 @@ async function getTurnosByDate(date) {
 
   if (error) throw error;
 
+  const profesionalesNecesarios = new Set();
+  (data || []).forEach((turno) => {
+    (turno?.profesionales || []).forEach((item) => {
+      const profesionalId = normalizeProfessionalId(item?.profesional_id);
+      if (profesionalId) profesionalesNecesarios.add(profesionalId);
+    });
+  });
+
+  let profesionalesDetails = new Map();
+  if (profesionalesNecesarios.size > 0) {
+    profesionalesDetails = await fetchProfesionalesDetailsByUsuarioIds(Array.from(profesionalesNecesarios));
+  }
+
   return data.map((turno) => {
-    const { ids, nombres, detalle } = formatProfesionales(turno.profesionales);
+    const { ids, nombres, detalle } = formatProfesionales(turno.profesionales, profesionalesDetails);
     const consultorio = turno.consultorio || {};
     const departamento = turno.departamento || {};
     const paciente = formatNinoDetails(turno.nino);
@@ -196,12 +390,7 @@ async function getTurnoById(turnoId) {
       ),
       profesionales:turno_profesionales (
         profesional_id,
-        rol_en_turno,
-        profesional:profesionales!turno_profesionales_profesional_id_fkey (
-          id_profesional,
-          nombre,
-          apellido
-        )
+        rol_en_turno
       )
     `)
     .eq('id', turnoId)
@@ -214,7 +403,17 @@ async function getTurnoById(turnoId) {
 
   if (!data) return null;
 
-  const { ids, nombres, detalle } = formatProfesionales(data.profesionales);
+  let profesionalesDetails = new Map();
+  const profesionalIds = new Set();
+  (data.profesionales || []).forEach((item) => {
+    const profesionalId = normalizeProfessionalId(item?.profesional_id);
+    if (profesionalId) profesionalIds.add(profesionalId);
+  });
+  if (profesionalIds.size > 0) {
+    profesionalesDetails = await fetchProfesionalesDetailsByUsuarioIds(Array.from(profesionalIds));
+  }
+
+  const { ids, nombres, detalle } = formatProfesionales(data.profesionales, profesionalesDetails);
   const paciente = formatNinoDetails(data.nino);
 
   return {
@@ -227,7 +426,7 @@ async function getTurnoById(turnoId) {
 }
 
 async function getTurnoFormData() {
-  const [departamentosResult, consultoriosResult, profesionalesResult] = await Promise.all([
+  const [departamentosResult, consultoriosResult, rolesCatalogResult, profesionalDepartamentosResult] = await Promise.all([
     supabase
       .from('profesiones')
       .select('id_departamento, nombre, duracion_default_min, descripcion, responsable_id')
@@ -237,19 +436,86 @@ async function getTurnoFormData() {
       .select('id, nombre, ubicacion')
       .order('nombre', { ascending: true }),
     supabase
-      .from('profesionales')
-      .select('id_profesional, nombre, apellido, telefono, email, id_departamento')
-      .order('nombre', { ascending: true }),
+      .from('roles')
+      .select('id_rol, nombre_rol'),
+    supabase
+      .from('profesional_departamentos')
+      .select('profesional_id, departamento_id'),
   ]);
 
   if (departamentosResult.error) throw departamentosResult.error;
   if (consultoriosResult.error) throw consultoriosResult.error;
-  if (profesionalesResult.error) throw profesionalesResult.error;
+  if (rolesCatalogResult.error) throw rolesCatalogResult.error;
+  if (profesionalDepartamentosResult.error) throw profesionalDepartamentosResult.error;
 
-  const profesionales = (profesionalesResult.data || []).map((prof) => ({
-    ...prof,
-    nombre_completo: [prof.nombre, prof.apellido].filter(Boolean).join(' ').trim(),
-  }));
+  const rolesCatalog = rolesCatalogResult.data || [];
+  const profesionalRoleIds = rolesCatalog
+    .filter((row) => typeof row?.nombre_rol === 'string' && row.nombre_rol.toLowerCase().includes('profesional'))
+    .map((row) => row.id_rol)
+    .map((id) => normalizeProfessionalId(id))
+    .filter((id) => id !== null);
+
+  let usuariosRolesData = [];
+  if (profesionalRoleIds.length > 0) {
+    const { data, error } = await supabase
+      .from('usuario_roles')
+      .select('usuario_id, rol_id')
+      .in('rol_id', profesionalRoleIds);
+    if (error) throw error;
+    usuariosRolesData = data || [];
+  }
+
+  const usuarioIdsSet = new Set();
+  usuariosRolesData.forEach((row) => {
+    const userId = normalizeProfessionalId(row?.usuario_id);
+    if (userId) usuarioIdsSet.add(userId);
+  });
+
+  const personaIdsFromDepartamentos = new Set();
+  (profesionalDepartamentosResult.data || []).forEach((row) => {
+    const personaId = normalizeProfessionalId(row?.profesional_id);
+    if (personaId) personaIdsFromDepartamentos.add(personaId);
+  });
+
+  if (personaIdsFromDepartamentos.size > 0) {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id_usuario, persona_id')
+      .in('persona_id', Array.from(personaIdsFromDepartamentos));
+    if (error) throw error;
+    (data || []).forEach((row) => {
+      const userId = normalizeProfessionalId(row?.id_usuario);
+      if (userId) usuarioIdsSet.add(userId);
+    });
+  }
+
+  const usuarioIds = Array.from(usuarioIdsSet);
+
+  const profesionalesDetailsMap = usuarioIds.length > 0
+    ? await fetchProfesionalesDetailsByUsuarioIds(usuarioIds)
+    : new Map();
+
+  const profesionales = Array.from(profesionalesDetailsMap.values())
+    .filter((prof) => prof && prof.id_profesional && prof.activo !== false)
+    .map((prof) => {
+      const nombre = prof.nombre || '';
+      const apellido = prof.apellido || '';
+      const nombreCompleto = [nombre, apellido].filter(Boolean).join(' ').trim() || `Profesional ${prof.id_profesional}`;
+      return {
+        id_profesional: prof.id_profesional,
+        usuario_id: prof.usuario_id,
+        persona_id: prof.persona_id,
+        nombre: nombre || null,
+        apellido: apellido || null,
+        telefono: prof.telefono || null,
+        email: prof.email || null,
+        id_departamento: prof.id_departamento || null,
+        departamento_nombre: prof.departamento_nombre || null,
+        roles: prof.roles || [],
+        nombre_completo: nombreCompleto,
+      };
+    })
+    .sort((a, b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'));
 
   return {
     departamentos: departamentosResult.data || [],
