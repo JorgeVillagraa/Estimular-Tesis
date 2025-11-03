@@ -418,6 +418,11 @@ async function syncLegacySecretarioRecord(usuarioId, payload = {}) {
   let error = await attemptUpsert({ ...basePayload, usuario_id: numericUserId }, 'usuario_id');
 
   const missingUsuarioIdCodes = new Set(['42703', 'PGRST204']);
+  if (error && (error.code === 'PGRST205' || /secretarios/i.test(error?.message || ''))) {
+    console.warn('syncLegacySecretarioRecord: tabla secretarios ausente en la caché de esquema. Saltando sincronización.');
+    return;
+  }
+
   if (error && (missingUsuarioIdCodes.has(error.code) || /column "?usuario_id"?/i.test(error.message || ''))) {
     error = await attemptUpsert({ ...basePayload, id: numericUserId }, 'id');
   }
@@ -435,7 +440,7 @@ async function syncLegacySecretarioRecord(usuarioId, payload = {}) {
     }
   }
 
-  if (error && error.code === '42P01') {
+  if (error && (error.code === '42P01' || error.code === 'PGRST205')) {
     console.warn('syncLegacySecretarioRecord: tabla secretarios inexistente. Se omite sincronización.');
     return;
   }
