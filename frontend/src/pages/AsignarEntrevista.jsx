@@ -3,6 +3,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { MdEventAvailable, MdChangeCircle, MdDelete } from "react-icons/md";
 import { formatDateDMY } from "../utils/date";
+import { parseNinosResponse } from "../utils/ninoResponse";
 import API_BASE_URL from "../constants/api";
 import "../styles/NinosPage.css"; // reutilizamos estilos base
 import "../styles/AsignarEntrevista.css";
@@ -23,6 +24,18 @@ const resumirMotivo = (texto, max = 120) => {
   const limpio = String(texto).trim();
   if (limpio.length <= max) return limpio;
   return `${limpio.slice(0, max - 1)}…`;
+};
+
+const extraerTurnos = (payload) => {
+  if (!payload) return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.results)) return payload.results;
+  if (Array.isArray(payload)) return payload;
+  if (payload.data && Array.isArray(payload.data.data)) {
+    return payload.data.data;
+  }
+  return [];
 };
 
 export default function AsignarEntrevista() {
@@ -59,12 +72,12 @@ export default function AsignarEntrevista() {
     async (search = "", pageNum = 1) => {
       setLoading(true);
       try {
-  const res = await axios.get(`${API_BASE_URL}/api/ninos`, {
+        const res = await axios.get(`${API_BASE_URL}/api/ninos`, {
           params: { search, page: pageNum, pageSize, tipo: "candidato" },
         });
-        const rows = res?.data?.data || [];
+        const { list: rows, total: totalCount } = parseNinosResponse(res?.data);
         setCandidatos(rows);
-        setTotal(res?.data?.total || 0);
+        setTotal(totalCount ?? rows.length);
         setError(null);
         // cargar asignaciones actuales por cada candidato (en paralelo simple)
         const asigns = {};
@@ -74,7 +87,8 @@ export default function AsignarEntrevista() {
               const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
                 params: { nino_id: c.id_nino, limit: 1 },
               });
-              asigns[c.id_nino] = (r?.data?.data || [])[0] || null;
+              const turnosData = extraerTurnos(r?.data);
+              asigns[c.id_nino] = turnosData[0] || null;
             } catch (error) {
               console.error("No se pudo obtener turno asignado", error);
               asigns[c.id_nino] = null;
@@ -114,10 +128,10 @@ export default function AsignarEntrevista() {
     setModalOpen(true);
     setLoadingTurnos(true);
     try {
-  const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
+      const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
         params: { disponible: true, estado: "pendiente", limit: 50 },
       });
-      setTurnosDisp(r?.data?.data || []);
+      setTurnosDisp(extraerTurnos(r?.data));
     } catch (e) {
       console.error("No se pudieron cargar turnos disponibles", e);
       setTurnosDisp([]);
@@ -133,16 +147,16 @@ export default function AsignarEntrevista() {
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-  await axios.put(`${API_BASE_URL}/api/turnos/${turnoId}`, {
+      await axios.put(`${API_BASE_URL}/api/turnos/${turnoId}`, {
         nino_id: ninoId,
       });
       // refrescar asignación del niño
-  const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
+      const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
         params: { nino_id: ninoId, limit: 1 },
       });
       setAsignaciones((prev) => ({
         ...prev,
-        [ninoId]: (r?.data?.data || [])[0] || null,
+        [ninoId]: extraerTurnos(r?.data)[0] || null,
       }));
       setModalOpen(false);
       setModalNino(null);
