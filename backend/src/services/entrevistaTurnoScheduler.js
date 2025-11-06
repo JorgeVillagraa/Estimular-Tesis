@@ -45,6 +45,16 @@ function dateRangesOverlap(startA, endA, startB, endB) {
   return startA < endB && startB < endA;
 }
 
+function uniqueNumericIds(values = []) {
+  return Array.from(
+    new Set(
+      (values || [])
+        .map((value) => parseId(value))
+        .filter((value) => value !== null),
+    ),
+  );
+}
+
 async function fetchConsultorioIds() {
   const { data, error } = await supabaseAdmin
     .from('consultorios')
@@ -57,6 +67,34 @@ async function fetchConsultorioIds() {
     .map((row) => parseId(row?.id))
     .filter((id) => id !== null)
     .sort((a, b) => a - b);
+}
+
+async function fetchFirstProfesionalesPorDepartamento(departamentoIds) {
+  const uniqueIds = uniqueNumericIds(departamentoIds);
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('profesional_departamentos')
+    .select('profesional_id, departamento_id')
+    .in('departamento_id', uniqueIds);
+
+  if (error) throw error;
+
+  const map = new Map();
+
+  (data || []).forEach((row) => {
+    const departamentoId = parseId(row?.departamento_id);
+    const profesionalId = parseId(row?.profesional_id);
+    if (!departamentoId || !profesionalId) return;
+
+    if (!map.has(departamentoId) || profesionalId < map.get(departamentoId)) {
+      map.set(departamentoId, profesionalId);
+    }
+  });
+
+  return map;
 }
 
 async function findAvailableSlotForDay(baseDay, requiredMinutes, consultorioIds, preferredConsultorioId = null) {
@@ -296,6 +334,9 @@ async function generateTurnoSuggestionsForNino({
     DEFAULT_SLOT_MINUTES,
   );
 
+  const departamentoIds = pendientes.map((need) => need.departamentoId);
+  const fallbackProfesionales = await fetchFirstProfesionalesPorDepartamento(departamentoIds);
+
   const candidateSlot = await findFirstAvailableSlot({
     referenceDate: baseInicio || new Date(),
     requiredMinutes: maxDuration,
@@ -307,18 +348,30 @@ async function generateTurnoSuggestionsForNino({
   }
 
   const assignedConsultorioId = parseId(candidateSlot.consultorioId) ?? (consultorioId ? parseId(consultorioId) : null);
+  const shouldShareSlot = pendientes.length > 1;
+  const sharedInicioIso = candidateSlot.inicio.toISOString();
+  const sharedFinIso = candidateSlot.fin.toISOString();
+  const sharedDuration = parseInt(candidateSlot.duracion_min, 10) || maxDuration;
 
   const propuestas = pendientes.map((need) => {
-    const inicio = new Date(candidateSlot.inicio.getTime());
-    const fin = addMinutes(inicio, need.duracion);
+    const inicio = shouldShareSlot ? sharedInicioIso : new Date(candidateSlot.inicio.getTime()).toISOString();
+    const fin = shouldShareSlot
+      ? sharedFinIso
+      : addMinutes(new Date(candidateSlot.inicio.getTime()), need.duracion).toISOString();
+
+    const profesionalPreferido = need.profesionalId
+      || fallbackProfesionales.get(need.departamentoId)
+      || null;
+    const profesionalIds = profesionalPreferido ? [profesionalPreferido] : [];
+    const duracionMin = shouldShareSlot ? sharedDuration : need.duracion;
 
     return {
       departamento_id: need.departamentoId,
       departamento_nombre: need.departamentoNombre || null,
-      inicio: inicio.toISOString(),
-      fin: fin.toISOString(),
-      duracion_min: need.duracion,
-      profesional_ids: need.profesionalId ? [need.profesionalId] : [],
+      inicio,
+      fin,
+      duracion_min: duracionMin,
+      profesional_ids: profesionalIds,
       consultorio_id: assignedConsultorioId,
       estado: 'pendiente',
       notas: 'Entrevista',
