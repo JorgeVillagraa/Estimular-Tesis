@@ -6,6 +6,7 @@ import { formatDateDMY } from "../utils/date";
 import { parseNinosResponse } from "../utils/ninoResponse";
 import API_BASE_URL from "../constants/api";
 import NuevoTurnoPanel from "../components/NuevoTurnoPanel";
+import useAuthStore from "../store/useAuthStore";
 import "../styles/NinosPage.css"; // reutilizamos estilos base
 import "../styles/AsignarEntrevista.css";
 
@@ -91,6 +92,24 @@ export default function AsignarEntrevista() {
   const [turnoPrefill, setTurnoPrefill] = useState(null);
   const [turnoQueue, setTurnoQueue] = useState([]);
   const [turnoNino, setTurnoNino] = useState(null);
+
+  const profile = useAuthStore((state) => state.profile);
+  const user = useAuthStore((state) => state.user);
+
+  const loggedInProfesionalId = useMemo(() => {
+    if (profile?.id_profesional) {
+      return profile.id_profesional;
+    }
+    if (user?.id_profesional) {
+      return user.id_profesional;
+    }
+    if (user?.id) {
+      return user.id;
+    }
+    return null;
+  }, [profile?.id_profesional, user?.id_profesional, user?.id]);
+
+  const currentUserId = user?.id ?? null;
 
   const debouncedBusqueda = useDebounce(busqueda, 300);
   const skipPageEffectRef = useRef(false);
@@ -358,9 +377,17 @@ export default function AsignarEntrevista() {
       await axios.post(`${API_BASE_URL}/api/turnos/auto-schedule/cancel`, {
         nino_id: ninoId,
       });
-      await axios.put(`${API_BASE_URL}/api/turnos/${turnoId}`, {
-        nino_id: null,
-      });
+      const headers = {};
+      const userHeaderId = currentUserId ?? loggedInProfesionalId;
+      if (userHeaderId !== null && userHeaderId !== undefined) {
+        headers['X-User-ID'] = userHeaderId;
+      }
+
+      await axios.put(
+        `${API_BASE_URL}/api/turnos/${turnoId}`,
+        { nino_id: null },
+        Object.keys(headers).length ? { headers } : undefined,
+      );
       setAsignaciones((prev) => ({ ...prev, [ninoId]: null }));
       Swal.close();
       Swal.fire({
@@ -555,7 +582,7 @@ export default function AsignarEntrevista() {
         onClose={handleCloseTurnoPanel}
         onCreated={handleTurnoCreadoDesdeEntrevista}
         defaultDate={turnoPrefill?.inicio ? new Date(turnoPrefill.inicio) : undefined}
-        loggedInProfesionalId={null}
+        loggedInProfesionalId={loggedInProfesionalId}
         initialNino={turnoNino}
         prefillData={turnoPrefill}
       />
