@@ -188,6 +188,16 @@
 }
 .btn-change-day:hover { background-color: #e0e0e0; }
 
+.modal-admin-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.modal-admin-actions button {
+  width: 100%;
+}
+
 .modal-form-inline {
   display: flex;
   align-items: center;

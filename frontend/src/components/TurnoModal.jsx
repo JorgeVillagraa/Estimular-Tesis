@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import './../styles/TurnoModal.css';
 
-export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOpenPaciente, loggedInProfesionalId, isAdmin = false }) {
+const parseProfesionalIds = (value) =>
+  String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+
+export default function TurnoModal({ event, onClose, onUpdate, onDelete, onOpenPagos, onOpenPaciente, loggedInProfesionalId, isAdmin = false }) {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -16,8 +22,10 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOp
   if (!event) return null;
 
   const { data: turno } = event;
-  const isMyEvent = turno.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+  const profesionalIds = parseProfesionalIds(turno.profesional_ids);
+  const isMyEvent = profesionalIds.includes(String(loggedInProfesionalId));
   const canManageTurno = isAdmin || isMyEvent;
+  const canDeleteTurno = isAdmin && typeof onDelete === 'function';
 
   const handleTimeSave = () => {
     const [startHour, startMinute] = startTime.split(':').map(Number);
@@ -47,6 +55,14 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOp
     if (window.confirm(message)) {
 
       onUpdate(event, { estado: status }, openPaymentModal);
+    }
+  };
+
+  const handleDeleteTurno = () => {
+    if (!canDeleteTurno) return;
+    const message = '¿Está seguro de que desea eliminar este turno? Esta acción no se puede deshacer.';
+    if (window.confirm(message)) {
+      onDelete(event);
     }
   };
 
@@ -96,6 +112,12 @@ export default function TurnoModal({ event, onClose, onUpdate, onOpenPagos, onOp
             </>
           ) : (
             <p>No tiene permisos para modificar este turno.</p>
+          )}
+          {canDeleteTurno && (
+            <div className="modal-admin-actions">
+              <h3>Administrar</h3>
+              <button className="btn-cancel" onClick={handleDeleteTurno}>Eliminar turno</button>
+            </div>
           )}
         </div>
       </div>

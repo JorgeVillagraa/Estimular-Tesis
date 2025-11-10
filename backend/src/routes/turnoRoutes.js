@@ -5,6 +5,7 @@ const {
 	handleGetTurnoFormData,
 	handleCreateTurno,
 	handleUpdateTurno,
+	handleDeleteTurno,
 	handleAutoScheduleEntrevista,
 	handleCancelAutoScheduleEntrevista,
 } = require('../controllers/turnoController');
@@ -14,6 +15,7 @@ router.get('/turnos/form-data', handleGetTurnoFormData);
 router.get('/turnos', handleGetTurnos);
 router.post('/turnos', handleCreateTurno);
 router.put('/turnos/:id', handleUpdateTurno);
+router.delete('/turnos/:id', handleDeleteTurno);
 router.post('/turnos/auto-schedule', handleAutoScheduleEntrevista);
 router.post('/turnos/auto-schedule/cancel', handleCancelAutoScheduleEntrevista);
 

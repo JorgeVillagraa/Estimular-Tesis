@@ -10,6 +10,14 @@ function parseNumericId(value) {
   return parsed;
 }
 
+function extractProfesionalIds(value) {
+  if (!value) return [];
+  return String(value)
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+}
+
 function isAdminRoleName(value) {
   if (!value) return false;
   const normalized = String(value).toLowerCase();
@@ -166,6 +174,9 @@ async function handleUpdateTurno(req, res) {
   const dataToUpdate = { ...req.body };
   const loggedInUserIdHeader = req.headers['x-user-id'];
   const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
+  const adminHeaderOverride = String(req.headers['x-admin-override'] || '')
+    .trim()
+    .toLowerCase() === 'true';
 
   if (!loggedInUserId || Number.isNaN(loggedInUserId)) {
     return res.status(401).json({ success: false, message: 'No autorizado: Falta el ID de usuario.' });
@@ -184,14 +195,14 @@ async function handleUpdateTurno(req, res) {
   }
 
   try {
-    const adminOverride = await userIsAdmin(loggedInUserId);
+    const adminOverride = adminHeaderOverride || await userIsAdmin(loggedInUserId);
     // Permisos para actualizar
     const turno = await turnoModel.getTurnoById(id);
     if (!turno) {
       return res.status(404).json({ success: false, message: 'Turno no encontrado.' });
     }
 
-    const profesionalIds = turno.profesional_ids ? turno.profesional_ids.split(',') : [];
+    const profesionalIds = extractProfesionalIds(turno.profesional_ids);
     if (!adminOverride && !profesionalIds.includes(String(loggedInUserId))) {
       return res.status(403).json({ success: false, message: 'No tiene permisos para modificar este turno.' });
     }
@@ -235,6 +246,48 @@ async function handleUpdateTurno(req, res) {
   } catch (error) {
     console.error('Error al actualizar el turno:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+}
+
+async function handleDeleteTurno(req, res) {
+  const { id } = req.params;
+  const turnoId = parseNumericId(id);
+  const loggedInUserIdHeader = req.headers['x-user-id'];
+  const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
+  const adminHeaderOverride = String(req.headers['x-admin-override'] || '')
+    .trim()
+    .toLowerCase() === 'true';
+
+  if (!loggedInUserId || Number.isNaN(loggedInUserId)) {
+    return res.status(401).json({ success: false, message: 'No autorizado: Falta el ID de usuario.' });
+  }
+
+  if (!turnoId) {
+    return res.status(400).json({ success: false, message: 'Se requiere un ID de turno válido para eliminar.' });
+  }
+
+  try {
+    const turno = await turnoModel.getTurnoById(turnoId);
+    if (!turno) {
+      return res.status(404).json({ success: false, message: 'Turno no encontrado.' });
+    }
+
+    const adminOverride = adminHeaderOverride || await userIsAdmin(loggedInUserId);
+    const profesionalIds = extractProfesionalIds(turno.profesional_ids);
+
+    if (!adminOverride && !profesionalIds.includes(String(loggedInUserId))) {
+      return res.status(403).json({ success: false, message: 'No tiene permisos para eliminar este turno.' });
+    }
+
+    await turnoModel.deleteTurno(turnoId);
+
+    return res.json({
+      success: true,
+      message: 'Turno eliminado correctamente.',
+    });
+  } catch (error) {
+    console.error('Error al eliminar el turno:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 }
 
@@ -315,6 +368,7 @@ module.exports = {
   handleGetTurnoFormData,
   handleCreateTurno,
   handleUpdateTurno,
+  handleDeleteTurno,
   handleAutoScheduleEntrevista,
   handleCancelAutoScheduleEntrevista,
 };

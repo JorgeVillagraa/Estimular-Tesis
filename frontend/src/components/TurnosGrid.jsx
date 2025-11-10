@@ -17,6 +17,12 @@ import NuevoTurnoPanel from './NuevoTurnoPanel';
 const localizer = momentLocalizer(moment);
 const DnDCalendar = withDragAndDrop(Calendar);
 
+const parseProfesionalIds = (value) =>
+  String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+
 // --- Componentes Personalizados ---
 
 const StatusLegend = () => {
@@ -163,6 +169,9 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
       if (userHeaderId !== null && userHeaderId !== undefined) {
         headers['X-User-ID'] = userHeaderId;
       }
+      if (isAdmin) {
+        headers['X-Admin-Override'] = 'true';
+      }
 
       await axios.put(
         `${API_BASE_URL}/api/turnos/${turno.id}`,
@@ -179,7 +188,33 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
       console.error("Error updating turno:", error);
       alert('Error al actualizar el turno: ' + (error.response?.data?.message || error.message));
     }
-  }, [currentDate, fetchTurnos, loggedInProfesionalId, currentUserId]);
+  }, [currentDate, fetchTurnos, isAdmin, loggedInProfesionalId, currentUserId]);
+
+  const handleDeleteTurno = useCallback(async (turnoEvent) => {
+    if (!turnoEvent?.id) return;
+
+    const confirmed = window.confirm('¿Eliminar este turno de forma permanente?');
+    if (!confirmed) return;
+
+    try {
+      const headers = {};
+      const userHeaderId = currentUserId ?? loggedInProfesionalId;
+      if (userHeaderId !== null && userHeaderId !== undefined) {
+        headers['X-User-ID'] = userHeaderId;
+      }
+      if (isAdmin) {
+        headers['X-Admin-Override'] = 'true';
+      }
+
+      const config = Object.keys(headers).length ? { headers } : {};
+      await axios.delete(`${API_BASE_URL}/api/turnos/${turnoEvent.id}`, config);
+      fetchTurnos(currentDate);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('Error deleting turno:', error);
+      alert('Error al eliminar el turno: ' + (error.response?.data?.message || error.message));
+    }
+  }, [currentDate, fetchTurnos, isAdmin, loggedInProfesionalId, currentUserId]);
 
   const handleEventDrop = useCallback(async ({ event, start, end, resourceId }) => {
     handleEventAction(event, {
@@ -269,14 +304,15 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
   const isEventDraggable = useCallback(
     (event) => {
       if (isAdmin) return true;
-      return event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+      if (!event?.data) return false;
+      return parseProfesionalIds(event.data.profesional_ids).includes(String(loggedInProfesionalId));
     },
     [isAdmin, loggedInProfesionalId]
   );
 
   const eventPropGetter = useCallback((event) => {
     const statusClass = `event-${event.data.estado}`;
-    const isMyEvent = event.data.profesional_ids?.split(',').includes(String(loggedInProfesionalId));
+    const isMyEvent = parseProfesionalIds(event.data.profesional_ids).includes(String(loggedInProfesionalId));
     const highlightClass = isAdmin || isMyEvent ? 'highlighted-event' : '';
     return { className: `${statusClass} ${highlightClass}` };
   }, [isAdmin, loggedInProfesionalId]);
@@ -330,6 +366,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
           event={selectedEvent} 
           onClose={handleCloseModal}
           onUpdate={handleEventAction}
+          onDelete={handleDeleteTurno}
           onOpenPagos={handleOpenPagos}
           onOpenPaciente={handleOpenPaciente}
           loggedInProfesionalId={loggedInProfesionalId}

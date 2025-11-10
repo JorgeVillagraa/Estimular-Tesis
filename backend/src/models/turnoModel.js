@@ -355,6 +355,29 @@ async function updateTurno(turnoId, dataToUpdate) {
   return { affectedRows: Array.isArray(data) ? data.length : 0 };
 }
 
+async function deleteTurno(turnoId) {
+  const parsedId = normalizeProfessionalId(turnoId);
+  if (!parsedId) {
+    throw new Error('ID de turno inválido');
+  }
+
+  await supabase
+    .from('turno_profesionales')
+    .delete()
+    .eq('turno_id', parsedId);
+
+  const { data, error } = await supabase
+    .from('turnos')
+    .delete()
+    .eq('id', parsedId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data;
+}
+
 async function getTurnoById(turnoId) {
   const { data, error } = await supabase
     .from('turnos')
@@ -631,4 +654,5 @@ module.exports = {
   getTurnoById,
   createTurno,
   getTurnoFormData,
+  deleteTurno,
 };
