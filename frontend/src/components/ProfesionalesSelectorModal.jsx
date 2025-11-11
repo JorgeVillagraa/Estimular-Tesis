@@ -160,7 +160,14 @@ export default function ProfesionalesSelectorModal({
                       }
 
                       return (
-                        <li key={`${deptKey}-${profId}`} className="profesionales-selector-item">
+                        <li
+                          key={`${deptKey}-${profId}`}
+                          className={
+                            `profesionales-selector-item${
+                              isChecked ? " profesionales-selector-item--selected" : ""
+                            }`
+                          }
+                        >
                           <label className="profesionales-selector-option">
                             <input
                               type="checkbox"
