@@ -755,12 +755,16 @@ export default function AsignarEntrevista() {
         headers['X-User-ID'] = userHeaderId;
       }
 
-      await axios.put(
+      if (!headers['X-User-ID']) {
+        throw new Error('No se encontró el usuario autenticado para eliminar el turno.');
+      }
+
+      await axios.delete(
         `${API_BASE_URL}/api/turnos/${turnoId}`,
-        { nino_id: null },
-        Object.keys(headers).length ? { headers } : undefined,
+        { headers },
       );
       setAsignaciones((prev) => ({ ...prev, [ninoId]: null }));
+      await fetchCandidatos(busqueda, page);
       Swal.close();
       Swal.fire({
         icon: "success",
