@@ -299,6 +299,7 @@ const mergePropuestasEnTurnoUnico = (propuestas = []) => {
     departamentos_resumen: departamentosResumen,
     profesionales_resumen: profesionalesResumen,
     notas: notasFinales,
+    departamento_bloqueado: true,
   };
 
   delete resultado.__inicioDate;

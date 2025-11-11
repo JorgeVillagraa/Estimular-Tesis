@@ -80,6 +80,24 @@ export default function NuevoTurnoPanel({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const departamentoBloqueado = Boolean(prefillData?.departamento_bloqueado);
+
+  const departamentosResumen = useMemo(() => {
+    if (!prefillData) return [];
+    const lista = Array.isArray(prefillData.departamentos_resumen)
+      ? prefillData.departamentos_resumen
+      : [];
+    return lista.filter((nombre) => typeof nombre === 'string' && nombre.trim().length > 0);
+  }, [prefillData]);
+
+  const serviciosResumen = useMemo(() => {
+    if (!prefillData) return null;
+    if (prefillData.servicios_resumen) return prefillData.servicios_resumen;
+    if (departamentosResumen.length === 0) return null;
+    if (departamentosResumen.length === 1) return departamentosResumen[0];
+    return departamentosResumen.join(', ');
+  }, [departamentosResumen, prefillData]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -643,7 +661,8 @@ export default function NuevoTurnoPanel({
                     handleInputChange(event);
                     resetMessages();
                   }}
-                  required
+                  required={!departamentoBloqueado}
+                  disabled={departamentoBloqueado}
                 >
                   <option value="">Seleccionar servicio</option>
                   {formOptions.departamentos.map((dep) => (
@@ -833,42 +852,44 @@ export default function NuevoTurnoPanel({
               </div>
             </div>
 
-            <div className="form-section">
-              <label htmlFor="repetir_semanas">Repetir semanalmente</label>
-              <div className="repeat-weekly-inputs">
-                <input
-                  id="repetir_semanas"
-                  name="repetir_semanas"
-                  type="number"
-                  min="0"
-                  max="52"
-                  step="1"
-                  value={formData.repetir_semanas}
-                  onChange={(event) => {
-                    handleInputChange(event);
-                    resetMessages();
-                  }}
-                  placeholder="0"
-                />
-                <label className="repeat-checkbox" htmlFor="semana_por_medio">
+            {!departamentoBloqueado && (
+              <div className="form-section">
+                <label htmlFor="repetir_semanas">Repetir semanalmente</label>
+                <div className="repeat-weekly-inputs">
                   <input
-                    id="semana_por_medio"
-                    name="semana_por_medio"
-                    type="checkbox"
-                    checked={Boolean(formData.semana_por_medio)}
+                    id="repetir_semanas"
+                    name="repetir_semanas"
+                    type="number"
+                    min="0"
+                    max="52"
+                    step="1"
+                    value={formData.repetir_semanas}
                     onChange={(event) => {
                       handleInputChange(event);
                       resetMessages();
                     }}
+                    placeholder="0"
                   />
-                  Crear semana por medio
-                </label>
-                <span className="repeat-hint">
-                  Semanas adicionales después de la fecha seleccionada (0 = sin repetición). Si marcas
-                  «Semana por medio» se crearán cada dos semanas.
-                </span>
+                  <label className="repeat-checkbox" htmlFor="semana_por_medio">
+                    <input
+                      id="semana_por_medio"
+                      name="semana_por_medio"
+                      type="checkbox"
+                      checked={Boolean(formData.semana_por_medio)}
+                      onChange={(event) => {
+                        handleInputChange(event);
+                        resetMessages();
+                      }}
+                    />
+                    Crear semana por medio
+                  </label>
+                  <span className="repeat-hint">
+                    Semanas adicionales después de la fecha seleccionada (0 = sin repetición). Si marcas
+                    «Semana por medio» se crearán cada dos semanas.
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="form-section">
               <label htmlFor="notas">Notas</label>
