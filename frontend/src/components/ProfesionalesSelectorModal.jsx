@@ -77,6 +77,31 @@ export default function ProfesionalesSelectorModal({
       [deptKey]: [profId],
     }));
   };
+   const nextSlot = useMemo(() => {
+     const first = propuestasOrdenadas[0];
+     if (!first || !first.inicio) return null;
+
+     const inicioDate = new Date(first.inicio);
+     if (Number.isNaN(inicioDate.getTime())) return null;
+
+     try {
+       const formatterDate = new Intl.DateTimeFormat('es-AR', {
+         dateStyle: 'full',
+       });
+       const formatterTime = new Intl.DateTimeFormat('es-AR', {
+         hour: '2-digit',
+         minute: '2-digit',
+       });
+
+       return {
+         raw: inicioDate,
+         formattedDate: formatterDate.format(inicioDate),
+         formattedTime: formatterTime.format(inicioDate),
+       };
+     } catch (error) {
+       return null;
+     }
+  }, [propuestasOrdenadas]);
 
   const canConfirm = useMemo(() => {
     return propuestasOrdenadas.every((propuesta) => {
@@ -118,6 +143,12 @@ export default function ProfesionalesSelectorModal({
             Elegí uno o más profesionales para cada servicio. Podés reemplazar la sugerencia
             automática marcando o desmarcando las opciones disponibles.
           </p>
+            {nextSlot ? (
+              <p className="profesionales-selector-next-slot">
+                Próximo turno sugerido: <strong>{nextSlot.formattedDate}</strong> a las{' '}
+                <strong>{nextSlot.formattedTime}</strong>
+              </p>
+            ) : null}
         </div>
 
         <div className="profesionales-selector-body">
