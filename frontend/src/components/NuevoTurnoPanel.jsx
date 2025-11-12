@@ -41,6 +41,30 @@ const toTimeInputValue = (dateLike) => {
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 };
 
+const clampDiscount = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+  if (parsed < 0) return 0;
+  if (parsed > 1) return 1;
+  return parsed;
+};
+
+const formatCurrency = (amount, currency = 'ARS') => {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '';
+  try {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch (error) {
+    const value = Number(amount);
+    if (Number.isNaN(value)) return '';
+    return `${currency} ${value.toFixed(2)}`;
+  }
+};
+
 export default function NuevoTurnoPanel({
   isOpen,
   onClose,
@@ -97,6 +121,42 @@ export default function NuevoTurnoPanel({
     if (departamentosResumen.length === 1) return departamentosResumen[0];
     return departamentosResumen.join(', ');
   }, [departamentosResumen, prefillData]);
+
+  const obraSocialDescuento = useMemo(() => {
+    if (!selectedNino) return 0;
+    return clampDiscount(selectedNino.paciente_obra_social_descuento);
+  }, [selectedNino]);
+
+  const porcentajeDescuento = useMemo(() => {
+    if (!obraSocialDescuento) return 0;
+    return Math.round(obraSocialDescuento * 100);
+  }, [obraSocialDescuento]);
+
+  const precioOriginalNumber = useMemo(() => {
+    if (formData.precio === '' || formData.precio === null || formData.precio === undefined) {
+      return null;
+    }
+    const parsed = Number.parseFloat(String(formData.precio).replace(',', '.'));
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) {
+      return null;
+    }
+    return Number(parsed.toFixed(2));
+  }, [formData.precio]);
+
+  const precioConDescuento = useMemo(() => {
+    if (precioOriginalNumber === null) return null;
+    if (!obraSocialDescuento) return precioOriginalNumber;
+    const final = Number((precioOriginalNumber * (1 - obraSocialDescuento)).toFixed(2));
+    return final < 0 ? 0 : final;
+  }, [precioOriginalNumber, obraSocialDescuento]);
+
+  const ahorroCalculado = useMemo(() => {
+    if (precioOriginalNumber === null) return null;
+    if (!obraSocialDescuento) return null;
+    const diferencia = precioOriginalNumber - precioConDescuento;
+    if (!Number.isFinite(diferencia) || Number.isNaN(diferencia)) return null;
+    return diferencia > 0 ? Number(diferencia.toFixed(2)) : null;
+  }, [precioOriginalNumber, precioConDescuento, obraSocialDescuento]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -452,10 +512,7 @@ export default function NuevoTurnoPanel({
         nino_id: selectedNino.paciente_id || selectedNino.id_nino,
         notas: formData.notas?.trim() || null,
         profesional_ids: profesionalIdsSeleccionados,
-        precio:
-          formData.precio === ''
-            ? null
-            : Number(parseFloat(formData.precio.replace(',', '.')).toFixed(2)),
+        precio: precioOriginalNumber === null ? null : precioConDescuento,
         moneda: formData.moneda || 'ARS',
         metodo_pago: formData.metodo_pago || 'efectivo',
         estado: formData.estado,
@@ -608,30 +665,55 @@ export default function NuevoTurnoPanel({
                 )}
                 {!isSearchingNinos && ninoResultados.length > 0 && (
                   <ul className="autocomplete-list">
-                    {ninoResultados.map((nino) => (
-                      <li key={nino.paciente_id || nino.id_nino}>
-                        <button type="button" onClick={() => handleSelectNino(nino)}>
-                          <span className="nombre">
-                            {[
-                              nino.paciente_nombre,
-                              nino.paciente_apellido,
-                            ]
-                              .filter(Boolean)
-                              .join(' ')
-                              .trim() || 'Sin nombre'}
-                          </span>
-                          <span className="detalle">
-                            DNI: {nino.paciente_dni || '—'} · Obra social: {nino.paciente_obra_social || 'Sin obra social'}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                    {ninoResultados.map((nino) => {
+                      const descuentoValor = clampDiscount(
+                        nino.paciente_obra_social_descuento ?? nino.obra_social?.descuento
+                      );
+                      const obraSocialNombre =
+                        nino.paciente_obra_social ||
+                        nino.obra_social?.nombre_obra_social ||
+                        'Sin obra social';
+                      const descuentoLabel =
+                        descuentoValor > 0 ? `${Math.round(descuentoValor * 100)}% OFF` : null;
+
+                      return (
+                        <li key={nino.paciente_id || nino.id_nino}>
+                          <button type="button" onClick={() => handleSelectNino(nino)}>
+                            <span className="nombre">
+                              {[
+                                nino.paciente_nombre,
+                                nino.paciente_apellido,
+                              ]
+                                .filter(Boolean)
+                                .join(' ')
+                                .trim() || 'Sin nombre'}
+                            </span>
+                            <span className="detalle">
+                              DNI: {nino.paciente_dni || '—'} · Obra social: {obraSocialNombre}
+                              {descuentoLabel && (
+                                <span className="detalle-descuento"> · {descuentoLabel}</span>
+                              )}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
               {isSearchingNinos && <p className="autocomplete-hint">Buscando…</p>}
               {selectedNino && (
                 <div className="selected-nino-details">
+                  <p>
+                    <strong>Obra social:</strong>{' '}
+                    {selectedNino.paciente_obra_social || 'Sin obra social'}
+                    {obraSocialDescuento > 0 && (
+                      <span className="selected-nino-discount">
+                        {' '}
+                        ({porcentajeDescuento}% de descuento)
+                      </span>
+                    )}
+                  </p>
                   <p>
                     <strong>Responsables:</strong>{' '}
                     {selectedNino.paciente_responsables
@@ -823,6 +905,25 @@ export default function NuevoTurnoPanel({
                   }}
                   placeholder="Ej: 4500"
                 />
+                {selectedNino && obraSocialDescuento > 0 && precioOriginalNumber !== null && (
+                  <div className="price-discount-preview">
+                    <span className="price-original">
+                      {formatCurrency(precioOriginalNumber, formData.moneda)}
+                    </span>
+                    <span className="price-arrow" aria-hidden="true">→</span>
+                    <span className="price-discounted">
+                      {formatCurrency(precioConDescuento, formData.moneda)}
+                    </span>
+                    <span className="price-discount-note">
+                      {porcentajeDescuento}% OFF por obra social
+                    </span>
+                    {ahorroCalculado !== null && (
+                      <span className="price-savings">
+                        Ahorro: {formatCurrency(ahorroCalculado, formData.moneda)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="form-section">

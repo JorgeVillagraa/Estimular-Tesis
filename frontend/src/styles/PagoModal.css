@@ -17,6 +17,24 @@
   padding-bottom: 0.5rem;
 }
 
+.pago-modal-subheader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+  margin-top: -0.25rem;
+}
+
+.pago-modal-subheader p {
+  margin: 0;
+}
+
+.obra-social-label {
+  white-space: nowrap;
+}
+
 .pago-list {
   list-style: none;
   padding: 0;
@@ -32,22 +50,49 @@
   border-radius: 6px;
   margin-bottom: 0.5rem;
   background-color: #f9f9f9;
+  gap: 1rem;
 }
 
 .pago-item.pagado {
   background-color: #e8f5e9; /* Verde claro */
-  text-decoration: line-through;
-  color: #888;
+  color: #2f855a;
 }
 
-.pago-details span {
-  margin-right: 1rem;
-  font-weight: 500;
+.pago-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
 }
 
-.pago-details .moneda {
-  font-weight: normal;
-  color: #777;
+.pago-amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.price-single {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.pago-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.pago-discount-note {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.pago-savings {
+  color: #047857;
+  font-weight: 600;
 }
 
 .btn-pay {

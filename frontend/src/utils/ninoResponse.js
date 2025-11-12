@@ -19,6 +19,38 @@ export function normalizeNinoRow(raw = {}) {
   const certifiedValue =
     raw.certificado_discapacidad ?? raw.paciente_certificado_discapacidad;
 
+  let obraSocialDescuento = obraSocialSource?.descuento;
+  if (obraSocialDescuento === undefined || obraSocialDescuento === null) {
+    obraSocialDescuento = raw.obra_social_descuento ?? raw.paciente_obra_social_descuento ?? raw.descuento ?? null;
+  }
+
+  let obraSocialDescuentoValue = null;
+  if (obraSocialDescuento !== undefined && obraSocialDescuento !== null) {
+    const parsed = Number(obraSocialDescuento);
+    if (Number.isFinite(parsed) && !Number.isNaN(parsed)) {
+      if (parsed < 0) {
+        obraSocialDescuentoValue = 0;
+      } else if (parsed > 1) {
+        obraSocialDescuentoValue = 1;
+      } else {
+        obraSocialDescuentoValue = parsed;
+      }
+    }
+  }
+
+  const obraSocialFinal = obraSocialSource
+    ? { ...obraSocialSource }
+    : obraSocialNombre
+      ? {
+          id_obra_social: idObraSocial,
+          nombre_obra_social: obraSocialNombre,
+        }
+      : null;
+
+  if (obraSocialFinal && obraSocialDescuentoValue !== null) {
+    obraSocialFinal.descuento = obraSocialDescuentoValue;
+  }
+
   return {
     ...raw,
     id_nino: raw.id_nino ?? raw.paciente_id ?? raw.id ?? null,
@@ -30,14 +62,9 @@ export function normalizeNinoRow(raw = {}) {
     certificado_discapacidad: Boolean(certifiedValue),
     tipo: raw.tipo ?? raw.paciente_tipo ?? null,
     id_obra_social: idObraSocial,
-    obra_social:
-      obraSocialSource ||
-      (obraSocialNombre
-        ? {
-            id_obra_social: idObraSocial,
-            nombre_obra_social: obraSocialNombre,
-          }
-        : null),
+    obra_social: obraSocialFinal,
+    obra_social_descuento: obraSocialDescuentoValue,
+    paciente_obra_social_descuento: obraSocialDescuentoValue,
   };
 }
 

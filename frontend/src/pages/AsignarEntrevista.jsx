@@ -74,6 +74,12 @@ const buildPanelNino = (nino) => {
     paciente_dni: nino.dni || nino.paciente_dni || null,
     paciente_fecha_nacimiento: nino.fecha_nacimiento || nino.paciente_fecha_nacimiento || null,
     paciente_obra_social: nino.obra_social?.nombre_obra_social || nino.paciente_obra_social || null,
+    paciente_obra_social_descuento:
+      typeof nino.paciente_obra_social_descuento === "number"
+        ? nino.paciente_obra_social_descuento
+        : typeof nino.obra_social?.descuento === "number"
+        ? nino.obra_social.descuento
+        : null,
     paciente_responsables: Array.isArray(nino.paciente_responsables)
       ? nino.paciente_responsables
       : Array.isArray(nino.responsables)
@@ -367,16 +373,32 @@ export default function AsignarEntrevista() {
         setCandidatos(rows);
         setTotal(totalCount ?? rows.length);
         setError(null);
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartMs = todayStart.getTime();
+        const todayStartIso = new Date(todayStart).toISOString();
+
+        const isTurnoVigente = (turno) => {
+          if (!turno?.inicio) return false;
+          const inicioDate = new Date(turno.inicio);
+          if (Number.isNaN(inicioDate.getTime())) return false;
+          const inicioDay = new Date(inicioDate);
+          inicioDay.setHours(0, 0, 0, 0);
+          return inicioDay.getTime() >= todayStartMs;
+        };
+
         // cargar asignaciones actuales por cada candidato (en paralelo simple)
         const asigns = {};
         await Promise.all(
           rows.map(async (c) => {
             try {
               const r = await axios.get(`${API_BASE_URL}/api/turnos`, {
-                params: { nino_id: c.id_nino, limit: 1 },
+                params: { nino_id: c.id_nino, limit: 5, desde: todayStartIso },
               });
               const turnosData = extraerTurnos(r?.data);
-              asigns[c.id_nino] = turnosData[0] || null;
+              const turnoVigente = turnosData.find(isTurnoVigente) || null;
+              asigns[c.id_nino] = turnoVigente;
             } catch (error) {
               console.error("No se pudo obtener turno asignado", error);
               asigns[c.id_nino] = null;

@@ -50,6 +50,7 @@ function formatNinoDetails(nino) {
       email: null,
       titular_nombre: null,
       obra_social: null,
+      paciente_obra_social_descuento: null,
       cud: null,
     };
   }
@@ -58,6 +59,25 @@ function formatNinoDetails(nino) {
     nino.obra_social?.nombre ??
     nino.obra_social?.nombre_obra_social ??
     null;
+
+  let obraSocialDescuento = nino.obra_social?.descuento;
+  if (obraSocialDescuento === undefined || obraSocialDescuento === null) {
+    obraSocialDescuento = nino.paciente_obra_social_descuento ?? nino.descuento ?? null;
+  }
+
+  let obraSocialDescuentoValue = null;
+  if (obraSocialDescuento !== null && obraSocialDescuento !== undefined) {
+    const parsed = Number(obraSocialDescuento);
+    if (Number.isFinite(parsed) && !Number.isNaN(parsed)) {
+      if (parsed < 0) {
+        obraSocialDescuentoValue = 0;
+      } else if (parsed > 1) {
+        obraSocialDescuentoValue = 1;
+      } else {
+        obraSocialDescuentoValue = parsed;
+      }
+    }
+  }
 
   const responsables = formatResponsables(nino.responsables);
   const principal =
@@ -97,6 +117,7 @@ function formatNinoDetails(nino) {
     email: principal?.email ?? null,
     titular_nombre: titularNombre,
     obra_social: obraSocialNombre,
+    paciente_obra_social_descuento: obraSocialDescuentoValue,
     cud: cudLabel,
   };
 }

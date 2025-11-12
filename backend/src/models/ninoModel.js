@@ -30,7 +30,8 @@ async function searchNinos(search = '', limit = 10) {
       obra_social:obras_sociales!ninos_id_obra_social_fkey (
         id_obra_social,
         nombre_obra_social,
-        estado
+        estado,
+        descuento
       ),
       responsables:nino_responsables (
         parentesco,
@@ -142,7 +143,8 @@ async function getNinoById(id) {
       obra_social:obras_sociales!ninos_id_obra_social_fkey (
         id_obra_social,
         nombre_obra_social,
-        estado
+        estado,
+        descuento
       ),
       responsables:nino_responsables (
         parentesco,

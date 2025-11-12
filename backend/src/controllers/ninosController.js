@@ -52,7 +52,7 @@ const getNinos = async (req, res) => {
         }
 
         const selectColumns = `id_nino, nombre, apellido, fecha_nacimiento, dni, certificado_discapacidad, tipo, id_obra_social, motivo_consulta,
-            obra_social:obras_sociales (id_obra_social, nombre_obra_social),
+            obra_social:obras_sociales (id_obra_social, nombre_obra_social, descuento),
             nino_departamentos:nino_departamentos ( id, departamento_id, estado, departamento:profesiones ( id_departamento, nombre ) )`;
 
         let q = supabaseAdmin
@@ -261,7 +261,7 @@ const crearNino = async (req, res) => {
         const { data: detalle, error: detalleErr } = await supabaseAdmin
             .from('ninos')
             .select(`id_nino, nombre, apellido, fecha_nacimiento, dni, certificado_discapacidad, tipo, id_obra_social, motivo_consulta,
-                obra_social:obras_sociales (id_obra_social, nombre_obra_social),
+                obra_social:obras_sociales (id_obra_social, nombre_obra_social, descuento),
                 nino_departamentos:nino_departamentos ( id, departamento_id, estado, departamento:profesiones ( id_departamento, nombre ) )`)
             .eq('id_nino', insertedNino.id_nino)
             .maybeSingle();
@@ -312,7 +312,7 @@ const editarNino = async (req, res) => {
             .update(payload)
             .eq('id_nino', id_nino)
             .select(`id_nino, nombre, apellido, fecha_nacimiento, dni, certificado_discapacidad, tipo, id_obra_social,
-                obra_social:obras_sociales (id_obra_social, nombre_obra_social)`)
+                obra_social:obras_sociales (id_obra_social, nombre_obra_social, descuento)`)
             .single();
         if (error) throw error;
         res.json({ success: true, data });

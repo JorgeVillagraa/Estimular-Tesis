@@ -16,6 +16,39 @@ function normalizeProfessionalId(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function clampDiscount(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+  if (parsed < 0) return 0;
+  if (parsed > 1) return 1;
+  return parsed;
+}
+
+async function fetchObraSocialDescuentoByNinoId(ninoId) {
+  if (!ninoId) return 0;
+  try {
+    const { data, error } = await supabase
+      .from('ninos')
+      .select(`
+        id_obra_social,
+        obra_social:obras_sociales!ninos_id_obra_social_fkey ( descuento )
+      `)
+      .eq('id_nino', ninoId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('fetchObraSocialDescuentoByNinoId error:', error);
+      return 0;
+    }
+
+    const raw = data?.obra_social?.descuento;
+    return clampDiscount(raw);
+  } catch (err) {
+    console.error('fetchObraSocialDescuentoByNinoId exception:', err);
+    return 0;
+  }
+}
+
 async function fetchProfesionalesDetailsByUsuarioIds(usuarioIds = []) {
   const uniqueIds = Array.from(
     new Set(
@@ -261,7 +294,8 @@ async function getTurnosByDate(date) {
         obra_social:obras_sociales!ninos_id_obra_social_fkey (
           id_obra_social,
           nombre_obra_social,
-          estado
+          estado,
+          descuento
         ),
         responsables:nino_responsables (
           parentesco,
@@ -397,7 +431,8 @@ async function getTurnoById(turnoId) {
         obra_social:obras_sociales!ninos_id_obra_social_fkey (
           id_obra_social,
           nombre_obra_social,
-          estado
+          estado,
+          descuento
         ),
         responsables:nino_responsables (
           parentesco,
@@ -621,16 +656,35 @@ async function createTurno({
     const montoNumerico = precio === null || precio === undefined ? null : Number(precio);
 
     if (montoNumerico !== null && !Number.isNaN(montoNumerico) && montoNumerico > 0) {
-      const { error: pagoError } = await supabase
-        .from('pagos')
-        .insert({
-          turno_id: turnoId,
-          monto: montoNumerico,
-          moneda: moneda || 'ARS',
-          metodo: metodo_pago || 'efectivo',
-          estado: 'pendiente',
-          nino_id,
-        });
+      const montoOriginal = Number(montoNumerico.toFixed(2));
+      let montoFinal = montoOriginal;
+      let notas = null;
+
+      if (nino_id) {
+        const descuento = await fetchObraSocialDescuentoByNinoId(nino_id);
+        if (descuento > 0) {
+          montoFinal = Math.max(Number((montoOriginal * (1 - descuento)).toFixed(2)), 0);
+          notas = JSON.stringify({
+            monto_original: montoOriginal,
+            descuento_aplicado: descuento,
+          });
+        }
+      }
+
+      const pagoPayload = {
+        turno_id: turnoId,
+        monto: montoFinal,
+        moneda: moneda || 'ARS',
+        metodo: metodo_pago || 'efectivo',
+        estado: 'pendiente',
+        nino_id,
+      };
+
+      if (notas) {
+        pagoPayload.notas = notas;
+      }
+
+      const { error: pagoError } = await supabase.from('pagos').insert(pagoPayload);
 
       if (pagoError) {
         throw pagoError;
