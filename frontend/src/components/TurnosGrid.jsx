@@ -23,6 +23,15 @@ const parseProfesionalIds = (value) =>
     .map((part) => part.trim())
     .filter((part) => part !== '');
 
+const roundToNearestMinutes = (date, intervalMinutes) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const intervalMs = intervalMinutes * 60 * 1000;
+  const roundedTime = Math.round(date.getTime() / intervalMs) * intervalMs;
+  return new Date(roundedTime);
+};
+
 // --- Componentes Personalizados ---
 
 const StatusLegend = () => {
@@ -108,6 +117,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
   const [turnoForPago, setTurnoForPago] = useState(null);
   const [pacienteParaVer, setPacienteParaVer] = useState(null);
   const [mostrarNuevoTurno, setMostrarNuevoTurno] = useState(false);
+  const [prefillNuevoTurno, setPrefillNuevoTurno] = useState(null);
 
   // Datos de turnos
   const fetchTurnos = useCallback(async (date) => {
@@ -261,17 +271,20 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
     setPacienteParaVer(null);
   };
 
-  const handleOpenNuevoTurno = () => {
+  const handleOpenNuevoTurno = useCallback((prefill = null) => {
+    setPrefillNuevoTurno(prefill);
     setMostrarNuevoTurno(true);
-  };
+  }, []);
 
-  const handleCloseNuevoTurno = () => {
+  const handleCloseNuevoTurno = useCallback(() => {
     setMostrarNuevoTurno(false);
-  };
+    setPrefillNuevoTurno(null);
+  }, []);
 
   const handleTurnoCreado = useCallback(() => {
     fetchTurnos(currentDate);
     setMostrarNuevoTurno(false);
+    setPrefillNuevoTurno(null);
   }, [currentDate, fetchTurnos]);
 
   const handleMostrarTodosConsultorios = () => {
@@ -300,6 +313,33 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
     }
     setMostrarSelectorFecha(false);
   };
+
+  const handleSelectSlot = useCallback((slotInfo) => {
+    if (!slotInfo) return;
+    const { start, end, resourceId } = slotInfo;
+    const roundedStart = roundToNearestMinutes(start, 30);
+    if (!roundedStart) return;
+
+    let roundedEnd = roundToNearestMinutes(end, 30);
+    if (!roundedEnd || roundedEnd <= roundedStart) {
+      roundedEnd = new Date(roundedStart.getTime() + 30 * 60 * 1000);
+    }
+
+    const durationMinutes = Math.max(
+      30,
+      Math.round((roundedEnd.getTime() - roundedStart.getTime()) / (60 * 1000))
+    );
+
+    const prefill = {
+      consultorio_id: resourceId ?? null,
+      inicio: moment(roundedStart).format('YYYY-MM-DDTHH:mm:ss'),
+      date: moment(roundedStart).format('YYYY-MM-DD'),
+      startTime: moment(roundedStart).format('HH:mm'),
+      duracion_min: durationMinutes,
+    };
+
+    handleOpenNuevoTurno(prefill);
+  }, [handleOpenNuevoTurno]);
 
   const isEventDraggable = useCallback(
     (event) => {
@@ -341,6 +381,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
         draggableAccessor={isEventDraggable}
         resizableAccessor={isEventDraggable}
         selectable
+  onSelectSlot={handleSelectSlot}
         step={15}
         timeslots={2}
         min={moment(currentDate).set({ h: 9, m: 0 }).toDate()}
@@ -388,7 +429,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
       <button
         type="button"
         className="floating-create-turno-btn"
-        onClick={handleOpenNuevoTurno}
+        onClick={() => handleOpenNuevoTurno(null)}
       >
         + Nuevo turno
       </button>
@@ -398,6 +439,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, cur
         onCreated={handleTurnoCreado}
         defaultDate={currentDate}
         loggedInProfesionalId={loggedInProfesionalId}
+        prefillData={prefillNuevoTurno}
       />
       {mostrarSelectorFecha && (
         <div className="goto-date-overlay" role="dialog" aria-modal="true">
