@@ -644,6 +644,19 @@ export default function FormularioEntrevista() {
         ? Number.parseInt(datos.id_obra_social, 10)
         : null;
 
+    const serviciosSeleccionados = Array.isArray(datos.servicios)
+      ? Array.from(
+          new Set(
+            datos.servicios
+              .map((valor) => {
+                const parsed = Number.parseInt(String(valor), 10);
+                return Number.isNaN(parsed) ? null : parsed;
+              })
+              .filter((valor) => valor !== null)
+          )
+        )
+      : [];
+
     const payloadNino = {
       nombre: datos.nombre_nino,
       apellido: datos.apellido_nino,
@@ -672,6 +685,8 @@ export default function FormularioEntrevista() {
         parentesco: datos.parentesco || null,
         dni: datos.dni_responsable || null,
       },
+      servicios: serviciosSeleccionados,
+      departamentos: serviciosSeleccionados,
     };
 
     try {
