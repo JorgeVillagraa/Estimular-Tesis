@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import API_BASE_URL from "../constants/api";
 import "../styles/PanelFinanciero.css";
 
-// Tabla puramente de presentación: los datos reales llegarán luego desde el backend.
 const MESES = [
   "Enero",
   "Febrero",
@@ -19,24 +20,6 @@ const MESES = [
 
 const hoy = new Date();
 
-// Datos de ejemplo para que la interfaz sea visualmente entendible.
-const MOCK_DATA = [
-  {
-    id: "2025-11",
-    mes: "Noviembre 2025",
-    perdidas: 80000,
-    gananciaBruta: 520000,
-    gananciaNeta: 420000,
-  },
-  {
-    id: "2025-10",
-    mes: "Octubre 2025",
-    perdidas: 45000,
-    gananciaBruta: 480000,
-    gananciaNeta: 390000,
-  },
-];
-
 const currencyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
   currency: "ARS",
@@ -46,22 +29,51 @@ const currencyFormatter = new Intl.NumberFormat("es-AR", {
 export default function PanelFinanciero() {
   const [anioSeleccionado, setAnioSeleccionado] = useState(hoy.getFullYear());
   const [mesSeleccionado, setMesSeleccionado] = useState(hoy.getMonth());
+  const [filas, setFilas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const etiquetaMesActual = useMemo(
     () => `${MESES[mesSeleccionado]} ${anioSeleccionado}`,
     [mesSeleccionado, anioSeleccionado]
   );
 
-  // Más adelante esto se filtrará con datos reales; por ahora dejamos el mock visible.
-  const filas = MOCK_DATA;
+  useEffect(() => {
+    let cancelado = false;
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data } = await axios.get(
+          `${API_BASE_URL}/api/finanzas/resumen-mensual`,
+          { params: { anio: anioSeleccionado } }
+        );
+        if (cancelado) return;
+        const items = Array.isArray(data?.data) ? data.data : [];
+        setFilas(items);
+      } catch (err) {
+        if (cancelado) return;
+        console.error("Error cargando resumen financiero", err);
+        setError("No se pudo cargar el resumen financiero.");
+      } finally {
+        if (!cancelado) setLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      cancelado = true;
+    };
+  }, [anioSeleccionado]);
 
   const resumenActual = useMemo(() => {
     const encontrada = filas.find((f) => f.mes === etiquetaMesActual);
     return (
       encontrada || {
         mes: etiquetaMesActual,
-        perdidas: 0,
-        gananciaBruta: 0,
+        deberes: 0,
+        haberes: 0,
+        cobrosMesesAnteriores: 0,
         gananciaNeta: 0,
       }
     );
@@ -112,7 +124,7 @@ export default function PanelFinanciero() {
         <div className="panel-card resumen-card debe">
           <div className="label">Deberes (turnos pendientes)</div>
           <div className="valor">
-            {currencyFormatter.format(resumenActual.perdidas)}
+            {currencyFormatter.format(resumenActual.deberes || 0)}
           </div>
           <p className="detalle">
             Turnos atendidos del mes que aún no fueron pagados.
@@ -121,19 +133,29 @@ export default function PanelFinanciero() {
         <div className="panel-card resumen-card haber">
           <div className="label">Ganancia bruta</div>
           <div className="valor">
-            {currencyFormatter.format(resumenActual.gananciaBruta)}
+            {currencyFormatter.format(resumenActual.haberes || 0)}
           </div>
           <p className="detalle">
             Total cobrado por turnos completados en el mes.
           </p>
         </div>
         <div className="panel-card resumen-card neta">
-          <div className="label">Ganancia neta</div>
+          <div className="label">Cobros de meses anteriores</div>
           <div className="valor">
-            {currencyFormatter.format(resumenActual.gananciaNeta)}
+            {currencyFormatter.format(resumenActual.cobrosMesesAnteriores || 0)}
           </div>
           <p className="detalle">
-            Resultado final del mes luego de ajustes y egresos.
+            Monto cobrado este mes por turnos realizados en meses anteriores.
+          </p>
+        </div>
+        <div className="panel-card resumen-card neta">
+          <div className="label">Ganancia neta</div>
+          <div className="valor">
+            {currencyFormatter.format(resumenActual.gananciaNeta || 0)}
+          </div>
+          <p className="detalle">
+            Resultado final del mes. Por ahora coincide con la ganancia bruta y
+            luego podrá descontar costos fijos y variables.
           </p>
         </div>
       </div>
@@ -159,24 +181,46 @@ export default function PanelFinanciero() {
                   <th className="col-mes">Mes</th>
                   <th className="col-debe">Deberes</th>
                   <th className="col-bruta">Ganancia bruta</th>
-                  <th className="col-neta">Ganancia neta</th>
+                  <th className="col-neta">Cobros de meses anteriores</th>
                 </tr>
               </thead>
               <tbody>
-                {filas.map((fila) => (
-                  <tr key={fila.id}>
-                    <td className="col-mes">{fila.mes}</td>
-                    <td className="col-debe">
-                      {currencyFormatter.format(fila.perdidas)}
-                    </td>
-                    <td className="col-bruta">
-                      {currencyFormatter.format(fila.gananciaBruta)}
-                    </td>
-                    <td className="col-neta">
-                      {currencyFormatter.format(fila.gananciaNeta)}
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="col-mes">
+                      Cargando resumen...
                     </td>
                   </tr>
-                ))}
+                ) : error ? (
+                  <tr>
+                    <td colSpan={4} className="col-mes">
+                      {error}
+                    </td>
+                  </tr>
+                ) : filas.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="col-mes">
+                      No hay datos para el año seleccionado.
+                    </td>
+                  </tr>
+                ) : (
+                  filas.map((fila) => (
+                    <tr key={fila.id}>
+                      <td className="col-mes">{fila.mes}</td>
+                      <td className="col-debe">
+                        {currencyFormatter.format(fila.deberes || 0)}
+                      </td>
+                      <td className="col-bruta">
+                        {currencyFormatter.format(fila.haberes || 0)}
+                      </td>
+                      <td className="col-neta">
+                        {currencyFormatter.format(
+                          fila.cobrosMesesAnteriores || 0
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
