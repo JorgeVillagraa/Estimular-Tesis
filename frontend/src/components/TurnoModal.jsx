@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment";
 import Swal from "sweetalert2";
+import API_BASE_URL from "../constants/api";
 import "./../styles/TurnoModal.css";
 
 const parseProfesionalIds = (value) =>
@@ -21,6 +22,8 @@ export default function TurnoModal({
 }) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelTexto, setCancelTexto] = useState("");
 
   useEffect(() => {
     if (event) {
@@ -81,6 +84,11 @@ export default function TurnoModal({
   const createStatusHandler =
     (status, openPaymentModal = false) =>
     async () => {
+      if (status === "cancelado") {
+        setShowCancelModal(true);
+        return;
+      }
+
       const { isConfirmed } = await Swal.fire({
         title: "Confirmar cambio de estado",
         text: `¿Está seguro de que desea cambiar el estado a ${status.toUpperCase()}?`,
@@ -94,6 +102,71 @@ export default function TurnoModal({
         onUpdate(event, { estado: status }, openPaymentModal);
       }
     };
+
+  const handleCancelSubmit = async () => {
+    if (!cancelTexto.trim()) {
+      await Swal.fire({
+        title: "Advertencia",
+        text: "Por favor, ingrese el motivo de la cancelación.",
+        icon: "warning",
+        confirmButtonText: "Entendido",
+      });
+      return;
+    }
+
+    const turnoId = event?.id ?? event?.data?.id;
+    if (!turnoId) {
+      await Swal.fire({
+        title: "Error",
+        text: "No se pudo identificar el turno a cancelar.",
+        icon: "error",
+      });
+      return;
+    }
+
+    const subject = `Cancelación de turno ${moment(event.start).format("DD/MM/YYYY")}`;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/turnos/cancelar/${turnoId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ subject, body: cancelTexto }),
+      });
+
+      const result = await response.json();
+      if (result?.success) {
+        await Swal.fire({
+          title: "Éxito",
+          text: "Turno cancelado exitosamente. Se envió un email al responsable.",
+          icon: "success",
+          confirmButtonText: "Perfecto",
+        });
+        onUpdate(event, { estado: "cancelado" });
+        setShowCancelModal(false);
+        setCancelTexto("");
+      } else {
+        await Swal.fire({
+          title: "Error",
+          text: result?.message || "Error al cancelar el turno.",
+          icon: "error",
+        });
+      }
+    } catch (error) {
+      console.error("Error en cancelación de turno:", error);
+      await Swal.fire({
+        title: "Error",
+        text: "No se pudo cancelar el turno. Inténtelo nuevamente.",
+        icon: "error",
+      });
+    }
+  };
+
+  const handleCancelCancel = () => {
+    setShowCancelModal(false);
+    setCancelTexto("");
+  };
 
   const handleDeleteTurno = async () => {
     if (!canDeleteTurno) return;
@@ -127,7 +200,7 @@ export default function TurnoModal({
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = "/src/assets/persona_prueba1.png";
-            }} // Fallback image
+            }}
           />
           <div className="modal-patient-info">
             <h2>
@@ -224,6 +297,30 @@ export default function TurnoModal({
           )}
         </div>
       </div>
+
+      {showCancelModal && (
+        <div className="modal-backdrop" onClick={handleCancelCancel}>
+          <div className="modal-content cancel-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Cancelación de turno</h3>
+            <label htmlFor="motivo">Motivo de la cancelación del turno</label>
+            <textarea
+              id="motivo"
+              value={cancelTexto}
+              onChange={(e) => setCancelTexto(e.target.value)}
+              placeholder="Redacte el motivo aquí..."
+              rows="4"
+            />
+            <div className="modal-buttons">
+              <button className="btn-cancel2" onClick={handleCancelCancel}>
+                Cancelar
+              </button>
+              <button className="btn-send" onClick={handleCancelSubmit}>
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
