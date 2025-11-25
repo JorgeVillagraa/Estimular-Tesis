@@ -98,6 +98,7 @@ export default function MainDashboard() {
   const needsProfile = useAuthStore((state) => state.needsProfile);
 
   const isAdmin = user?.es_admin;
+  console.log('isAdmin:', isAdmin, 'user:', user, 'profile:', profile);
 
   const [summary, setSummary] = useState({
     professionals: 0,
@@ -160,9 +161,11 @@ export default function MainDashboard() {
         }),
         axios.get(`${API_BASE_URL}/api/profesiones`),
         ...(isAdmin ? [axios.get(`${API_BASE_URL}/api/turnos`, {
-          params: { estado: "pendiente", notas: "Entrevista", departamentoId: profile?.profesion_id, limit: 8 },
+          params: { estado: "pendiente", citacion: "Entrevista", ...(profile?.profesion_id ? { departamentoId: profile.profesion_id } : {}), limit: 8 },
         })] : []),
       ];
+
+      console.log('departamentoId:', profile?.profesion_id, 'isAdmin:', isAdmin);
 
       const results = await Promise.allSettled(promises);
 

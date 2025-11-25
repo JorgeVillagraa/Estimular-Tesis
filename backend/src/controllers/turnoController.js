@@ -57,14 +57,16 @@ async function handleGetTurnos(req, res) {
     try {
       let query = supabaseAdmin
         .from('turnos')
-        .select('id, departamento_id, inicio, fin, duracion_min, consultorio_id, estado, nino_id', { count: 'exact' })
+        .select('id, departamento_id, inicio, fin, duracion_min, consultorio_id, estado, nino_id, citacion', { count: 'exact' })
         .order('inicio', { ascending: true })
         .limit(Number(limit) || 50);
 
       if (estado) query = query.eq('estado', estado);
       if (nino_id) query = query.eq('nino_id', Number(nino_id));
-      if (req.query.notas) query = query.eq('notas', req.query.notas);
+      if (req.query.citacion) query = query.eq('citacion', req.query.citacion);
       if (req.query.departamentoId) query = query.eq('departamento_id', Number(req.query.departamentoId));
+
+      console.log('turnos query params:', { estado, nino_id, citacion: req.query.citacion, departamentoId: req.query.departamentoId });
 
       if (String(disponible) === 'true') {
         query = query.is('nino_id', null);
@@ -86,6 +88,8 @@ async function handleGetTurnos(req, res) {
       }
 
       const { data, error, count } = await query;
+
+      console.log('turnos data:', data, 'count:', count);
       if (error) throw error;
 
       return res.json({
