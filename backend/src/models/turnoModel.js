@@ -596,8 +596,6 @@ async function createTurno({
   estado = 'pendiente',
   profesional_ids = [],
   precio = null,
-  moneda = 'ARS',
-  metodo_pago = 'efectivo',
 }) {
   if (!departamento_id || !inicio || !nino_id) {
     throw new Error('Los campos departamento_id, inicio y nino_id son obligatorios.');
@@ -679,8 +677,8 @@ async function createTurno({
       const pagoPayload = {
         turno_id: turnoId,
         monto: montoFinal,
-        moneda: moneda || 'ARS',
-        metodo: metodo_pago || 'efectivo',
+        moneda: 'ARS',
+        metodo: 'por_definir',
         estado: 'pendiente',
         nino_id,
       };

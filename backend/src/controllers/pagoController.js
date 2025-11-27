@@ -65,14 +65,24 @@ async function handleGetPagos(req, res) {
 
 async function handleUpdatePago(req, res) {
   const { id } = req.params;
-  const { estado, turno_id } = req.body;
+  const { estado, turno_id, metodo } = req.body;
 
   if (!estado || !turno_id) {
     return res.status(400).json({ success: false, message: "Se requiere 'estado' y 'turno_id'." });
   }
 
+  const cleanMetodo = typeof metodo === 'string' ? metodo.trim() : '';
+  if (estado === 'completado' && !cleanMetodo) {
+    return res.status(400).json({ success: false, message: 'Debe especificar un método de pago para completar el pago.' });
+  }
+
+  const updates = { estado };
+  if (cleanMetodo) {
+    updates.metodo = cleanMetodo;
+  }
+
   try {
-    const result = await pagoModel.updatePagoStatus(id, estado);
+    const result = await pagoModel.updatePago(id, updates);
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Pago no encontrado.' });
     }

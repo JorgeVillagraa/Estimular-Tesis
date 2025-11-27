@@ -10,15 +10,22 @@ async function getPagosByTurnoId(turnoId) {
   return data;
 }
 
-async function updatePagoStatus(pagoId, estado) {
+async function updatePago(pagoId, updates = {}) {
+  const payload = { ...updates };
+  if (!payload || Object.keys(payload).length === 0) {
+    throw new Error('No fields to update for pago');
+  }
+
+  payload.actualizado_en = new Date().toISOString();
+
   const { data, error } = await supabase
-    .from("pagos")
-    .update({ estado })
-    .eq("id", pagoId)
-    .select("id");
+    .from('pagos')
+    .update(payload)
+    .eq('id', pagoId)
+    .select('id');
 
   if (error) throw error;
-  return { affectedRows: data ? data.length : 0 };
+  return { affectedRows: Array.isArray(data) ? data.length : 0 };
 }
 
 async function updateTurnoEstadoPago(turnoId, estado_pago) {
@@ -54,6 +61,6 @@ async function updateTurnoEstadoPago(turnoId, estado_pago) {
 
 module.exports = {
   getPagosByTurnoId,
-  updatePagoStatus,
+  updatePago,
   updateTurnoEstadoPago,
 };

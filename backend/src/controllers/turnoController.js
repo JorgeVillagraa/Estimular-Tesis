@@ -136,8 +136,6 @@ async function handleCreateTurno(req, res) {
     notas,
     profesional_ids,
     precio,
-    moneda,
-    metodo_pago,
     estado,
   } = req.body || {};
 
@@ -159,8 +157,6 @@ async function handleCreateTurno(req, res) {
       notas,
       profesional_ids,
       precio,
-      moneda,
-      metodo_pago,
       estado,
       creado_por: loggedInUserId,
     });

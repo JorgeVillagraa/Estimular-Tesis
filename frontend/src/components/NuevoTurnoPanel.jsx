@@ -11,17 +11,6 @@ const ESTADOS_TURNO = [
   { value: 'cancelado', label: 'Cancelado' },
 ];
 
-const METODOS_PAGO = [
-  { value: 'efectivo', label: 'Efectivo' },
-  { value: 'transferencia', label: 'Transferencia' },
-  { value: 'tarjeta', label: 'Tarjeta' },
-];
-
-const MONEDAS = [
-  { value: 'ARS', label: 'ARS' },
-  { value: 'USD', label: 'USD' },
-];
-
 const formatProfesionalNombre = (prof) =>
   [prof?.nombre, prof?.apellido].filter(Boolean).join(' ').trim();
 
@@ -59,6 +48,9 @@ const formatCurrency = (amount, currency = 'ARS') => {
       maximumFractionDigits: 2,
     }).format(amount);
   } catch (error) {
+    if (error) {
+      // Ignorar y continuar con fallback
+    }
     const value = Number(amount);
     if (Number.isNaN(value)) return '';
     return `${currency} ${value.toFixed(2)}`;
@@ -83,8 +75,6 @@ export default function NuevoTurnoPanel({
     profesional_ids: [],
     notas: '',
     precio: '',
-    moneda: 'ARS',
-    metodo_pago: 'efectivo',
     estado: 'pendiente',
     repetir_semanas: '',
     semana_por_medio: false,
@@ -264,8 +254,6 @@ export default function NuevoTurnoPanel({
         profesional_ids: [],
         notas: '',
         precio: '',
-        moneda: 'ARS',
-        metodo_pago: 'efectivo',
         estado: 'pendiente',
         repetir_semanas: '',
         semana_por_medio: false,
@@ -513,8 +501,6 @@ export default function NuevoTurnoPanel({
         notas: formData.notas?.trim() || null,
         profesional_ids: profesionalIdsSeleccionados,
         precio: precioOriginalNumber === null ? null : precioConDescuento,
-        moneda: formData.moneda || 'ARS',
-        metodo_pago: formData.metodo_pago || 'efectivo',
         estado: formData.estado,
       };
 
@@ -908,62 +894,22 @@ export default function NuevoTurnoPanel({
                 {selectedNino && obraSocialDescuento > 0 && precioOriginalNumber !== null && (
                   <div className="price-discount-preview">
                     <span className="price-original">
-                      {formatCurrency(precioOriginalNumber, formData.moneda)}
+                      {formatCurrency(precioOriginalNumber)}
                     </span>
                     <span className="price-arrow" aria-hidden="true">→</span>
                     <span className="price-discounted">
-                      {formatCurrency(precioConDescuento, formData.moneda)}
+                      {formatCurrency(precioConDescuento)}
                     </span>
                     <span className="price-discount-note">
                       {porcentajeDescuento}% OFF por obra social
                     </span>
                     {ahorroCalculado !== null && (
                       <span className="price-savings">
-                        Ahorro: {formatCurrency(ahorroCalculado, formData.moneda)}
+                        Ahorro: {formatCurrency(ahorroCalculado)}
                       </span>
                     )}
                   </div>
                 )}
-              </div>
-
-              <div className="form-section">
-                <label htmlFor="moneda">Moneda</label>
-                <select
-                  id="moneda"
-                  name="moneda"
-                  value={formData.moneda}
-                  onChange={(event) => {
-                    handleInputChange(event);
-                    resetMessages();
-                  }}
-                  disabled={!formData.precio}
-                >
-                  {MONEDAS.map((moneda) => (
-                    <option key={moneda.value} value={moneda.value}>
-                      {moneda.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-section">
-                <label htmlFor="metodo_pago">Método de pago</label>
-                <select
-                  id="metodo_pago"
-                  name="metodo_pago"
-                  value={formData.metodo_pago}
-                  onChange={(event) => {
-                    handleInputChange(event);
-                    resetMessages();
-                  }}
-                  disabled={!formData.precio}
-                >
-                  {METODOS_PAGO.map((metodo) => (
-                    <option key={metodo.value} value={metodo.value}>
-                      {metodo.label}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 

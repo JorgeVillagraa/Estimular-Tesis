@@ -1,6 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import API_BASE_URL from "../constants/api";
+import SelectPaymentMethodModal from "../components/SelectPaymentMethodModal";
+import {
+  PAYMENT_METHODS,
+  UNASSIGNED_PAYMENT_METHOD,
+  getPaymentMethodLabel,
+} from "../constants/paymentMethods";
 import "../styles/PagosDashboard.css";
 
 const MESES = [
@@ -57,6 +63,17 @@ const DEFAULT_RESUMEN = {
   cobrosMesesAnteriores: 0,
 };
 
+const EMPTY_MODAL_STATE = {
+  open: false,
+  defaultValue: "",
+  actionKey: null,
+  rowKey: null,
+  pagos: [],
+  title: "",
+  description: "",
+  collapseRow: false,
+};
+
 function formatCurrency(amount, currency = "ARS", detailed = true) {
   const value = Number(amount);
   if (!Number.isFinite(value)) return "—";
@@ -76,7 +93,6 @@ function formatDate(value) {
   if (Number.isNaN(date.getTime())) return "—";
   return dateFormatter.format(date);
 }
-
 function formatDateTime(value) {
   if (!value) return "—";
   const date = new Date(value);
@@ -109,6 +125,8 @@ export default function PagosDashboard() {
   const [expandedRows, setExpandedRows] = useState(() => new Set());
   const [processingKeys, setProcessingKeys] = useState(() => new Set());
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [paymentModalState, setPaymentModalState] = useState(EMPTY_MODAL_STATE);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
 
   const toggleProcessingKey = useCallback((key, isActive) => {
     setProcessingKeys((prev) => {
@@ -248,130 +266,231 @@ export default function PagosDashboard() {
     ]
   );
 
-  const handlePayTurno = useCallback(
-    async (rowKey, turno) => {
-      if (!turno || !Array.isArray(turno.pagos) || turno.pagos.length === 0) {
-        return;
-      }
+  const handlePayTurno = useCallback((rowKey, turno) => {
+    if (!turno || !Array.isArray(turno.pagos) || turno.pagos.length === 0) {
+      return;
+    }
 
-      const actionKey = `turno-${rowKey}-${turno.turno_id || "sin-id"}`;
-      toggleProcessingKey(actionKey, true);
+    const pendientes = turno.pagos.filter(
+      (pago) => pago && pago.estado !== "completado"
+    );
 
-      try {
-        for (const pago of turno.pagos) {
-          const turnoId = pago.turno_id || turno.turno_id;
-          if (!turnoId) continue;
-          await axios.put(`${API_BASE_URL}/api/pagos/${pago.id}`, {
-            estado: "completado",
-            turno_id: turnoId,
-          });
-        }
-        setExpandedRows((prev) => {
-          const next = new Set(prev);
-          next.delete(rowKey);
-          return next;
-        });
-        await fetchData(false);
-      } catch (err) {
-        console.error("Error al marcar pagado el turno", err);
-        window.alert("No se pudo registrar el pago del turno.");
-      } finally {
-        toggleProcessingKey(actionKey, false);
-      }
-    },
-    [fetchData, toggleProcessingKey]
-  );
+    if (pendientes.length === 0) {
+      return;
+    }
+
+    const pagosPayload = pendientes
+      .map((pago) => ({
+        pagoId: pago?.id,
+        turnoId: pago?.turno_id || turno.turno_id,
+      }))
+      .filter((item) => item.pagoId && item.turnoId);
+
+    if (pagosPayload.length === 0) {
+      return;
+    }
+
+    const defaultMethod = pendientes.find(
+      (pago) =>
+        typeof pago?.metodo === "string" &&
+        pago.metodo.trim() !== "" &&
+        pago.metodo !== UNASSIGNED_PAYMENT_METHOD
+    )?.metodo;
+
+    const actionKey = `turno-${rowKey}-${turno.turno_id || "sin-id"}`;
+    const description = turno?.servicio_nombre
+      ? `Seleccioná el método de pago para registrar el cobro del turno de ${turno.servicio_nombre}.`
+      : "Seleccioná el método de pago para registrar este turno.";
+
+    setModalSubmitting(false);
+    setPaymentModalState({
+      open: true,
+      defaultValue: defaultMethod || "",
+      actionKey,
+      rowKey,
+      pagos: pagosPayload,
+      title: "Registrar cobro del turno",
+      description,
+      collapseRow: true,
+    });
+  }, [setModalSubmitting, setPaymentModalState]);
 
   const handlePayAll = useCallback(
-    async (rowKey, row) => {
+    (rowKey, row) => {
       if (!row || !Array.isArray(row.turnos) || row.turnos.length === 0) {
         return;
       }
 
       const pagos = row.turnos.flatMap((turno) => turno.pagos || []);
-      if (pagos.length === 0) return;
+      const pendientes = pagos.filter(
+        (pago) => pago && pago.estado !== "completado"
+      );
+
+      if (pendientes.length === 0) {
+        return;
+      }
+
+      const pagosPayload = pendientes
+        .map((pago) => ({
+          pagoId: pago?.id,
+          turnoId: pago?.turno_id || null,
+        }))
+        .filter((item) => item.pagoId && item.turnoId);
+
+      if (pagosPayload.length === 0) {
+        return;
+      }
+
+      const defaultMethod = pendientes.find(
+        (pago) =>
+          typeof pago?.metodo === "string" &&
+          pago.metodo.trim() !== "" &&
+          pago.metodo !== UNASSIGNED_PAYMENT_METHOD
+      )?.metodo;
 
       const actionKey = `todo-${rowKey}`;
-      toggleProcessingKey(actionKey, true);
+      const familyName = row?.nino
+        ? `${row.nino.nombre || ""} ${row.nino.apellido || ""}`.trim()
+        : "la familia";
+      const description = familyName
+        ? `Seleccioná el método de pago para registrar todos los cobros pendientes de ${familyName}.`
+        : "Seleccioná el método de pago para registrar todos los cobros pendientes.";
 
-      try {
-        for (const pago of pagos) {
-          const turnoId = pago.turno_id || null;
-          if (!turnoId) continue;
-          await axios.put(`${API_BASE_URL}/api/pagos/${pago.id}`, {
-            estado: "completado",
-            turno_id: turnoId,
-          });
-        }
-        setExpandedRows((prev) => {
-          const next = new Set(prev);
-          next.delete(rowKey);
-          return next;
-        });
-        await fetchData(false);
-      } catch (err) {
-        console.error("Error al pagar todas las cuotas", err);
-        window.alert("No se pudieron registrar todos los pagos.");
-      } finally {
-        toggleProcessingKey(actionKey, false);
-      }
+      setModalSubmitting(false);
+      setPaymentModalState({
+        open: true,
+        defaultValue: defaultMethod || "",
+        actionKey,
+        rowKey,
+        pagos: pagosPayload,
+        title: "Registrar todos los cobros pendientes",
+        description,
+        collapseRow: true,
+      });
     },
-    [fetchData, toggleProcessingKey]
+    [setModalSubmitting, setPaymentModalState]
   );
 
+  const handleConfirmPaymentMethod = useCallback(
+    async (selectedMethod) => {
+      if (!selectedMethod) {
+        return;
+      }
+
+      if (!paymentModalState.open) {
+        return;
+      }
+
+      const { actionKey, pagos, rowKey, collapseRow } = paymentModalState;
+
+      if (!Array.isArray(pagos) || pagos.length === 0) {
+        setPaymentModalState(EMPTY_MODAL_STATE);
+        return;
+      }
+
+      setModalSubmitting(true);
+      if (actionKey) {
+        toggleProcessingKey(actionKey, true);
+      }
+
+      try {
+        for (const pagoConfig of pagos) {
+          const pagoId = pagoConfig?.pagoId;
+          const turnoId = pagoConfig?.turnoId;
+          if (!pagoId || !turnoId) {
+            continue;
+          }
+          await axios.put(`${API_BASE_URL}/api/pagos/${pagoId}`, {
+            estado: "completado",
+            turno_id: turnoId,
+            metodo: selectedMethod,
+          });
+        }
+
+        if (collapseRow && rowKey) {
+          setExpandedRows((prev) => {
+            const next = new Set(prev);
+            next.delete(rowKey);
+            return next;
+          });
+        }
+
+        await fetchData(false);
+        setPaymentModalState(EMPTY_MODAL_STATE);
+      } catch (err) {
+        console.error("Error al registrar los pagos seleccionados", err);
+        window.alert("No se pudieron registrar los pagos seleccionados.");
+      } finally {
+        setModalSubmitting(false);
+        if (actionKey) {
+          toggleProcessingKey(actionKey, false);
+        }
+      }
+    },
+    [fetchData, paymentModalState, toggleProcessingKey]
+  );
+
+  const handleCancelPaymentMethod = useCallback(() => {
+    if (modalSubmitting) {
+      return;
+    }
+    setPaymentModalState(EMPTY_MODAL_STATE);
+  }, [modalSubmitting]);
+
   return (
-    <section className="pagos-dashboard-page">
-      <header className="pagos-dashboard-header">
-        <div>
-          <h1>Panel de pagos</h1>
-          <p>Gestioná las deudas pendientes y visualizá los cobros recientes.</p>
-        </div>
-        <div className="pagos-dashboard-actions">
-          {lastUpdated && (
-            <span className="pagos-dashboard-updated">
-              Actualizado: {formatDateTime(lastUpdated)}
-            </span>
-          )}
-          <button
-            type="button"
-            className="pagos-btn refresh"
-            onClick={() => fetchData(true)}
-            disabled={loading}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
-        </div>
-      </header>
-
-      <div className="panel-financiero-resumen pagos-resumen-cards">
-        {resumenCards.map((card) => (
-          <div
-            key={card.id}
-            className={`panel-card resumen-card ${card.className}`}
-          >
-            <div className="label">{card.label}</div>
-            <div className="valor">{card.valor}</div>
-            <p className="detalle">{card.detalle}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="pagos-card">
-        <div className="pagos-card-header">
+    <>
+      <section className="pagos-dashboard-page">
+        <header className="pagos-dashboard-header">
           <div>
-            <h2>Familias con deuda activa</h2>
-            <p>
-              {totals.cantidad_ninos > 0
-                ? `${totals.cantidad_ninos} familias con pagos pendientes.`
-                : "No hay pagos pendientes registrados."}
-            </p>
+            <h1>Panel de pagos</h1>
+            <p>Gestioná las deudas pendientes y visualizá los cobros recientes.</p>
           </div>
+          <div className="pagos-dashboard-actions">
+            {lastUpdated && (
+              <span className="pagos-dashboard-updated">
+                Actualizado: {formatDateTime(lastUpdated)}
+              </span>
+            )}
+            <button
+              type="button"
+              className="pagos-btn refresh"
+              onClick={() => fetchData(true)}
+              disabled={loading}
+            >
+              {loading ? "Actualizando..." : "Actualizar"}
+            </button>
+          </div>
+        </header>
+
+        <div className="panel-financiero-resumen pagos-resumen-cards">
+          {resumenCards.map((card) => (
+            <div
+              key={card.id}
+              className={`panel-card resumen-card ${card.className}`}
+            >
+              <div className="label">{card.label}</div>
+              <div className="valor">{card.valor}</div>
+              <p className="detalle">{card.detalle}</p>
+            </div>
+          ))}
         </div>
 
-        {error && <div className="pagos-alert">{error}</div>}
+        <div className="pagos-card">
+          <div className="pagos-card-header">
+            <div>
+              <h2>Familias con deuda activa</h2>
+              <p>
+                {totals.cantidad_ninos > 0
+                  ? `${totals.cantidad_ninos} familias con pagos pendientes.`
+                  : "No hay pagos pendientes registrados."}
+              </p>
+            </div>
+          </div>
 
-        <div className="pagos-table-wrapper">
-          <table className="pagos-table" aria-label="Listado de deudas por familia">
+          {error && <div className="pagos-alert">{error}</div>}
+
+          <div className="pagos-table-wrapper">
+            <table className="pagos-table" aria-label="Listado de deudas por familia">
             <thead>
               <tr>
                 <th>Niño</th>
@@ -552,7 +671,7 @@ export default function PagosDashboard() {
                                                 )}
                                               </span>
                                               <small>
-                                                Método: {pago.metodo}
+                                                Método: {getPaymentMethodLabel(pago.metodo)}
                                               </small>
                                             </div>
                                           </li>
@@ -571,9 +690,19 @@ export default function PagosDashboard() {
                 })
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+      <SelectPaymentMethodModal
+        open={paymentModalState.open}
+        title={paymentModalState.title}
+        description={paymentModalState.description}
+        defaultValue={paymentModalState.defaultValue}
+        submitting={modalSubmitting}
+        onConfirm={handleConfirmPaymentMethod}
+        onCancel={handleCancelPaymentMethod}
+      />
+    </>
   );
 }
