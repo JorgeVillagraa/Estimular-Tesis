@@ -226,10 +226,11 @@ async function handleUpdateTurno(req, res) {
 
       switch (dataToUpdate.estado) {
         case 'completado':
-          mensaje = `Llego ${fullName}`;
+        case 'asistido':
+          mensaje = `Llegó ${fullName}`;
           break;
-        case 'no_presento':
-          mensaje = `No se presento ${fullName}`;
+        case 'ausente':
+          mensaje = `No se presentó ${fullName}`;
           break;
         case 'cancelado':
           mensaje = `Cancelado el turno de ${fullName}`;
@@ -304,8 +305,6 @@ async function handleAutoScheduleEntrevista(req, res) {
     base_inicio: baseInicioRaw,
     replace_existing: replaceExistingRaw,
   } = req.body || {};
-  const loggedInUserIdHeader = req.headers['x-user-id'];
-  const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
 
   const parsedNinoId = parseNumericId(ninoIdRaw);
   if (!parsedNinoId) {

@@ -474,8 +474,11 @@ async function getTurnoById(turnoId) {
   const { ids, nombres, detalle } = formatProfesionales(data.profesionales, profesionalesDetails);
   const paciente = formatNinoDetails(data.nino);
 
+  const estadoTurno = data?.estado ?? null;
+
   return {
     ...data,
+    estado: estadoTurno,
     ...paciente,
     profesional_ids: ids,
     profesional_nombres: nombres,
@@ -611,6 +614,8 @@ async function createTurno({
   let turnoId = null;
 
   try {
+    const estadoTurno = estado ?? 'pendiente';
+
     const { data: turnoInserted, error: turnoError } = await supabase
       .from('turnos')
       .insert({
@@ -622,7 +627,7 @@ async function createTurno({
         notas: notas || null,
         creado_por,
         nino_id,
-        estado,
+        estado: estadoTurno,
       })
       .select('id')
       .single();
