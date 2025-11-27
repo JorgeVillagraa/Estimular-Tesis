@@ -137,6 +137,7 @@ input:focus {
 /* campo de contraseña con botón ver/ocultar */
 .password-field {
   position: relative;
+  margin-bottom: 20px;
 }
 .password-field input {
   padding-right: 40px; /* espacio para el ojo */
@@ -189,7 +190,7 @@ input:focus {
 .btn-primary {
   width: 100%;
   height: 46px;
-  margin-top: 16px;
+  margin-top: 28px;
   border: none;
   border-radius: 12px;
   background: linear-gradient(90deg, var(--pink-1), var(--color-rosa1));

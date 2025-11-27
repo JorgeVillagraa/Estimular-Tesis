@@ -60,8 +60,11 @@ export default function PrimerRegistro() {
           ? "recepcion"
           : profile.tipo || "profesional",
         profesionId:
-          profile.departamento_id ||
-          profile.departamento?.id_departamento ||
+          profile.profesion_id ??
+          profile.departamento_id ??
+          profile.profesion?.id_departamento ??
+          profile.profesion?.id ??
+          profile.departamento?.id_departamento ??
           "",
       }));
     }
@@ -159,9 +162,16 @@ export default function PrimerRegistro() {
       setOk("Datos guardados. Redirigiendo…");
       setTimeout(() => navigate("/dashboard"), 900);
     } catch (err) {
-      setError(
-        err?.response?.data?.error || "No se pudo guardar, intenta nuevamente"
-      );
+      const apiError = err?.response?.data?.error;
+      let message = apiError || "No se pudo guardar, intenta nuevamente";
+      if (
+        err?.response?.status === 409 ||
+        /correo|email/i.test(apiError || "") && /existe|registrad/i.test(apiError || "")
+      ) {
+        message =
+          "Ese correo ya está registrado. Si necesitás recuperar el acceso, contactá a las encargadas.";
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }
