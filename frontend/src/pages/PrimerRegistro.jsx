@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/Login.css";
@@ -43,31 +43,35 @@ export default function PrimerRegistro() {
     () => isRecepcionTipo(form.tipoUsuario),
     [form.tipoUsuario]
   );
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (profile) {
-      setForm((prev) => ({
-        ...prev,
-        nombre: profile.nombre || "",
-        apellido: profile.apellido || "",
-        telefono: profile.telefono || "",
-        fecha_nacimiento:
-          (profile.fecha_nacimiento
-            ? String(profile.fecha_nacimiento).slice(0, 10)
-            : "") || "",
-        email: profile.email || "",
-        tipoUsuario: isRecepcionTipo(profile.tipo)
-          ? "recepcion"
-          : profile.tipo || "profesional",
-        profesionId:
-          profile.profesion_id ??
-          profile.departamento_id ??
-          profile.profesion?.id_departamento ??
-          profile.profesion?.id ??
-          profile.departamento?.id_departamento ??
-          "",
-      }));
-    }
+    if (!profile) return;
+
+    const profesionPrefill =
+      profile.profesion_id ??
+      profile.departamento_id ??
+      profile.profesion?.id_departamento ??
+      profile.profesion?.id ??
+      profile.departamento?.id_departamento ??
+      "";
+
+    setForm((prev) => ({
+      ...prev,
+      nombre: profile.nombre || "",
+      apellido: profile.apellido || "",
+      telefono: profile.telefono || "",
+      fecha_nacimiento:
+        (profile.fecha_nacimiento
+          ? String(profile.fecha_nacimiento).slice(0, 10)
+          : "") || "",
+      email: profile.email || "",
+      tipoUsuario: isRecepcionTipo(profile.tipo)
+        ? "recepcion"
+        : profile.tipo || "profesional",
+      profesionId: profesionPrefill,
+    }));
+
   }, [profile]);
 
   // Cargar profesiones para el selector
@@ -175,6 +179,31 @@ export default function PrimerRegistro() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFotoChange = async (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) {
+      setForm((prev) => ({ ...prev, fotoFile: null, fotoPreview: "" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        fotoFile: file,
+        fotoPreview: typeof reader.result === "string" ? reader.result : "",
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveFoto = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setForm((prev) => ({ ...prev, fotoFile: null, fotoPreview: "" }));
   };
 
   return (
@@ -294,28 +323,12 @@ export default function PrimerRegistro() {
             <div>
               <label>Foto de perfil</label>
               <input
+                id="foto_perfil"
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0] || null;
-                  if (!file) {
-                    setForm((prev) => ({
-                      ...prev,
-                      fotoFile: null,
-                      fotoPreview: "",
-                    }));
-                    return;
-                  }
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    setForm((prev) => ({
-                      ...prev,
-                      fotoFile: file,
-                      fotoPreview: String(reader.result || ""),
-                    }));
-                  };
-                  reader.readAsDataURL(file);
-                }}
+                className="file-upload-native"
+                onChange={handleFotoChange}
               />
               {form.fotoPreview ? (
                 <div style={{ marginTop: 8 }}>
@@ -329,11 +342,18 @@ export default function PrimerRegistro() {
                       borderRadius: 8,
                     }}
                   />
+                  <button
+                    type="button"
+                    className="file-upload-remove-link"
+                    onClick={handleRemoveFoto}
+                  >
+                    Quitar foto
+                  </button>
                 </div>
               ) : null}
             </div>
             <div>
-              <label>Fecha de nacimiento</label>
+              <label>Fecha nacimiento</label>
               <input
                 type="date"
                 value={form.fecha_nacimiento}
@@ -370,7 +390,7 @@ export default function PrimerRegistro() {
               </div>
             </div>
             <div>
-              <label>Confirmar contraseña</label>
+              <label>Confirmá contraseña</label>
               <div className="password-field">
                 <input
                   type={showConfirm ? "text" : "password"}

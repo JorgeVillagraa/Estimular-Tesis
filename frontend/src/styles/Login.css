@@ -119,6 +119,7 @@ label {
   margin-bottom: 6px;
   color: #594a63;
   font-weight: 600;
+  font-size: 13px;
 }
 input,
 select {
@@ -167,6 +168,72 @@ input:focus {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.grid-2 > div {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.grid-2 > div > label {
+  margin-bottom: 6px;
+}
+
+.grid-2 > div > :not(label):first-of-type {
+  margin-top: auto;
+}
+
+.file-upload-native {
+  width: 100%;
+  border: 1px solid var(--color-rosa1);
+  border-radius: 10px;
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  color: #594a63;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.file-upload-native::file-selector-button {
+  margin-right: 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--pink-2), var(--color-rosa1));
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-upload-native::-webkit-file-upload-button {
+  margin-right: 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--pink-2), var(--color-rosa1));
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-upload-remove-link {
+  border: none;
+  background: none;
+  color: var(--color-rosa1);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 8px;
+}
+
+.file-upload-remove-link:hover {
+  text-decoration: underline;
 }
 
 .login-actions {
@@ -229,5 +296,11 @@ input:focus {
   }
   .login-card {
     width: min(92vw, 460px);
+  }
+}
+
+@media (max-width: 520px) {
+  .file-upload-remove-link {
+    margin-top: 6px;
   }
 }
