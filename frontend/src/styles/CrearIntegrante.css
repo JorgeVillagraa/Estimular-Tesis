@@ -363,6 +363,10 @@
   justify-content: center;
 }
 
+.integrante-summary--left {
+  justify-content: flex-start;
+}
+
 .integrante-chip {
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
@@ -385,6 +389,35 @@
   align-items: center;
   gap: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.integrante-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 182, 193, 0.25);
+  border-radius: 999px;
+}
+
+.integrante-toggle-btn {
+  align-self: flex-start;
+  padding: 0.35rem 0;
+  background: transparent;
+  border: none;
+  color: var(--color-rosa1, #ff69b4);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.integrante-toggle-btn:hover {
+  color: var(--color-rosa2, #ff1493);
+}
+
+.integrante-toggle-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+  color: var(--color-rosa2, #ff1493);
 }
 
 .integrante-btn {

@@ -603,10 +603,10 @@ async function crearIntegrante(req, res) {
 		});
 	}
 
-	if (!nombre || !apellido || !dni || !contrasena || !fecha_nacimiento) {
+	if (!dni || !contrasena) {
 		return res.status(400).json({
 			success: false,
-			message: 'Faltan datos obligatorios (nombre, apellido, dni, contrasena, fecha_nacimiento)',
+			message: 'Faltan datos obligatorios (dni, contrasena)',
 		});
 	}
 
@@ -618,23 +618,13 @@ async function crearIntegrante(req, res) {
 		return res.status(400).json({ success: false, message: 'Contraseña inválida o insegura.' });
 	}
 
-	if (!isValidDate(fecha_nacimiento)) {
+	if (fecha_nacimiento && !isValidDate(fecha_nacimiento)) {
 		return res.status(400).json({ success: false, message: 'fecha_nacimiento debe tener formato YYYY-MM-DD' });
 	}
 
 	const normalizedTipo = normalizeTipo(tipo) === 'todos' ? 'profesional' : normalizeTipo(tipo);
 	const adminFlag = es_admin ?? esAdmin ?? admin ?? false;
 
-	if (
-		normalizedTipo === 'profesional' &&
-		profesionId === undefined &&
-		departamento_id === undefined
-	) {
-		return res.status(400).json({
-			success: false,
-			message: 'profesionId es obligatorio para profesionales',
-		});
-	}
 
 	let persona = null;
 	let usuario = null;
@@ -653,12 +643,21 @@ async function crearIntegrante(req, res) {
 			}
 		}
 
+		const nombreSanitizado = typeof nombre === 'string' ? nombre.trim() : '';
+		const apellidoSanitizado = typeof apellido === 'string' ? apellido.trim() : '';
+		const fechaSanitizada = typeof fecha_nacimiento === 'string' ? fecha_nacimiento.trim() : '';
+		const nombreFinal = nombreSanitizado || 'Pendiente';
+		const apellidoFinal = apellidoSanitizado || 'Integrante';
+		const fechaFinal = fechaSanitizada
+			? new Date(fechaSanitizada).toISOString().slice(0, 10)
+			: null;
+
 		const personaPayload = {
-			nombre: String(nombre).trim(),
-			apellido: String(apellido).trim(),
+			nombre: nombreFinal,
+			apellido: apellidoFinal,
 			telefono: normalizePhone(telefono),
-			email: normalizeEmail(email),
-			fecha_nacimiento: new Date(fecha_nacimiento).toISOString().slice(0, 10),
+			email: emailNormalized,
+			fecha_nacimiento: fechaFinal,
 			foto_perfil: null,
 		};
 
