@@ -374,7 +374,15 @@ async function savePersonaForUser(usuarioId, personaId, payload) {
       .from('personas')
       .update(cleaned)
       .eq('id', Number(personaId));
-    if (error) throw error;
+    if (error) {
+      const message = error.message || error.details || '';
+      if (error.code === '23505' || /personas_email_key/i.test(message)) {
+        const friendly = new Error('El email ingresado ya está registrado en otra cuenta.');
+        friendly.status = 409;
+        throw friendly;
+      }
+      throw error;
+    }
     return personaId;
   }
   if (!cleaned.nombre || !cleaned.apellido) {
@@ -387,7 +395,15 @@ async function savePersonaForUser(usuarioId, personaId, payload) {
     .insert([cleaned])
     .select('id')
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    const message = error.message || error.details || '';
+    if (error.code === '23505' || /personas_email_key/i.test(message)) {
+      const friendly = new Error('El email ingresado ya está registrado en otra cuenta.');
+      friendly.status = 409;
+      throw friendly;
+    }
+    throw error;
+  }
   const newPersonaId = data?.id;
   if (!newPersonaId) {
     throw new Error('No se pudo crear la persona');

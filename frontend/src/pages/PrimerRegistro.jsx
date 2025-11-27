@@ -166,11 +166,13 @@ export default function PrimerRegistro() {
       setOk("Datos guardados. Redirigiendo…");
       setTimeout(() => navigate("/dashboard"), 900);
     } catch (err) {
-      const apiError = err?.response?.data?.error;
+      const apiError =
+        err?.response?.data?.error || err?.response?.data?.message || "";
       let message = apiError || "No se pudo guardar, intenta nuevamente";
       if (
         err?.response?.status === 409 ||
-        /correo|email/i.test(apiError || "") && /existe|registrad/i.test(apiError || "")
+        (/correo|email/i.test(apiError) && /existe|registrad/i.test(apiError)) ||
+        /duplicate key/i.test(apiError)
       ) {
         message =
           "Ese correo ya está registrado. Si necesitás recuperar el acceso, contactá a las encargadas.";
