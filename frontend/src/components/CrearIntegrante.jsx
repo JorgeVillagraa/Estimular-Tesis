@@ -388,68 +388,70 @@ export default function CrearIntegrante({ onClose, onCreated }) {
                 )}
               </div>
 
-              <div className="integrante-field">
-                <span className="integrante-label integrante-label--inline">
-                  Tipo de integrante
-                </span>
-                <div className="integrante-options">
-                  <button
-                    type="button"
-                    className={`integrante-option ${
-                      data.tipo === "profesional"
-                        ? "integrante-option--active"
-                        : ""
-                    }`}
-                    onClick={() => actualizar("tipo", "profesional")}
-                  >
-                    Profesional
-                  </button>
-                  <button
-                    type="button"
-                    className={`integrante-option ${
-                      data.tipo === "recepcion"
-                        ? "integrante-option--active"
-                        : ""
-                    }`}
-                    onClick={() => actualizar("tipo", "recepcion")}
-                  >
-                    Recepción
-                  </button>
+              <div className="integrante-grid integrante-grid--roles">
+                <div className="integrante-field">
+                  <span className="integrante-label integrante-label--inline">
+                    Tipo de integrante
+                  </span>
+                  <div className="integrante-options">
+                    <button
+                      type="button"
+                      className={`integrante-option ${
+                        data.tipo === "profesional"
+                          ? "integrante-option--active"
+                          : ""
+                      }`}
+                      onClick={() => actualizar("tipo", "profesional")}
+                    >
+                      Profesional
+                    </button>
+                    <button
+                      type="button"
+                      className={`integrante-option ${
+                        data.tipo === "recepcion"
+                          ? "integrante-option--active"
+                          : ""
+                      }`}
+                      onClick={() => actualizar("tipo", "recepcion")}
+                    >
+                      Recepción
+                    </button>
+                  </div>
+                </div>
+
+                <div className="integrante-field integrante-field--permisos">
+                  <span className="integrante-label integrante-label--inline">
+                    Permisos adicionales
+                  </span>
+                  <div className="integrante-options">
+                    <button
+                      type="button"
+                      className={`integrante-option ${
+                        data.esAdmin ? "integrante-option--active" : ""
+                      }`}
+                      onClick={toggleAdmin}
+                    >
+                      Administrador
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="integrante-field">
-                <span className="integrante-label integrante-label--inline">
-                  Permisos adicionales
-                </span>
-                <div className="integrante-options">
-                  <button
-                    type="button"
-                    className={`integrante-option ${
-                      data.esAdmin ? "integrante-option--active" : ""
-                    }`}
-                    onClick={toggleAdmin}
-                  >
-                    Administrador
-                  </button>
-                </div>
-                <p className="integrante-helper">
-                  Podés combinar el acceso administrador con el rol profesional
-                  para que aparezca en su departamento y tenga permisos
-                  completos.
-                </p>
-                <div className="integrante-summary integrante-summary--left">
-                  {rolesResumen.map((rol) => (
-                    <span key={rol} className="integrante-chip">
-                      {rol}
-                    </span>
-                  ))}
-                  {profesionSeleccionada && (
-                    <span className="integrante-chip integrante-chip--neutral">
-                      {profesionSeleccionada?.nombre}
-                    </span>
-                  )}
-                </div>
+              <p className="integrante-helper integrante-helper--roles">
+                Podés combinar el acceso administrador con el rol profesional para que aparezca en su
+                departamento y tenga permisos completos.
+              </p>
+              <div className="integrante-summary integrante-summary--left integrante-summary--roles">
+                {rolesResumen.map((rol) => (
+                  <span key={rol} className="integrante-chip">
+                    {rol}
+                  </span>
+                ))}
+                {profesionSeleccionada && (
+                  <span className="integrante-chip integrante-chip--neutral">
+                    {profesionSeleccionada?.nombre}
+                  </span>
+                )}
               </div>
 
               <button

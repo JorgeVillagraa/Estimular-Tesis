@@ -120,7 +120,7 @@
 
 .form-grid {
   display: grid;
-  gap: clamp(0.8rem, 1.4vw, 1.1rem);
+  gap: clamp(4rem, 1.4vw, 1.1rem);
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-items: start;
 }
