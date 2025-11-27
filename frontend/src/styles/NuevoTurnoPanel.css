@@ -538,6 +538,12 @@
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  line-height: 1.15;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0;
 }
 
 .btn-secondary {
@@ -555,6 +561,7 @@
   background: linear-gradient(135deg, var(--color-rosa1, #ff69b4), var(--color-rosa2, #ff1493));
   color: #ffffff;
   box-shadow: 0 14px 28px rgba(255, 105, 180, 0.28);
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover:not([disabled]) {

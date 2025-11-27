@@ -11,7 +11,7 @@ const ESTADOS_TURNO = [
 ];
 
 const formatProfesionalNombre = (prof) =>
-  [prof?.nombre, prof?.apellido].filter(Boolean).join(' ').trim();
+  capitalizeWords([prof?.nombre, prof?.apellido].filter(Boolean).join(' ').trim());
 
 const pad2 = (value) => String(value).padStart(2, '0');
 
@@ -19,6 +19,23 @@ const capitalizeFirst = (text) => {
   if (!text || typeof text !== 'string') return '';
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
+
+const capitalizeWords = (text) => {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .toLocaleLowerCase('es-AR')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toLocaleUpperCase('es-AR') + word.slice(1))
+    .join(' ');
+};
+
+const getNinoNombreCompleto = (nino) =>
+  capitalizeWords(
+    [nino?.paciente_nombre, nino?.paciente_apellido]
+      .filter((value) => typeof value === 'string' && value.trim().length > 0)
+      .join(' ')
+  );
 
 const toDateInputValue = (dateLike) => {
   if (!dateLike) return '';
@@ -211,6 +228,13 @@ export default function NuevoTurnoPanel({
       return;
     }
 
+    const selectedNombre = selectedNino ? getNinoNombreCompleto(selectedNino) : '';
+    if (selectedNombre && selectedNombre === ninoQuery.trim()) {
+      setNinoResultados([]);
+      setIsSearchingNinos(false);
+      return;
+    }
+
     const trimmed = ninoQuery.trim();
     if (trimmed.length < 2) {
       setNinoResultados([]);
@@ -239,7 +263,7 @@ export default function NuevoTurnoPanel({
     return () => {
       clearTimeout(delay);
     };
-  }, [isOpen, ninoBloqueado, ninoQuery]);
+  }, [isOpen, ninoBloqueado, ninoQuery, selectedNino]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -271,10 +295,7 @@ export default function NuevoTurnoPanel({
     if (!initialNino) return;
 
     setSelectedNino(initialNino);
-    const nombreCompleto = [initialNino.paciente_nombre, initialNino.paciente_apellido]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    const nombreCompleto = getNinoNombreCompleto(initialNino);
     setNinoQuery(nombreCompleto);
     setNinoResultados([]);
   }, [initialNino, isOpen]);
@@ -450,10 +471,7 @@ export default function NuevoTurnoPanel({
 
   const handleSelectNino = (nino) => {
     setSelectedNino(nino);
-    const nombreCompleto = [nino.paciente_nombre, nino.paciente_apellido]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    const nombreCompleto = getNinoNombreCompleto(nino);
     setNinoQuery(nombreCompleto);
     setNinoResultados([]);
   };
@@ -744,19 +762,16 @@ export default function NuevoTurnoPanel({
                           nino.obra_social?.nombre_obra_social ||
                           'Sin obra social';
                         const descuentoLabel =
-                          descuentoValor > 0 ? `${Math.round(descuentoValor * 100)}% OFF` : null;
+                          descuentoValor > 0
+                            ? `${Math.round(descuentoValor * 100)}% cubierto`
+                            : null;
+                        const nombreCompleto = getNinoNombreCompleto(nino) || 'Sin nombre';
 
                         return (
                           <li key={nino.paciente_id || nino.id_nino}>
                             <button type="button" onClick={() => handleSelectNino(nino)}>
                               <span className="nombre">
-                                {[
-                                  nino.paciente_nombre,
-                                  nino.paciente_apellido,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' ')
-                                  .trim() || 'Sin nombre'}
+                                {nombreCompleto}
                               </span>
                               <span className="detalle">
                                 DNI: {nino.paciente_dni || '—'} · Obra social: {obraSocialNombre}
@@ -788,10 +803,11 @@ export default function NuevoTurnoPanel({
                       <strong>Responsables:</strong>{' '}
                       {selectedNino.paciente_responsables
                         ?.map((resp) => {
-                          const nombre = [resp.nombre, resp.apellido]
-                            .filter(Boolean)
-                            .join(' ')
-                            .trim();
+                          const nombre = capitalizeWords(
+                            [resp.nombre, resp.apellido]
+                              .filter((value) => typeof value === 'string' && value.trim().length > 0)
+                              .join(' ')
+                          );
                           if (nombre && resp.parentesco) {
                             return `${nombre} (${resp.parentesco})`;
                           }

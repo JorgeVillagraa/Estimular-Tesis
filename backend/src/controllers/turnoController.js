@@ -89,7 +89,7 @@ async function handleGetTurnos(req, res) {
 
       const { data, error, count } = await query;
 
-      console.log('turnos data:', data, 'count:', count);
+      // console.log('turnos data:', data, 'count:', count);
       if (error) throw error;
 
       return res.json({
