@@ -87,6 +87,14 @@ function DashboardRoutes() {
           </ProtectedRoute>
         } />
         <Route path="obras-sociales" element={<ObrasSociales />} />
+        <Route
+          path="responsables"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'recepcion']}>
+              <Responsables />
+            </ProtectedRoute>
+          }
+        />
         <Route path="turnos" element={<Turnos />} />
         <Route
           path="pacientes"

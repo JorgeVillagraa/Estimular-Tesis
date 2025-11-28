@@ -18,6 +18,7 @@ export default function TurnoModal({
   onOpenPagos,
   onOpenPaciente,
   loggedInProfesionalId,
+  currentUserId = null,
   isAdmin = false,
   isRecepcion = false,
 }) {
@@ -37,7 +38,10 @@ export default function TurnoModal({
 
   const { data: turno } = event;
   const profesionalIds = parseProfesionalIds(turno.profesional_ids);
-  const isMyEvent = profesionalIds.includes(String(loggedInProfesionalId));
+  const identityCandidates = [loggedInProfesionalId, currentUserId]
+    .filter((value) => value !== null && value !== undefined)
+    .map((value) => String(value));
+  const isMyEvent = identityCandidates.some((id) => profesionalIds.includes(id));
   const canManageTurno = isAdmin || isMyEvent || isRecepcion;
   const canDeleteTurno = isAdmin && typeof onDelete === "function";
 
@@ -264,7 +268,7 @@ export default function TurnoModal({
                 </button>
               </div>
 
-              {!isRecepcion && (
+              {isAdmin && (
                 <>
                   <h3>Reagendar</h3>
                   <div className="modal-form-inline">

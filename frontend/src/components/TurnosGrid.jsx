@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import moment from 'moment';
@@ -136,6 +136,17 @@ const TimeSlotWrapper = ({ children, value }) => {
 
 export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, isRecepcion = false, currentUserId = null }) {
   const [events, setEvents] = useState([]);
+  const identityCandidates = useMemo(() => {
+    const ids = [];
+    if (currentUserId !== null && currentUserId !== undefined) {
+      ids.push(String(currentUserId));
+    }
+    if (loggedInProfesionalId !== null && loggedInProfesionalId !== undefined) {
+      ids.push(String(loggedInProfesionalId));
+    }
+    return Array.from(new Set(ids));
+  }, [currentUserId, loggedInProfesionalId]);
+
   const [consultoriosTurnos, setConsultoriosTurnos] = useState([]);
   const [todosConsultorios, setTodosConsultorios] = useState([]);
   const [mostrarTodosConsultorios, setMostrarTodosConsultorios] = useState(false);
@@ -202,8 +213,8 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, isR
 
   const handleEventAction = useCallback(async (turno, data, openPaymentModal = false) => {
     try {
-      const headers = {};
-      const userHeaderId = currentUserId ?? loggedInProfesionalId;
+  const headers = {};
+  const userHeaderId = currentUserId ?? loggedInProfesionalId;
       if (userHeaderId !== null && userHeaderId !== undefined) {
         headers['X-User-ID'] = userHeaderId;
       }
@@ -391,17 +402,19 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, isR
     (event) => {
       if (isAdmin) return true;
       if (!event?.data) return false;
-      return parseProfesionalIds(event.data.profesional_ids).includes(String(loggedInProfesionalId));
+      const eventoProfesionales = parseProfesionalIds(event.data.profesional_ids);
+      return identityCandidates.some((id) => eventoProfesionales.includes(id));
     },
-    [isAdmin, loggedInProfesionalId]
+    [isAdmin, identityCandidates]
   );
 
   const eventPropGetter = useCallback((event) => {
     const statusClass = `event-${event.data.estado}`;
-    const isMyEvent = parseProfesionalIds(event.data.profesional_ids).includes(String(loggedInProfesionalId));
+    const eventoProfesionales = parseProfesionalIds(event.data.profesional_ids);
+    const isMyEvent = identityCandidates.some((id) => eventoProfesionales.includes(id));
     const highlightClass = isAdmin || isMyEvent ? 'highlighted-event' : '';
     return { className: `${statusClass} ${highlightClass}` };
-  }, [isAdmin, loggedInProfesionalId]);
+  }, [isAdmin, identityCandidates]);
 
   const formats = {
     timeGutterFormat: 'HH:mm',
@@ -458,6 +471,7 @@ export default function TurnosGrid({ loggedInProfesionalId, isAdmin = false, isR
           onOpenPagos={handleOpenPagos}
           onOpenPaciente={handleOpenPaciente}
           loggedInProfesionalId={loggedInProfesionalId}
+          currentUserId={currentUserId}
           isAdmin={isAdmin}
           isRecepcion={isRecepcion}
         />

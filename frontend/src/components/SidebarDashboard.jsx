@@ -213,14 +213,16 @@ export default function SidebarDashboard() {
           <MdPerson size={18} /> <span>Niños</span>
         </NavLink>
 
-        <NavLink
-          to="/dashboard/responsables"
-          className={({ isActive }) =>
-            isActive ? "sd-link active" : "sd-link"
-          }
-        >
-          <MdFamilyRestroom size={18} /> <span>Padres/Tutores</span>
-        </NavLink>
+        {(esAdmin || isRecepcion) && (
+          <NavLink
+            to="/dashboard/responsables"
+            className={({ isActive }) =>
+              isActive ? "sd-link active" : "sd-link"
+            }
+          >
+            <MdFamilyRestroom size={18} /> <span>Padres/Tutores</span>
+          </NavLink>
+        )}
 
         {(esAdmin || isProfesional) && (
           <NavLink

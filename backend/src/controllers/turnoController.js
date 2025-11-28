@@ -1,6 +1,7 @@
 const turnoModel = require('../models/turnoModel');
 const notificacionModel = require('../models/notificacionModel');
 const { supabaseAdmin } = require('../config/db');
+const jwt = require('jsonwebtoken');
 const { generateTurnoSuggestionsForNino, cancelAutoScheduledTurnosForNino } = require('../services/entrevistaTurnoScheduler');
 
 function parseNumericId(value) {
@@ -16,6 +17,79 @@ function extractProfesionalIds(value) {
     .split(',')
     .map((part) => part.trim())
     .filter((part) => part !== '');
+}
+
+function resolveUserIdFromRequest(req) {
+  const headerIdRaw = req?.headers ? req.headers['x-user-id'] ?? req.headers['X-User-Id'] : null;
+  if (headerIdRaw !== undefined && headerIdRaw !== null && headerIdRaw !== '') {
+    const parsed = Number.parseInt(headerIdRaw, 10);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (req?.user?.id && !Number.isNaN(Number(req.user.id))) {
+    return Number(req.user.id);
+  }
+
+  const authHeader = req?.headers?.authorization || req?.headers?.Authorization || '';
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
+    try {
+      const decoded = jwt.verify(token, secret);
+      if (decoded?.id && !Number.isNaN(Number(decoded.id))) {
+        return Number(decoded.id);
+      }
+    } catch (err) {
+      console.warn('resolveUserIdFromRequest token decode failed:', err?.message || err);
+    }
+  }
+
+  return null;
+}
+
+async function fetchPersonaIdForUser(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('usuarios')
+      .select('persona_id')
+      .eq('id_usuario', Number(userId))
+      .maybeSingle();
+
+    if (error) {
+      console.error('fetchPersonaIdForUser error:', error);
+      return null;
+    }
+
+    return data?.persona_id ? String(data.persona_id) : null;
+  } catch (err) {
+    console.error('fetchPersonaIdForUser exception:', err);
+    return null;
+  }
+}
+
+function buildProfesionalOwnershipSets(turno) {
+  const detalle = Array.isArray(turno?.profesionales_detalle)
+    ? turno.profesionales_detalle
+    : [];
+
+  const userIds = new Set(
+    detalle
+      .map((prof) => (prof?.usuario_id ? String(prof.usuario_id) : null))
+      .filter(Boolean)
+  );
+
+  const personaIds = new Set(
+    detalle
+      .map((prof) => (prof?.persona_id ? String(prof.persona_id) : null))
+      .filter(Boolean)
+  );
+
+  const legacyIds = new Set(extractProfesionalIds(turno?.profesional_ids));
+
+  return { userIds, personaIds, legacyIds };
 }
 
 function isAdminRoleName(value) {
@@ -152,9 +226,7 @@ async function handleGetTurnoFormData(req, res) {
 }
 
 async function handleCreateTurno(req, res) {
-  const loggedInUserId = req.headers['x-user-id']
-    ? parseInt(req.headers['x-user-id'], 10)
-    : null;
+  const loggedInUserId = resolveUserIdFromRequest(req);
 
   const {
     departamento_id,
@@ -203,8 +275,7 @@ async function handleCreateTurno(req, res) {
 async function handleUpdateTurno(req, res) {
   const { id } = req.params;
   const dataToUpdate = { ...req.body };
-  const loggedInUserIdHeader = req.headers['x-user-id'];
-  const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
+  const loggedInUserId = resolveUserIdFromRequest(req);
   const adminHeaderOverride = String(req.headers['x-admin-override'] || '')
     .trim()
     .toLowerCase() === 'true';
@@ -235,8 +306,12 @@ async function handleUpdateTurno(req, res) {
       return res.status(404).json({ success: false, message: 'Turno no encontrado.' });
     }
 
-    const profesionalIds = extractProfesionalIds(turno.profesional_ids);
-    const isAssignedProfesional = profesionalIds.includes(String(loggedInUserId));
+    const { userIds, personaIds, legacyIds } = buildProfesionalOwnershipSets(turno);
+    const loggedInPersonaId = await fetchPersonaIdForUser(loggedInUserId);
+    const isAssignedProfesional =
+      userIds.has(String(loggedInUserId)) ||
+      legacyIds.has(String(loggedInUserId)) ||
+      (loggedInPersonaId && personaIds.has(loggedInPersonaId));
     
     // Verificar permisos
     if (!adminOverride && !isAssignedProfesional && !recepcionOverride) {
@@ -317,8 +392,7 @@ async function handleUpdateTurno(req, res) {
 async function handleDeleteTurno(req, res) {
   const { id } = req.params;
   const turnoId = parseNumericId(id);
-  const loggedInUserIdHeader = req.headers['x-user-id'];
-  const loggedInUserId = loggedInUserIdHeader ? Number.parseInt(loggedInUserIdHeader, 10) : null;
+  const loggedInUserId = resolveUserIdFromRequest(req);
   const adminHeaderOverride = String(req.headers['x-admin-override'] || '')
     .trim()
     .toLowerCase() === 'true';
@@ -338,9 +412,15 @@ async function handleDeleteTurno(req, res) {
     }
 
     const adminOverride = adminHeaderOverride || await userIsAdmin(loggedInUserId);
-    const profesionalIds = extractProfesionalIds(turno.profesional_ids);
+    const { userIds, personaIds, legacyIds } = buildProfesionalOwnershipSets(turno);
+    const loggedInPersonaId = await fetchPersonaIdForUser(loggedInUserId);
 
-    if (!adminOverride && !profesionalIds.includes(String(loggedInUserId))) {
+    const hasOwnership =
+      userIds.has(String(loggedInUserId)) ||
+      legacyIds.has(String(loggedInUserId)) ||
+      (loggedInPersonaId && personaIds.has(loggedInPersonaId));
+
+    if (!adminOverride && !hasOwnership) {
       return res.status(403).json({ success: false, message: 'No tiene permisos para eliminar este turno.' });
     }
 
