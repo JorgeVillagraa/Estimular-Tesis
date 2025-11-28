@@ -46,6 +46,8 @@ const getResumenMensual = async (req, res) => {
             'Diciembre',
         ];
 
+        const now = new Date();
+
         const resumen = meses.map((mesIndex) => {
             const inicioMes = new Date(Date.UTC(anio, mesIndex, 1));
             const finMes = new Date(Date.UTC(anio, mesIndex + 1, 1));
@@ -63,19 +65,21 @@ const getResumenMensual = async (req, res) => {
                 return f && f.toISOString() >= inicioMesIso && f.toISOString() < finMesIso;
             });
 
-            const idsTurnosMes = new Set(turnosMes.map((t) => t.id));
-
             const deberes = (pagos || [])
                 .filter((p) => {
                     if (p.estado !== 'pendiente') return false;
                     const turno = p.turno || null;
-                    if (!turno || turno.estado !== 'confirmado') return false;
+                    if (!turno) return false;
+                    const estadoTurno = String(turno.estado || '')
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .toLowerCase();
+                    if (estadoTurno !== 'completado') return false;
                     const f = turno.inicio ? new Date(turno.inicio) : null;
-                    return (
-                        f &&
-                        f.toISOString() >= inicioMesIso &&
-                        f.toISOString() < finMesIso
-                    );
+                    if (!f) return false;
+                    const iso = f.toISOString();
+                    if (iso > now.toISOString()) return false;
+                    return iso >= inicioMesIso && iso < finMesIso;
                 })
                 .reduce((sum, p) => sum + Number(p.monto || 0), 0);
 
