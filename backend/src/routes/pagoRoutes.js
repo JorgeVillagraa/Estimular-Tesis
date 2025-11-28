@@ -12,7 +12,7 @@ const { authenticate, authorize } = require('../middlewares/auth');
 router.get(
 	'/pagos/dashboard/deudas',
 	authenticate,
-	authorize(['admin']),
+	authorize(['admin', 'recepcion', 'profesional']),
 	handleGetPagosDashboardDeudas
 );
 router.get(

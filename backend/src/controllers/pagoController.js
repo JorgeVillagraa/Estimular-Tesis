@@ -237,7 +237,7 @@ async function handleGetPagosDashboardDeudas(req, res) {
       }
 
       const estadoTurno = typeof turno.estado === 'string' ? turno.estado.toLowerCase() : '';
-      if (estadoTurno !== 'confirmado') {
+      if (estadoTurno === 'cancelado') {
         return;
       }
 
