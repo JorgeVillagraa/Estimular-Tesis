@@ -566,62 +566,64 @@ export default function MainDashboard() {
               </section>
             )}
 
-            <section className="main-dashboard__panel">
-              <div className="main-dashboard__panel-header">
-                <h2>Profesionales recientes</h2>
-                <NavLink to="/dashboard/profesionales">Ver equipo</NavLink>
-              </div>
-              {latestProfessionals.length === 0 ? (
-                <p className="main-dashboard__empty">
-                  Aún no hay profesionales cargados.
-                </p>
-              ) : (
-                <ul className="main-dashboard__list">
-                  {latestProfessionals.map((profesional) => (
-                    <li key={profesional.id_profesional}>
-                      <div className="main-dashboard__list-item">
-                        <div className="main-dashboard__avatar">
-                          {profesional.foto_perfil ? (
-                            <img
-                              src={profesional.foto_perfil}
-                              alt={`${profesional.nombre || ""} ${
-                                profesional.apellido || ""
-                              }`}
-                              loading="lazy"
-                            />
-                          ) : (
-                            <span>
-                              {getInitials(
-                                profesional.nombre,
-                                profesional.apellido
-                              )}
-                            </span>
-                          )}
+            {isAdmin && (
+              <section className="main-dashboard__panel">
+                <div className="main-dashboard__panel-header">
+                  <h2>Profesionales recientes</h2>
+                  <NavLink to="/dashboard/profesionales">Ver equipo</NavLink>
+                </div>
+                {latestProfessionals.length === 0 ? (
+                  <p className="main-dashboard__empty">
+                    Aún no hay profesionales cargados.
+                  </p>
+                ) : (
+                  <ul className="main-dashboard__list">
+                    {latestProfessionals.map((profesional) => (
+                      <li key={profesional.id_profesional}>
+                        <div className="main-dashboard__list-item">
+                          <div className="main-dashboard__avatar">
+                            {profesional.foto_perfil ? (
+                              <img
+                                src={profesional.foto_perfil}
+                                alt={`${profesional.nombre || ""} ${
+                                  profesional.apellido || ""
+                                }`}
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span>
+                                {getInitials(
+                                  profesional.nombre,
+                                  profesional.apellido
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          <div className="main-dashboard__list-info">
+                            <p className="main-dashboard__list-title">
+                              {[profesional.nombre, profesional.apellido]
+                                .filter(Boolean)
+                                .join(" ") || "Sin nombre"}
+                            </p>
+                            <p className="main-dashboard__list-subtitle">
+                              {profesional.profesion || "Sin asignar"}
+                            </p>
+                          </div>
+                          <div className="main-dashboard__list-meta">
+                            {profesional?.usuario?.dni && (
+                              <span>DNI {profesional.usuario.dni}</span>
+                            )}
+                            {profesional?.email && (
+                              <span>{profesional.email}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="main-dashboard__list-info">
-                          <p className="main-dashboard__list-title">
-                            {[profesional.nombre, profesional.apellido]
-                              .filter(Boolean)
-                              .join(" ") || "Sin nombre"}
-                          </p>
-                          <p className="main-dashboard__list-subtitle">
-                            {profesional.profesion || "Sin asignar"}
-                          </p>
-                        </div>
-                        <div className="main-dashboard__list-meta">
-                          {profesional?.usuario?.dni && (
-                            <span>DNI {profesional.usuario.dni}</span>
-                          )}
-                          {profesional?.email && (
-                            <span>{profesional.email}</span>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
 
             <section className="main-dashboard__panel">
               <div className="main-dashboard__panel-header">
