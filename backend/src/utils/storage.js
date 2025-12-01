@@ -7,6 +7,7 @@ const SUPABASE_SERVICE_ROLE_KEY = (
     ''
 ).trim();
 const STORAGE_BUCKET = process.env.STORAGE_BUCKET_EQUIPO || 'equipoestimular';
+const STORAGE_BUCKET_OBRAS_SOCIALES = process.env.STORAGE_BUCKET_OBRAS_SOCIALES || STORAGE_BUCKET;
 const SIGNED_URL_TTL_SECONDS = Number.parseInt(
     process.env.FOTO_PERFIL_SIGNED_URL_TTL ?? '',
     10
@@ -14,11 +15,11 @@ const SIGNED_URL_TTL_SECONDS = Number.parseInt(
 
 const isHttpUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
 
-async function createSignedUrlForPath(path, expiresIn = SIGNED_URL_TTL_SECONDS) {
+async function createSignedUrlForPath(path, expiresIn = SIGNED_URL_TTL_SECONDS, bucket = STORAGE_BUCKET) {
     if (!path) return null;
     try {
         const { data, error } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
+            .from(bucket)
             .createSignedUrl(path, expiresIn);
         if (error) {
             if (error.code !== 'PGRST116') {
@@ -33,21 +34,21 @@ async function createSignedUrlForPath(path, expiresIn = SIGNED_URL_TTL_SECONDS) 
     }
 }
 
-async function resolveStorageAsset(value, expiresIn = SIGNED_URL_TTL_SECONDS) {
+async function resolveStorageAsset(value, expiresIn = SIGNED_URL_TTL_SECONDS, bucket = STORAGE_BUCKET) {
     if (!value) {
         return { path: null, signedUrl: null };
     }
     if (isHttpUrl(value)) {
         return { path: value, signedUrl: value };
     }
-    const signedUrl = await createSignedUrlForPath(value, expiresIn);
+    const signedUrl = await createSignedUrlForPath(value, expiresIn, bucket);
     return { path: value, signedUrl };
 }
 
-async function deleteStorageAsset(path) {
+async function deleteStorageAsset(path, bucket = STORAGE_BUCKET) {
     if (!path || isHttpUrl(path)) return;
     try {
-        const { error } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([path]);
+        const { error } = await supabaseAdmin.storage.from(bucket).remove([path]);
         if (error && error.code !== 'PGRST116') {
             console.warn('deleteStorageAsset warning:', error);
         }
@@ -65,7 +66,7 @@ function parseDataUrlImage(dataUrl) {
     try {
         const buffer = Buffer.from(base64, 'base64');
         return { buffer, contentType };
-    } catch (e) {
+    } catch (_err) {
         return null;
     }
 }
@@ -109,7 +110,7 @@ async function uploadToStorageWithServiceRole(bucket, path, buffer, contentType)
         if (text) {
             try {
                 parsed = JSON.parse(text);
-            } catch (err) {
+            } catch (_err) {
                 parsed = null;
             }
         }
@@ -138,17 +139,18 @@ async function uploadProfileImageIfNeeded(usuarioId, dataUrl, options = {}) {
     if (!parsed) return null;
     try {
         const previousPath = options.previousPath || null;
+        const bucket = options.bucket || STORAGE_BUCKET;
         const ext = parsed.contentType.split('/')[1] || 'png';
         let storedPath = `usuarios/${usuarioId}/perfil_${Date.now()}.${ext}`;
 
         const { error: upErr } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
+            .from(bucket)
             .upload(storedPath, parsed.buffer, { contentType: parsed.contentType, upsert: true });
 
         if (upErr) {
             console.error('uploadProfileImageIfNeeded upload error:', upErr);
             const fallback = await uploadToStorageWithServiceRole(
-                STORAGE_BUCKET,
+                bucket,
                 storedPath,
                 parsed.buffer,
                 parsed.contentType
@@ -160,10 +162,10 @@ async function uploadProfileImageIfNeeded(usuarioId, dataUrl, options = {}) {
         }
 
         if (previousPath && previousPath !== storedPath) {
-            await deleteStorageAsset(previousPath);
+            await deleteStorageAsset(previousPath, bucket);
         }
 
-        const signedUrl = await createSignedUrlForPath(storedPath);
+        const signedUrl = await createSignedUrlForPath(storedPath, SIGNED_URL_TTL_SECONDS, bucket);
         return { path: storedPath, signedUrl };
     } catch (err) {
         console.error('uploadProfileImageIfNeeded exception:', err);
@@ -171,9 +173,49 @@ async function uploadProfileImageIfNeeded(usuarioId, dataUrl, options = {}) {
     }
 }
 
+async function uploadObraSocialLogoIfNeeded(obraId, dataUrl, options = {}) {
+    const parsed = parseDataUrlImage(dataUrl);
+    if (!parsed) return null;
+    const bucket = options.bucket || STORAGE_BUCKET_OBRAS_SOCIALES;
+    try {
+        const previousPath = options.previousPath || null;
+        const ext = parsed.contentType.split('/')[1] || 'png';
+        let storedPath = `obras_sociales/${obraId}/logo_${Date.now()}.${ext}`;
+
+        const { error: upErr } = await supabaseAdmin.storage
+            .from(bucket)
+            .upload(storedPath, parsed.buffer, { contentType: parsed.contentType, upsert: true });
+
+        if (upErr) {
+            console.error('uploadObraSocialLogoIfNeeded upload error:', upErr);
+            const fallback = await uploadToStorageWithServiceRole(
+                bucket,
+                storedPath,
+                parsed.buffer,
+                parsed.contentType
+            );
+            if (!fallback?.path) {
+                return null;
+            }
+            storedPath = fallback.path;
+        }
+
+        if (previousPath && previousPath !== storedPath) {
+            await deleteStorageAsset(previousPath, bucket);
+        }
+
+        const signedUrl = await createSignedUrlForPath(storedPath, SIGNED_URL_TTL_SECONDS, bucket);
+        return { path: storedPath, signedUrl };
+    } catch (err) {
+        console.error('uploadObraSocialLogoIfNeeded exception:', err);
+        return null;
+    }
+}
+
 module.exports = {
     SUPABASE_URL,
     STORAGE_BUCKET,
+    STORAGE_BUCKET_OBRAS_SOCIALES,
     SIGNED_URL_TTL_SECONDS,
     isHttpUrl,
     createSignedUrlForPath,
@@ -182,4 +224,5 @@ module.exports = {
     parseDataUrlImage,
     uploadToStorageWithServiceRole,
     uploadProfileImageIfNeeded,
+    uploadObraSocialLogoIfNeeded,
 };

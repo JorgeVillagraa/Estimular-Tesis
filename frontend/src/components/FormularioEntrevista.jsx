@@ -45,6 +45,10 @@ const getObraSlug = (obra) => {
 };
 
 const getObraLogoUrl = (obra) => {
+  if (!obra) return null;
+  if (obra.logo_url) return obra.logo_url;
+  if (obra.logoPath) return obra.logoPath;
+  if (obra.logo_path) return obra.logo_path;
   const slug = getObraSlug(obra);
   return slug ? `/os/${slug}.png` : null;
 };

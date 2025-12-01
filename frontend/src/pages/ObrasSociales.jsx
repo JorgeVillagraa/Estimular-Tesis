@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import "../styles/NinosPage.css";
 import Swal from "sweetalert2";
@@ -7,6 +7,7 @@ import { FaCheck, FaTimes, FaInfoCircle } from "react-icons/fa";
 import CrearObraSocial from "../components/CrearObraSocial";
 import API_BASE_URL from "../constants/api";
 import useAuthStore from "../store/useAuthStore";
+import fallbackObraLogo from "../assets/logo_estimular.png";
 
 const sanitizeNombreObra = (value) => {
   if (!value) return "";
@@ -22,6 +23,28 @@ const canonicalNombreObra = (value) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s/g, "");
+
+const normalizeObraRecord = (item) => {
+  if (!item) return item;
+  return {
+    ...item,
+    nombre_obra_social: sanitizeNombreObra(item?.nombre_obra_social),
+  };
+};
+
+const resolveObraLogoUrl = (obra) => {
+  if (!obra) return null;
+  if (obra.logo_url) return obra.logo_url;
+  if (typeof obra.logoPath === "string" && obra.logoPath.startsWith("http")) {
+    return obra.logoPath;
+  }
+  if (typeof obra.logo_path === "string" && obra.logo_path.startsWith("http")) {
+    return obra.logo_path;
+  }
+  return null;
+};
+
+const MAX_LOGO_SIZE_BYTES = 2.5 * 1024 * 1024; // 2.5 MB
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -76,12 +99,7 @@ export default function ObrasSociales() {
           }
         );
         const data = res.data.data || [];
-        setItems(
-          data.map((item) => ({
-            ...item,
-            nombre_obra_social: sanitizeNombreObra(item?.nombre_obra_social),
-          }))
-        );
+        setItems(data.map((item) => normalizeObraRecord(item)));
         setTotal(res.data.total || 0);
         setError(null);
       } catch (e) {
@@ -118,6 +136,25 @@ export default function ObrasSociales() {
     setPage(1);
     fetchObras(busqueda, 1, estado);
   };
+
+  const handleModalUpdated = useCallback(
+    async (updated) => {
+      if (!updated) return;
+      const normalized = normalizeObraRecord(updated);
+      setModalData(normalized);
+      setItems((prev) =>
+        Array.isArray(prev)
+          ? prev.map((item) =>
+              item?.id_obra_social === normalized.id_obra_social
+                ? normalizeObraRecord({ ...item, ...normalized })
+                : item
+            )
+          : prev
+      );
+      await fetchObras(busqueda, page, estado);
+    },
+    [busqueda, estado, page, fetchObras]
+  );
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -201,6 +238,7 @@ export default function ObrasSociales() {
               >
                 <thead>
                   <tr>
+                    <th className="col-logo">Logo</th>
                     <th>Nombre</th>
                     <th>Estado</th>
                     <th className="col-actions">Acciones</th>
@@ -209,8 +247,22 @@ export default function ObrasSociales() {
                 <tbody>
                   {items.map((o) => {
                     const isEditing = editId === o.id_obra_social;
+                    const logoSrc = resolveObraLogoUrl(o) || fallbackObraLogo;
                     return (
                       <tr key={o.id_obra_social}>
+                        <td className="col-logo">
+                          <div className="obra-logo-cell">
+                            <img
+                              src={logoSrc}
+                              alt={`Logo de ${o.nombre_obra_social || "obra social"}`}
+                              className="obra-logo-thumb"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = fallbackObraLogo;
+                              }}
+                            />
+                          </div>
+                        </td>
                         <td>
                           {isEditing ? (
                             <input
@@ -477,37 +529,288 @@ export default function ObrasSociales() {
       </div>
 
       {modalOpen && modalData && (
-        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-info" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setModalOpen(false)}>
-              &times;
-            </button>
-            <h2>Información de la obra social</h2>
-            <div className="modal-section">
-              <div className="modal-row">
-                <span>Nombre:</span> {modalData.nombre_obra_social}
-              </div>
-              <div className="modal-row">
-                <span>Estado:</span> {modalData.estado}
-              </div>
-              <div className="modal-row">
-                <span>ID:</span> {modalData.id_obra_social}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ObraSocialDetalleModal
+          obra={modalData}
+          onClose={() => {
+            setModalOpen(false);
+            setModalData(null);
+          }}
+          onUpdated={handleModalUpdated}
+        />
       )}
 
       {modalOpen && !modalData && (
         <CrearObraSocial
           estados={estados}
-          onClose={() => setModalOpen(false)}
+          onClose={() => {
+            setModalOpen(false);
+            setModalData(null);
+          }}
           onCreated={async () => {
             setModalOpen(false);
+            setModalData(null);
             await fetchObras(busqueda, page, estado);
           }}
         />
       )}
     </section>
+  );
+}
+
+function ObraSocialDetalleModal({ obra, onClose, onUpdated }) {
+  const [initialLogo, setInitialLogo] = useState(() => resolveObraLogoUrl(obra));
+  const [logoPreview, setLogoPreview] = useState(() => resolveObraLogoUrl(obra) || fallbackObraLogo);
+  const [logoDataUrl, setLogoDataUrl] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const nextLogo = resolveObraLogoUrl(obra);
+    setInitialLogo(nextLogo);
+    setLogoPreview(nextLogo || fallbackObraLogo);
+    setLogoDataUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [obra]);
+
+  const hasExistingLogo = useMemo(() => Boolean(initialLogo), [initialLogo]);
+  const effectivePreview = logoPreview || fallbackObraLogo;
+
+  const resetSelection = useCallback(() => {
+    setLogoDataUrl(null);
+    setLogoPreview(initialLogo || fallbackObraLogo);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, [initialLogo]);
+
+  const handleFileChange = useCallback(
+    (event) => {
+      if (processing) return;
+      const file = event.target.files?.[0];
+      if (!file) {
+        resetSelection();
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        Swal.fire({
+          icon: "error",
+          title: "Formato inválido",
+          text: "Seleccioná un archivo de imagen (PNG, JPG, WEBP).",
+        });
+        event.target.value = "";
+        return;
+      }
+      if (file.size > MAX_LOGO_SIZE_BYTES) {
+        Swal.fire({
+          icon: "warning",
+          title: "Imagen demasiado grande",
+          text: "Elegí una imagen de hasta 2.5 MB.",
+        });
+        event.target.value = "";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result;
+        if (typeof result === "string") {
+          setLogoDataUrl(result);
+          setLogoPreview(result);
+        }
+      };
+      reader.onerror = () => {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo leer el archivo seleccionado.",
+        });
+      };
+      reader.readAsDataURL(file);
+    },
+    [processing, resetSelection]
+  );
+
+  const handleSaveLogo = useCallback(async () => {
+    if (!logoDataUrl) {
+      Swal.fire({
+        icon: "info",
+        title: "Seleccioná un logo",
+        text: "Elegí una imagen antes de guardar.",
+      });
+      return;
+    }
+    setProcessing(true);
+    try {
+      Swal.fire({
+        title: "Actualizando logo...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+      const { data } = await axios.put(
+        `${API_BASE_URL}/api/obras-sociales/${obra.id_obra_social}`,
+        { logo: logoDataUrl }
+      );
+      Swal.close();
+      const updated = data?.data;
+      if (!updated) throw new Error("Respuesta inválida del servidor");
+      await onUpdated?.(updated);
+      const nextLogo = resolveObraLogoUrl(updated);
+      setInitialLogo(nextLogo);
+      setLogoPreview(nextLogo || fallbackObraLogo);
+      setLogoDataUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      Swal.fire({
+        icon: "success",
+        title: "Logo actualizado",
+        timer: 1300,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text:
+          error?.response?.data?.message ||
+          error?.message ||
+          "No se pudo actualizar el logo.",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [logoDataUrl, obra?.id_obra_social, onUpdated]);
+
+  const handleRemoveLogo = useCallback(async () => {
+    if (!hasExistingLogo && !logoDataUrl) {
+      resetSelection();
+      return;
+    }
+    const result = await Swal.fire({
+      title: "¿Quitar logo?",
+      text: "La obra social quedará sin logo hasta subir uno nuevo.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, quitar",
+      cancelButtonText: "Cancelar",
+    });
+    if (!result.isConfirmed) return;
+    setProcessing(true);
+    try {
+      Swal.fire({
+        title: "Quitando logo...",
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+      const { data } = await axios.put(
+        `${API_BASE_URL}/api/obras-sociales/${obra.id_obra_social}`,
+        { logo: null }
+      );
+      Swal.close();
+      const updated = data?.data;
+      if (!updated) throw new Error("Respuesta inválida del servidor");
+      await onUpdated?.(updated);
+      setInitialLogo(null);
+      setLogoPreview(fallbackObraLogo);
+      setLogoDataUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      Swal.fire({
+        icon: "success",
+        title: "Logo quitado",
+        timer: 1300,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      Swal.close();
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text:
+          error?.response?.data?.message ||
+          error?.message ||
+          "No se pudo quitar el logo.",
+      });
+    } finally {
+      setProcessing(false);
+    }
+  }, [hasExistingLogo, logoDataUrl, obra?.id_obra_social, onUpdated, resetSelection]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-info modal-info--obra" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose}>
+          &times;
+        </button>
+        <h2>Información de la obra social</h2>
+        <div className="modal-section">
+          <div className="modal-grid obra-modal-grid">
+            <span className="label">Nombre:</span>
+            <span className="value">{obra?.nombre_obra_social || "—"}</span>
+            <span className="label">Estado:</span>
+            <span className="value">{obra?.estado || "—"}</span>
+            <span className="label">ID:</span>
+            <span className="value">{obra?.id_obra_social || "—"}</span>
+          </div>
+        </div>
+        <div className="modal-section">
+          <h3>Logo</h3>
+          <div className="obra-logo-preview-wrapper">
+            <img
+              src={effectivePreview}
+              alt={`Logo de ${obra?.nombre_obra_social || "obra social"}`}
+              className="obra-logo-preview"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = fallbackObraLogo;
+              }}
+            />
+          </div>
+          <div className="obra-logo-actions">
+            <label className="obra-logo-input">
+              <span>Seleccionar imagen (PNG/JPG/WEBP, máx. 2.5 MB)</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="obra-logo-file"
+                onChange={handleFileChange}
+                disabled={processing}
+              />
+            </label>
+            <div className="obra-logo-buttons">
+              <button
+                type="button"
+                className="obra-logo-btn obra-logo-btn--save"
+                onClick={handleSaveLogo}
+                disabled={processing || !logoDataUrl}
+              >
+                Guardar logo
+              </button>
+              <button
+                type="button"
+                className="obra-logo-btn obra-logo-btn--cancel"
+                onClick={resetSelection}
+                disabled={processing || !logoDataUrl}
+              >
+                Cancelar cambio
+              </button>
+              <button
+                type="button"
+                className="obra-logo-btn obra-logo-btn--remove"
+                onClick={handleRemoveLogo}
+                disabled={processing || (!hasExistingLogo && !logoDataUrl)}
+              >
+                Quitar logo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
