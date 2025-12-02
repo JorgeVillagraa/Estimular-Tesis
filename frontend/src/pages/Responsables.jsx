@@ -7,6 +7,7 @@ import { MdEdit, MdDelete, MdCheck, MdClose } from "react-icons/md";
 import { formatDateDMY } from "../utils/date";
 import API_BASE_URL from "../constants/api";
 import useAuthStore from "../store/useAuthStore";
+import NuevoResponsableModal from "../components/NuevoResponsableModal";
 
 function useDebounce(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -37,6 +38,8 @@ export default function Responsables() {
   const [ninoSearch, setNinoSearch] = useState("");
   const [ninoResults, setNinoResults] = useState([]);
   const [ninoSearchLoading, setNinoSearchLoading] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [showNinoSearch, setShowNinoSearch] = useState(false);
   const pageSize = 10;
   const skipPageEffectRef = useRef(false);
   const debouncedBusqueda = useDebounce(busqueda, 300);
@@ -46,7 +49,7 @@ export default function Responsables() {
     async (search = "", pageNum = 1) => {
       setLoading(true);
       try {
-  const res = await axios.get(`${API_BASE_URL}/api/responsables`, {
+        const res = await axios.get(`${API_BASE_URL}/api/responsables`, {
           params: { search, page: pageNum, pageSize },
         });
         setItems(res.data.data || []);
@@ -94,6 +97,7 @@ export default function Responsables() {
     setNinoSearch("");
     setNinoResults([]);
     setNinoSearchLoading(false);
+    setShowNinoSearch(false);
   };
 
   const cargarNinosDeResponsable = useCallback(async (idResponsable) => {
@@ -126,6 +130,7 @@ export default function Responsables() {
     setModalOpen(true);
     setNinoSearch("");
     setNinoResults([]);
+    setShowNinoSearch(false);
     cargarNinosDeResponsable(resp.id_responsable);
   };
 
@@ -255,6 +260,14 @@ export default function Responsables() {
     }
   };
 
+  const mostrarBuscadorNino = () => {
+    setShowNinoSearch(true);
+    setTimeout(() => {
+      const input = document.getElementById("buscar-nino");
+      input?.focus();
+    }, 80);
+  };
+
   const vincularNino = async (nino) => {
     if (!modalData) return;
     const { value: formValues } = await Swal.fire({
@@ -301,6 +314,7 @@ export default function Responsables() {
       setNinoResults((prev) =>
         prev.filter((item) => item.id_nino !== nino.id_nino)
       );
+      setNinoSearch("");
       Swal.fire({
         icon: "success",
         title: "Niño vinculado",
@@ -319,8 +333,14 @@ export default function Responsables() {
 
   useEffect(() => {
     if (!modalOpen || !modalData) return;
+    if (!showNinoSearch) {
+      setNinoResults([]);
+      setNinoSearchLoading(false);
+      return;
+    }
     const term = debouncedNinoSearch.trim();
-    if (term.length < 2) {
+    const isNumeric = /^\d+$/.test(term);
+    if (term.length < 2 && !isNumeric) {
       setNinoResults([]);
       setNinoSearchLoading(false);
       return;
@@ -353,7 +373,7 @@ export default function Responsables() {
     return () => {
       cancelado = true;
     };
-  }, [debouncedNinoSearch, modalOpen, modalData, ninosVinculados]);
+  }, [debouncedNinoSearch, modalOpen, modalData, ninosVinculados, showNinoSearch]);
 
   useEffect(() => {
     if (!modalOpen) {
@@ -361,6 +381,14 @@ export default function Responsables() {
       setNinoResults([]);
     }
   }, [modalOpen]);
+
+  useEffect(() => {
+    if (!showNinoSearch) {
+      setNinoSearch("");
+      setNinoResults([]);
+      setNinoSearchLoading(false);
+    }
+  }, [showNinoSearch]);
 
   const startEdit = (r) => {
     setEditId(r.id_responsable);
@@ -434,8 +462,33 @@ export default function Responsables() {
     }
   };
 
+  const handleResponsableCreado = async (creado) => {
+    setCreateModalOpen(false);
+    skipPageEffectRef.current = true;
+    setPage(1);
+    await fetchResponsables(busqueda, 1);
+
+    const puedeVincular = !!creado?.id_responsable;
+    const resultado = await Swal.fire({
+      icon: "success",
+      title: "Responsable creado",
+      text: puedeVincular
+        ? "¿Deseas vincular niños ahora?"
+        : "El responsable se guardó correctamente.",
+      showCancelButton: puedeVincular,
+      confirmButtonText: puedeVincular ? "Sí, vincular" : "Aceptar",
+      cancelButtonText: "Más tarde",
+    });
+
+    if (puedeVincular && resultado.isConfirmed) {
+      abrirInfo(creado);
+    }
+  };
+
+
   return (
-    <section className="ninos-page">
+    <>
+      <section className="ninos-page">
       <div className="ninos-top">
         <h1 className="ninos-title">Padres, Madres y Tutores</h1>
         <div className="ninos-controls">
@@ -459,7 +512,18 @@ export default function Responsables() {
               />
             </div>
           </form>
-          <div className="action-buttons" />
+          <div className="action-buttons">
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => setCreateModalOpen(true)}
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <FaUserPlus size={16} /> Nuevo responsable
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -717,50 +781,62 @@ export default function Responsables() {
                 asignar nuevos niños con la búsqueda en tiempo real.
               </p>
 
-              <div className="relationship-search">
-                <label htmlFor="buscar-nino" className="sr-only">
-                  Buscar niño
-                </label>
-                <input
-                  id="buscar-nino"
-                  type="text"
-                  value={ninoSearch}
-                  onChange={(e) => setNinoSearch(e.target.value)}
-                  placeholder="Buscar niño por nombre, apellido o DNI"
-                />
-                {ninoSearchLoading && (
-                  <div className="inline-loader">Buscando…</div>
-                )}
-                {!ninoSearchLoading && ninoResults.length > 0 && (
-                  <ul className="search-results">
-                    {ninoResults.map((nino) => (
-                      <li key={nino.id_nino}>
-                        <div className="result-info">
-                          <strong>
-                            {nino.nombre} {nino.apellido}
-                          </strong>
-                          <span>
-                            DNI: {nino.dni || "—"} · {nino.tipo || "—"}
-                          </span>
-                        </div>
-                        <button
-                          className="btn small"
-                          onClick={() => vincularNino(nino)}
-                        >
-                          <FaUserPlus size={14} /> Vincular
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {!ninoSearchLoading &&
-                  ninoSearch.trim().length >= 2 &&
-                  ninoResults.length === 0 && (
-                    <div className="search-empty">
-                      Sin coincidencias disponibles o ya vinculadas.
-                    </div>
-                  )}
+              <div className="relationship-cta">
+                <button
+                  type="button"
+                  className="btn outline"
+                  onClick={mostrarBuscadorNino}
+                >
+                  <FaChild size={16} /> Vincular niño
+                </button>
               </div>
+
+              {showNinoSearch && (
+                <div className="relationship-search">
+                  <label htmlFor="buscar-nino" className="sr-only">
+                    Buscar niño
+                  </label>
+                  <input
+                    id="buscar-nino"
+                    type="text"
+                    value={ninoSearch}
+                    onChange={(e) => setNinoSearch(e.target.value)}
+                    placeholder="Buscar niño por nombre, apellido o DNI"
+                  />
+                  {ninoSearchLoading && (
+                    <div className="inline-loader">Buscando…</div>
+                  )}
+                  {!ninoSearchLoading && ninoResults.length > 0 && (
+                    <ul className="search-results">
+                      {ninoResults.map((nino) => (
+                        <li key={nino.id_nino}>
+                          <div className="result-info">
+                            <strong>
+                              {nino.nombre} {nino.apellido}
+                            </strong>
+                            <span>
+                              DNI: {nino.dni || "—"} · {nino.tipo || "—"}
+                            </span>
+                          </div>
+                          <button
+                            className="btn small"
+                            onClick={() => vincularNino(nino)}
+                          >
+                            <FaUserPlus size={14} /> Vincular
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!ninoSearchLoading &&
+                    ninoSearch.trim().length >= 2 &&
+                    ninoResults.length === 0 && (
+                      <div className="search-empty">
+                        Sin coincidencias disponibles o ya vinculadas.
+                      </div>
+                    )}
+                </div>
+              )}
 
               <div className="relationship-list">
                 {ninosLoading ? (
@@ -865,6 +941,13 @@ export default function Responsables() {
           </div>
         </div>
       )}
-    </section>
+      </section>
+      {createModalOpen && (
+        <NuevoResponsableModal
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={handleResponsableCreado}
+        />
+      )}
+    </>
   );
 }

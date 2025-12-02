@@ -55,6 +55,7 @@ export default function Ninos() {
   const [responsableResults, setResponsableResults] = useState([]);
   const [responsableSearchLoading, setResponsableSearchLoading] =
     useState(false);
+  const [showResponsableSearch, setShowResponsableSearch] = useState(false);
 
   function useDebounce(value, delay) {
     const [debounced, setDebounced] = useState(value);
@@ -146,6 +147,7 @@ export default function Ninos() {
     setResponsableSearch("");
     setResponsableResults([]);
     setResponsableSearchLoading(false);
+    setShowResponsableSearch(false);
   };
 
   const cargarResponsables = useCallback(async (idNino) => {
@@ -176,13 +178,20 @@ export default function Ninos() {
   const abrirDetalleNino = (nino) => {
     setModalData(nino);
     setModalOpen(true);
+    setShowResponsableSearch(false);
     cargarResponsables(nino.id_nino);
   };
 
   useEffect(() => {
     if (!modalOpen || !modalData) return;
+    if (!showResponsableSearch) {
+      setResponsableResults([]);
+      setResponsableSearchLoading(false);
+      return;
+    }
     const query = debouncedResponsableSearch.trim();
-    if (query.length < 2) {
+    const isNumeric = /^\d+$/.test(query);
+    if (query.length < 2 && !isNumeric) {
       setResponsableResults([]);
       setResponsableSearchLoading(false);
       return;
@@ -222,7 +231,16 @@ export default function Ninos() {
     modalOpen,
     modalData,
     responsablesVinculados,
+    showResponsableSearch,
   ]);
+
+  useEffect(() => {
+    if (!showResponsableSearch) {
+      setResponsableSearch("");
+      setResponsableResults([]);
+      setResponsableSearchLoading(false);
+    }
+  }, [showResponsableSearch]);
 
   const marcarPrincipal = async (relacion) => {
     if (!modalData || !relacion?.id_nino_responsable) return;
@@ -337,6 +355,14 @@ export default function Ninos() {
     }
   };
 
+  const mostrarBuscadorResponsable = () => {
+    setShowResponsableSearch(true);
+    setTimeout(() => {
+      const input = document.getElementById("buscar-responsable");
+      input?.focus();
+    }, 80);
+  };
+
   const vincularResponsable = async (responsable) => {
     if (!modalData) return;
     const { value: formValues } = await Swal.fire({
@@ -383,6 +409,7 @@ export default function Ninos() {
       setResponsableResults((prev) =>
         prev.filter((r) => r.id_responsable !== responsable.id_responsable)
       );
+      setResponsableSearch("");
       Swal.fire({
         icon: "success",
         title: "Responsable vinculado",
@@ -952,50 +979,62 @@ export default function Ninos() {
                 niño. El responsable principal se destaca con un ícono.
               </p>
 
-              <div className="relationship-search">
-                <label htmlFor="buscar-responsable" className="sr-only">
-                  Buscar responsable
-                </label>
-                <input
-                  id="buscar-responsable"
-                  type="text"
-                  value={responsableSearch}
-                  onChange={(e) => setResponsableSearch(e.target.value)}
-                  placeholder="Buscar responsable por nombre, apellido o DNI"
-                />
-                {responsableSearchLoading && (
-                  <div className="inline-loader">Buscando…</div>
-                )}
-                {!responsableSearchLoading && responsableResults.length > 0 && (
-                  <ul className="search-results">
-                    {responsableResults.map((resp) => (
-                      <li key={resp.id_responsable}>
-                        <div className="result-info">
-                          <strong>
-                            {resp.nombre} {resp.apellido}
-                          </strong>
-                          <span>
-                            DNI: {resp.dni || "—"} · Tel: {resp.telefono || "—"}
-                          </span>
-                        </div>
-                        <button
-                          className="btn small"
-                          onClick={() => vincularResponsable(resp)}
-                        >
-                          <FaUserPlus size={14} /> Vincular
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {!responsableSearchLoading &&
-                  responsableSearch.trim().length >= 2 &&
-                  responsableResults.length === 0 && (
-                    <div className="search-empty">
-                      Sin coincidencias disponibles o ya vinculadas.
-                    </div>
-                  )}
+              <div className="relationship-cta">
+                <button
+                  type="button"
+                  className="btn outline"
+                  onClick={mostrarBuscadorResponsable}
+                >
+                  <FaUserPlus size={16} /> Vincular responsable
+                </button>
               </div>
+
+              {showResponsableSearch && (
+                <div className="relationship-search">
+                  <label htmlFor="buscar-responsable" className="sr-only">
+                    Buscar responsable
+                  </label>
+                  <input
+                    id="buscar-responsable"
+                    type="text"
+                    value={responsableSearch}
+                    onChange={(e) => setResponsableSearch(e.target.value)}
+                    placeholder="Buscar responsable por nombre, apellido o DNI"
+                  />
+                  {responsableSearchLoading && (
+                    <div className="inline-loader">Buscando…</div>
+                  )}
+                  {!responsableSearchLoading && responsableResults.length > 0 && (
+                    <ul className="search-results">
+                      {responsableResults.map((resp) => (
+                        <li key={resp.id_responsable}>
+                          <div className="result-info">
+                            <strong>
+                              {resp.nombre} {resp.apellido}
+                            </strong>
+                            <span>
+                              DNI: {resp.dni || "—"} · Tel: {resp.telefono || "—"}
+                            </span>
+                          </div>
+                          <button
+                            className="btn small"
+                            onClick={() => vincularResponsable(resp)}
+                          >
+                            <FaUserPlus size={14} /> Vincular
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {!responsableSearchLoading &&
+                    responsableSearch.trim().length >= 2 &&
+                    responsableResults.length === 0 && (
+                      <div className="search-empty">
+                        Sin coincidencias disponibles o ya vinculadas.
+                      </div>
+                    )}
+                </div>
+              )}
 
               <div className="relationship-list">
                 {responsablesLoading ? (

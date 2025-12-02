@@ -546,6 +546,29 @@ input[type="date"].edit-input {
   color: var(--muted);
 }
 
+.relationship-cta {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.relationship-cta .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 10px 24px rgba(233, 30, 99, 0.12);
+}
+
+.relationship-cta .btn.outline {
+  border: 1.5px solid rgba(233, 30, 99, 0.28);
+  color: var(--color-rosa1);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.relationship-cta .btn.outline:hover {
+  background: rgba(233, 30, 99, 0.08);
+}
+
 .relationship-search {
   display: flex;
   flex-direction: column;
@@ -735,6 +758,13 @@ input[type="date"].edit-input {
     width: 95vw;
     max-width: 95vw;
     padding: 1.4rem 1rem 1rem 1rem;
+  }
+  .relationship-cta {
+    width: 100%;
+  }
+  .relationship-cta .btn {
+    width: 100%;
+    justify-content: center;
   }
   .modal-grid {
     grid-template-columns: 1fr;
