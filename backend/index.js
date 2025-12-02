@@ -39,10 +39,6 @@ app.use('/api/contact', contactosRoutes);
 app.use('/api/entrevista', entrevistaRoutes);
 app.use('/api/obras-sociales', obrasSocRoutes);
 app.use('/api/candidatos', candidatosRoutes);
-app.use('/api', ninoRoutes);
-app.use('/api', turnoRoutes);
-app.use('/api', pagoRoutes);
-app.use('/api', notificacionRoutes);
 
 // Rutas del dashboard
 app.use('/api/ninos', ninosRoutes);
@@ -52,6 +48,12 @@ app.use('/api/equipo', equipoRoutes);
 app.use('/api/profesiones', profesionesRoutes);
 app.use('/api/login', loginRoutes);
 app.use('/api', finanzasRoutes);
+
+// Rutas públicas y legacy
+app.use('/api', ninoRoutes);
+app.use('/api', turnoRoutes);
+app.use('/api', pagoRoutes);
+app.use('/api', notificacionRoutes);
 
 app.listen(PORT, () => {
 	console.log(`Servidor backend escuchando en puerto ${PORT}`);

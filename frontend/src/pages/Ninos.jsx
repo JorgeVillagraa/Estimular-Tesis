@@ -47,6 +47,7 @@ export default function Ninos() {
   const [modalData, setModalData] = useState(null);
   const [obrasSociales, setObrasSociales] = useState([]);
   const skipPageEffectRef = useRef(false);
+  const requestSeqRef = useRef(0);
   const [responsablesVinculados, setResponsablesVinculados] = useState([]);
   const [responsablesLoading, setResponsablesLoading] = useState(false);
   const [responsablesError, setResponsablesError] = useState(null);
@@ -84,11 +85,16 @@ export default function Ninos() {
 
   const fetchNinos = useCallback(
     async (search = "", pageNum = 1, tipoSel = "todos") => {
+      const requestId = requestSeqRef.current + 1;
+      requestSeqRef.current = requestId;
       setLoading(true);
       try {
         const res = await axios.get(`${API_BASE_URL}/api/ninos`, {
           params: { search, page: pageNum, pageSize, tipo: tipoSel },
         });
+        if (requestId !== requestSeqRef.current) {
+          return;
+        }
         const { list: normalized, total: computedTotal } = parseNinosResponse(
           res?.data
         );
@@ -96,10 +102,14 @@ export default function Ninos() {
         setTotal(computedTotal);
         setError(null);
       } catch (e) {
-        console.error("Error al obtener los niños:", e);
-        setError("Error al obtener los niños");
+        if (requestId === requestSeqRef.current) {
+          console.error("Error al obtener los niños:", e);
+          setError("Error al obtener los niños");
+        }
       } finally {
-        setLoading(false);
+        if (requestId === requestSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
     [pageSize]
