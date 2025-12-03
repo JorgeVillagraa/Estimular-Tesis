@@ -58,6 +58,73 @@ export default function Responsables() {
   const debouncedBusqueda = useDebounce(busqueda, 300);
   const debouncedNinoSearch = useDebounce(ninoSearch, 300);
 
+  const normalizeText = (valor) =>
+    typeof valor === "string" ? valor.replace(/\s+/g, " ").trim() : "";
+
+  const formatTipoLabel = (valor) => {
+    const texto = normalizeText(valor);
+    if (!texto) return "";
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  };
+
+  const getNinoDisplay = (nino) => {
+    if (!nino || typeof nino !== "object") {
+      return {
+        nombre: "Sin datos",
+        dni: "—",
+        tipo: "",
+        fecha: null,
+      };
+    }
+
+    const nombre = (
+      normalizeText(
+        [
+          nino.nombre ?? nino.paciente_nombre ?? nino.nombre_nino ?? nino.nombres,
+          nino.apellido ?? nino.paciente_apellido ?? nino.apellido_nino ?? nino.apellidos,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      )
+        || normalizeText(nino.paciente_titular_nombre ?? nino.titular_nombre ?? "")
+        || ""
+    );
+
+    const dniRaw =
+      nino.dni ??
+      nino.paciente_dni ??
+      nino.documento ??
+      nino.doc ??
+      nino.numero_documento ??
+      null;
+
+    const dni =
+      dniRaw === null || dniRaw === undefined || String(dniRaw).trim() === ""
+        ? "—"
+        : String(dniRaw).trim();
+
+    const tipo = formatTipoLabel(
+      nino.tipo ??
+        nino.paciente_tipo ??
+        nino.estado ??
+        nino.condicion ??
+        ""
+    );
+
+    const fecha =
+      nino.fecha_nacimiento ??
+      nino.paciente_fecha_nacimiento ??
+      nino.nacimiento ??
+      null;
+
+    return {
+      nombre: nombre || "Sin nombre",
+      dni,
+      tipo,
+      fecha,
+    };
+  };
+
   const fetchResponsables = useCallback(
     async (search = "", pageNum = 1) => {
       setLoading(true);
@@ -988,24 +1055,32 @@ export default function Responsables() {
                   )}
                   {!ninoSearchLoading && ninoResults.length > 0 && (
                     <ul className="search-results">
-                      {ninoResults.map((nino) => (
-                        <li key={nino.id_nino}>
-                          <div className="result-info">
-                            <strong>
-                              {nino.nombre} {nino.apellido}
-                            </strong>
-                            <span>
-                              DNI: {nino.dni || "—"} · {nino.tipo || "—"}
-                            </span>
-                          </div>
-                          <button
-                            className="btn small"
-                            onClick={() => vincularNino(nino)}
-                          >
-                            <FaUserPlus size={14} /> Vincular
-                          </button>
-                        </li>
-                      ))}
+                      {ninoResults.map((nino) => {
+                        const display = getNinoDisplay(nino);
+                        const nacimientoTexto = display.fecha
+                          ? formatDateDMY(display.fecha)
+                          : "";
+                        return (
+                          <li key={nino.id_nino}>
+                            <div className="result-info">
+                              <strong>{display.nombre}</strong>
+                              <span>
+                                DNI: {display.dni}
+                                {display.tipo ? ` · ${display.tipo}` : ""}
+                              </span>
+                              {nacimientoTexto && (
+                                <span>Nacimiento: {nacimientoTexto}</span>
+                              )}
+                            </div>
+                            <button
+                              className="btn small"
+                              onClick={() => vincularNino(nino)}
+                            >
+                              <FaUserPlus size={14} /> Vincular
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   {!ninoSearchLoading &&
@@ -1043,25 +1118,29 @@ export default function Responsables() {
                         </tr>
                       </thead>
                       <tbody>
-                        {ninosVinculados.map((rel) => (
-                          <tr
-                            key={rel.id_nino_responsable}
-                            className={rel.es_principal ? "row-principal" : ""}
-                          >
-                            <td data-label="Nombre">
-                              <div className="cell-stack">
-                                <span className="cell-strong">
-                                  {rel.nino?.nombre || "—"}{" "}
-                                  {rel.nino?.apellido || ""}
-                                </span>
-                                {rel.es_principal && (
-                                  <span className="tag principal">
-                                    <FaStar size={12} /> Principal
+                        {ninosVinculados.map((rel) => {
+                          const display = getNinoDisplay(rel.nino);
+                          const nacimientoTexto = display.fecha
+                            ? formatDateDMY(display.fecha)
+                            : "";
+                          return (
+                            <tr
+                              key={rel.id_nino_responsable}
+                              className={rel.es_principal ? "row-principal" : ""}
+                            >
+                              <td data-label="Nombre">
+                                <div className="cell-stack">
+                                  <span className="cell-strong">
+                                    {display.nombre}
                                   </span>
-                                )}
-                              </div>
-                            </td>
-                            <td data-label="DNI">{rel.nino?.dni || "—"}</td>
+                                  {rel.es_principal && (
+                                    <span className="tag principal">
+                                      <FaStar size={12} /> Principal
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td data-label="DNI">{display.dni}</td>
                             {isAdmin && (
                               <td data-label="Parentesco">
                                 <input
@@ -1091,12 +1170,10 @@ export default function Responsables() {
                                 </label>
                               </td>
                             )}
-                            <td data-label="Fecha nacimiento">
-                              {rel.nino?.fecha_nacimiento
-                                ? formatDateDMY(rel.nino.fecha_nacimiento)
-                                : "—"}
-                            </td>
-                            <td data-label="Tipo">{rel.nino?.tipo || "—"}</td>
+                              <td data-label="Fecha nacimiento">
+                                {nacimientoTexto || "—"}
+                              </td>
+                              <td data-label="Tipo">{display.tipo || "—"}</td>
                             <td className="col-actions" data-label="Acciones">
                               <div className="row-actions">
                                 {isAdmin && (
@@ -1110,8 +1187,9 @@ export default function Responsables() {
                                 )}
                               </div>
                             </td>
-                          </tr>
-                        ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
