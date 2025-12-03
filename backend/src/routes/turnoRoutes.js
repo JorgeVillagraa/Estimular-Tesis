@@ -9,14 +9,15 @@ const {
 	handleAutoScheduleEntrevista,
 	handleCancelAutoScheduleEntrevista,
 } = require('../controllers/turnoController');
+const { authenticate } = require('../middlewares/auth');
 
 // Definir las rutas para los turnos
-router.get('/turnos/form-data', handleGetTurnoFormData);
-router.get('/turnos', handleGetTurnos);
-router.post('/turnos', handleCreateTurno);
-router.put('/turnos/:id', handleUpdateTurno);
-router.delete('/turnos/:id', handleDeleteTurno);
-router.post('/turnos/auto-schedule', handleAutoScheduleEntrevista);
-router.post('/turnos/auto-schedule/cancel', handleCancelAutoScheduleEntrevista);
+router.get('/turnos/form-data', authenticate, handleGetTurnoFormData);
+router.get('/turnos', authenticate, handleGetTurnos);
+router.post('/turnos', authenticate, handleCreateTurno);
+router.put('/turnos/:id', authenticate, handleUpdateTurno);
+router.delete('/turnos/:id', authenticate, handleDeleteTurno);
+router.post('/turnos/auto-schedule', authenticate, handleAutoScheduleEntrevista);
+router.post('/turnos/auto-schedule/cancel', authenticate, handleCancelAutoScheduleEntrevista);
 
 module.exports = router;

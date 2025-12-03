@@ -312,6 +312,7 @@ export default function Entrevista() {
 
   const profile = useAuthStore((state) => state.profile);
   const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
   const isAdmin = user?.es_admin || (user?.roles?.some(role => role.nombre?.toLowerCase() === 'admin'));
   const isProfesional = user?.roles?.some(role => role.nombre?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'profesional');
 
@@ -616,11 +617,13 @@ export default function Entrevista() {
             tipo_turno: "entrevista",
             replace_existing: replaceExisting,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
+          token
+            ? {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            : undefined
         );
 
         const payload = response?.data;
@@ -677,7 +680,7 @@ export default function Entrevista() {
         });
       }
     },
-    [launchTurnoCreationFlow]
+    [launchTurnoCreationFlow, token]
   );
 
   const quitarAsignacion = useCallback(
@@ -696,11 +699,16 @@ export default function Entrevista() {
       if (!result.isConfirmed) return;
 
       try {
-        await axios.delete(`${API_BASE_URL}/api/turnos/${turnoId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+        await axios.delete(
+          `${API_BASE_URL}/api/turnos/${turnoId}`,
+          token
+            ? {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            : undefined
+        );
 
         setAsignaciones((prev) => ({
           ...prev,
@@ -726,7 +734,7 @@ export default function Entrevista() {
         });
       }
     },
-    []
+    [token]
   );
 
   return (
