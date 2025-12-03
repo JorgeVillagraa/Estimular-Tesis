@@ -10,6 +10,27 @@ const {
 const { upsertWithIdentityOverride } = require('../utils/upsertWithIdentityOverride');
 
 const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD_LOGIN || 'estimular_2025';
+const TOKEN_EXPIRATION = process.env.JWT_EXPIRES_IN || '16h';
+
+function resolveUserIdForToken(userLike) {
+  if (!userLike) return null;
+  if (userLike.id_usuario) return Number(userLike.id_usuario);
+  if (userLike.id) return Number(userLike.id);
+  return null;
+}
+
+function generateAuthToken(userLike) {
+  const userId = resolveUserIdForToken(userLike);
+  if (!userId) {
+    throw new Error('No se pudo generar el token: falta id de usuario.');
+  }
+  const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
+  const payload = {
+    id: userId,
+    dni: userLike?.dni ?? null,
+  };
+  return jwt.sign(payload, secret, { expiresIn: TOKEN_EXPIRATION });
+}
 
 function isValidDni(dni) {
   if (dni === undefined || dni === null) return false;
@@ -630,8 +651,7 @@ const loginUsuario = async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    const secret = process.env.JWT_SECRET || 'dev_secret_change_me';
-    const token = jwt.sign({ id: user.id_usuario, dni: user.dni }, secret, { expiresIn: '8h' });
+  const token = generateAuthToken(user);
 
     const roles = await fetchUserRoles(user.id_usuario);
     const perfil = await fetchUserProfile(user.id_usuario, roles);
@@ -1048,10 +1068,64 @@ const obtenerPerfilActual = async (req, res) => {
   }
 };
 
+const refreshToken = async (req, res) => {
+  try {
+    const userId = req.user?.id ? Number(req.user.id) : null;
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuario no autorizado' });
+    }
+
+    const { data: user, error } = await supabaseAdmin
+      .from('usuarios')
+      .select('id_usuario, dni, activo')
+      .eq('id_usuario', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('refreshToken lookup error:', error);
+      return res.status(500).json({ error: 'Error interno' });
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    if (user.activo === false) {
+      return res.status(403).json({ error: 'Usuario inactivo' });
+    }
+
+    const roles = await fetchUserRoles(user.id_usuario);
+    const profile = await fetchUserProfile(user.id_usuario, roles);
+    const esAdmin = hasAdminRole(roles);
+    const needsProfile = computeNeedsProfile(profile);
+
+    const token = generateAuthToken(user);
+
+    return res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id_usuario,
+        dni: user.dni,
+        id_rol: roles[0]?.id ?? null,
+        rol_nombre: roles[0]?.nombre ?? null,
+        roles,
+        es_admin: esAdmin,
+      },
+      profile,
+      needsProfile,
+    });
+  } catch (err) {
+    console.error('refreshToken exception:', err);
+    return res.status(500).json({ error: err.message || 'Error al refrescar token' });
+  }
+};
+
 module.exports = {
   registrarUsuario,
   loginUsuario,
   primerRegistro,
   actualizarPerfil,
   obtenerPerfilActual,
+  refreshToken,
 };

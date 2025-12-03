@@ -5,6 +5,7 @@ const {
   primerRegistro,
   actualizarPerfil,
   obtenerPerfilActual,
+  refreshToken,
 } = require("../controllers/loginController");
 const { authenticate, authorize } = require('../middlewares/auth');
 
@@ -19,5 +20,6 @@ router.post("/register", registrarUsuario);
 router.post("/primer-registro", primerRegistro);
 router.put("/perfil", authenticate, authorize(['admin', 'recepcion', 'profesional']), actualizarPerfil);
 router.get("/me", authenticate, authorize(['admin', 'recepcion', 'profesional']), obtenerPerfilActual);
+router.post("/refresh", authenticate, refreshToken);
 
 module.exports = router;
