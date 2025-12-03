@@ -10,6 +10,7 @@ import {
   PHONE_INPUT_HELPER,
 } from "../utils/phone";
 import fallbackObraLogo from "../assets/logo_estimular.png";
+import entrevistaIlustracion from "../assets/estimular_sidebar_fondo.svg";
 const Alerta = withReactContent(Swal);
 
 /* ─────────────── Helpers ─────────────── */
@@ -812,18 +813,49 @@ export default function FormularioEntrevista() {
   };
 
   return (
-    <section className="entrevista__formulario entrevista__screen">
-      <h1 className="entrevista__titulo">Primera Entrevista</h1>
-      <p className="entrevista__subtitulo">
-        Por favor complete el formulario con la información del niño/a y del
-        responsable.
-      </p>
+    <main className="entrevista__layout" role="main">
+      <aside className="entrevista__aside" aria-label="Información de Estimular">
+        <div className="entrevista__aside-overlay" aria-hidden="true" />
+        <div className="entrevista__aside-content">
+          <img
+            src={fallbackObraLogo}
+            alt="Centro Estimular"
+            className="entrevista__aside-logo"
+          />
+          <h2 className="entrevista__aside-title">Primera entrevista acompañada</h2>
+          <p className="entrevista__aside-text">
+            Reservá tu instancia inicial y recibí una orientación profesional pensada
+            para toda la familia. Nuestro equipo multidisciplinario te ayudará a
+            definir los próximos pasos terapéuticos.
+          </p>
+          <ul className="entrevista__aside-list">
+            <li>Coordinación rápida y personalizada.</li>
+            <li>Profesionales especializados por área.</li>
+            <li>Seguimiento cercano con la familia.</li>
+          </ul>
+          <div className="entrevista__aside-contact">
+            <span>¿Tenés dudas?</span>
+            <a href="mailto:contacto@estimular.com">contacto@estimular.com</a>
+            <small>Lun. a Vie. de 9 a 18 hs</small>
+          </div>
+        </div>
+        <div className="entrevista__aside-figure" aria-hidden="true">
+          <img src={entrevistaIlustracion} alt="Ilustración terapéutica" />
+        </div>
+      </aside>
 
-      <form
-        onSubmit={enviarFormulario}
-        className="entrevista__form"
-        aria-label="Formulario de primera entrevista"
-      >
+      <section className="entrevista__formulario entrevista__screen">
+        <h1 className="entrevista__titulo">Primera Entrevista</h1>
+        <p className="entrevista__subtitulo">
+          Por favor complete el formulario con la información del niño/a y del
+          responsable.
+        </p>
+
+        <form
+          onSubmit={enviarFormulario}
+          className="entrevista__form"
+          aria-label="Formulario de primera entrevista"
+        >
         {/* Indicador de progreso */}
         <div
           className="entrevista__progreso"
@@ -1322,5 +1354,6 @@ export default function FormularioEntrevista() {
         </div>
       </form>
     </section>
+  </main>
   );
 }

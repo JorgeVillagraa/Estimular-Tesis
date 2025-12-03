@@ -2,6 +2,202 @@
    Base: Mobile-first
 =========================== */
 
+.entrevista__layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #fff8fc 0%, #ffe1f0 100%);
+}
+
+.entrevista__aside {
+  position: relative;
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ff7dbd 0%, #ff5aa3 45%, #ff8fc9 100%);
+  color: #fff;
+}
+
+.entrevista__aside-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(210deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08));
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
+.entrevista__aside-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  text-align: center;
+  max-width: 420px;
+}
+
+.entrevista__aside-logo {
+  width: 108px;
+  height: 108px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px;
+  object-fit: contain;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+}
+
+.entrevista__aside-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.entrevista__aside-text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+.entrevista__aside-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.entrevista__aside-list li {
+  position: relative;
+  padding-left: 1.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.entrevista__aside-list li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.entrevista__aside-contact {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  align-items: center;
+  text-align: center;
+  padding: 0.85rem 1.1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  font-weight: 600;
+}
+
+.entrevista__aside-contact a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.entrevista__aside-contact a:hover,
+.entrevista__aside-contact a:focus {
+  text-decoration: underline;
+}
+
+.entrevista__aside-contact small {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.entrevista__aside-figure {
+  position: absolute;
+  right: -60px;
+  bottom: -80px;
+  width: 320px;
+  opacity: 0.3;
+  z-index: 0;
+}
+
+.entrevista__aside-figure img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .entrevista__layout {
+    flex-direction: column;
+  }
+
+  .entrevista__aside {
+    flex: 1 1 45%;
+    border-bottom-left-radius: 48px;
+    border-bottom-right-radius: 48px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .entrevista__layout {
+    flex-direction: row;
+  }
+
+  .entrevista__aside {
+    flex: 1 1 42%;
+    min-height: 100vh;
+    border-radius: 0 40px 40px 0;
+  }
+
+  .entrevista__aside-content {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .entrevista__aside-contact {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .entrevista__aside-figure {
+    right: -40px;
+    bottom: -60px;
+    opacity: 0.4;
+    width: 360px;
+  }
+}
+
+@media (max-width: 640px) {
+  .entrevista__aside {
+    padding: 32px 20px 44px;
+  }
+
+  .entrevista__aside-figure {
+    width: 260px;
+    right: -50px;
+    bottom: -70px;
+    opacity: 0.25;
+  }
+}
+
 .entrevista__formulario {
   flex: 1 1 auto;
   width: 100%;
