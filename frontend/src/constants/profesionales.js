@@ -1,13 +1,10 @@
-import persona_prueba1 from '../assets/persona_prueba1.png';
-
-
 export const profesionales = [
   {
     id:1,
     nombre: "Noelia Urquiza",
     profesion: "Psicóloga",
     telefono: "3813390033",
-    foto: persona_prueba1,
+    foto: "/pfp/001.jpeg",
     servicio: "Psicología"
   },
   {
@@ -15,7 +12,7 @@ export const profesionales = [
     nombre: "Ivanna Garcia",
     profesion: "Fonoaudióloga",
     telefono: "3813679893",
-    foto: persona_prueba1,
+    foto: "/pfp/002.jpeg",
     servicio: "Fonoaudiología"
   },
   {
@@ -23,7 +20,7 @@ export const profesionales = [
     nombre: "Daiana Nuñez ",
     profesion: "Psicopedagoga",
     telefono: "3865560493",
-    foto: persona_prueba1,
+    foto: "/pfp/003.jpeg",
     servicio: "Psicopedagogía"
   },
   {
@@ -31,7 +28,7 @@ export const profesionales = [
     nombre: "Alejandra Gonzalez",
     profesion: "Terapeuta Ocupacional",
     telefono: "3812235510",
-    foto: persona_prueba1,
+    foto: "/pfp/004.jpeg",
     servicio: "Terapia Ocupacional"
   },
 ];
