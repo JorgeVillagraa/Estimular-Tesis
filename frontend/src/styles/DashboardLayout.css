@@ -13,8 +13,13 @@
   width: var(--sidebar-width);
   border-right: 1px solid var(--neutral-200);
   background: var(--card-bg);
-  position: relative;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
   z-index: 10;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Collapsed state: hide sidebar, let main take 100% */
@@ -107,7 +112,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow: auto;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: calc(20px + 80px);
 }
 
 .dashboard-header {
@@ -176,6 +184,9 @@
     width: 100%;
     padding: 8px 12px; /* Reducir padding en móviles */
     padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px)); /* Espacio para bottom navigation */
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
   .dashboard-toggle-curtain {
     display: none;
