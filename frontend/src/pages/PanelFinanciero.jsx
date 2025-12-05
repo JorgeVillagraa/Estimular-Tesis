@@ -105,6 +105,7 @@ export default function PanelFinanciero() {
         deberes: 0,
         haberes: 0,
         cobrosMesesAnteriores: 0,
+        coberturaObraSocial: 0,
         gananciaNeta: 0,
       }
     );
@@ -168,6 +169,15 @@ export default function PanelFinanciero() {
           </div>
           <p className="detalle">
             Total cobrado por turnos completados en el mes.
+          </p>
+        </div>
+        <div className="panel-card resumen-card cobertura">
+          <div className="label">Cubierto por obra social</div>
+          <div className="valor">
+            {currencyFormatter.format(resumenActual.coberturaObraSocial || 0)}
+          </div>
+          <p className="detalle">
+            Suma de los montos bonificados por descuentos de obra social en el mes.
           </p>
         </div>
         <div className="panel-card resumen-card neta">

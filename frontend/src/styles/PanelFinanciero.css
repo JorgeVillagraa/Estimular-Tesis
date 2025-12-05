@@ -95,6 +95,10 @@
   color: var(--accent-green, #2e7d32);
 }
 
+.resumen-card.cobertura .valor {
+  color: var(--accent-blue, #1e88e5);
+}
+
 .resumen-card .detalle {
   margin-top: 0.4rem;
   font-size: 0.85rem;

@@ -202,7 +202,7 @@ async function handleGetPagosDashboardDeudas(req, res) {
           id_nino,
           nombre,
           apellido,
-          obra_social:obras_sociales!ninos_id_obra_social_fkey ( nombre_obra_social ),
+          obra_social:obras_sociales!ninos_id_obra_social_fkey ( nombre_obra_social, descuento ),
           responsables:nino_responsables (
             id_nino_responsable,
             parentesco,
@@ -346,6 +346,7 @@ async function handleGetPagosDashboardDeudas(req, res) {
           nombre: nino?.nombre || null,
           apellido: nino?.apellido || null,
           obra_social: nino?.obra_social?.nombre_obra_social || null,
+          obra_social_descuento: nino?.obra_social?.descuento || null,
         },
         responsable: responsablePrincipal,
         responsables,

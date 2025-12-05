@@ -1,5 +1,107 @@
 const { supabaseAdmin } = require('../config/db');
 
+function clampPercent(value) {
+    if (value === null || value === undefined) return 0;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+    if (parsed < 0) return 0;
+    if (parsed > 1) return 1;
+    return parsed;
+}
+
+function parseObraSocialDescuento(raw) {
+    if (raw === null || raw === undefined) {
+        return { tipo: 'ninguno', valor: 0 };
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+        return { tipo: 'ninguno', valor: 0 };
+    }
+    if (parsed > 1) {
+        return { tipo: 'monto', valor: Number(parsed.toFixed(2)) };
+    }
+    return { tipo: 'porcentaje', valor: clampPercent(parsed) };
+}
+
+function computeCoberturaDesdeDescriptor(pago, descriptor) {
+    const estado = String(pago?.estado || '').toLowerCase();
+    const montoBase = Number(pago?.monto || 0);
+
+    if (!descriptor || descriptor.tipo === 'ninguno' || montoBase < 0) {
+        return {
+            cobertura: 0,
+            montoOriginal: Math.max(montoBase, 0),
+        };
+    }
+
+    if (estado === 'pendiente') {
+        if (descriptor.tipo === 'monto') {
+            const descuento = Number(descriptor.valor || 0);
+            if (!Number.isFinite(descuento) || Number.isNaN(descuento) || descuento <= 0) {
+                return { cobertura: 0, montoOriginal: Math.max(montoBase, 0) };
+            }
+            const cobertura = Math.min(descuento, Math.max(montoBase, 0));
+            return {
+                cobertura,
+                montoOriginal: Math.max(montoBase, 0),
+            };
+        }
+
+        if (descriptor.tipo === 'porcentaje') {
+            const ratio = clampPercent(descriptor.valor);
+            if (ratio <= 0 || ratio >= 1 || montoBase <= 0) {
+                return { cobertura: 0, montoOriginal: Math.max(montoBase, 0) };
+            }
+            const cobertura = Number((montoBase * ratio).toFixed(2));
+            return {
+                cobertura,
+                montoOriginal: Math.max(montoBase, 0),
+            };
+        }
+    }
+
+    const finalAmount = Math.max(montoBase, 0);
+
+    if (descriptor.tipo === 'monto') {
+        const descuento = Number(descriptor.valor || 0);
+        if (!Number.isFinite(descuento) || Number.isNaN(descuento) || descuento <= 0) {
+            return { cobertura: 0, montoOriginal: finalAmount };
+        }
+        const montoOriginal = Math.max(0, Number((finalAmount + descuento).toFixed(2)));
+        return {
+            cobertura: Math.min(descuento, montoOriginal),
+            montoOriginal,
+        };
+    }
+
+    if (descriptor.tipo === 'porcentaje') {
+        const ratio = clampPercent(descriptor.valor);
+        if (ratio <= 0 || ratio >= 1) {
+            return { cobertura: 0, montoOriginal: finalAmount };
+        }
+        const montoOriginal = Number((finalAmount / (1 - ratio)).toFixed(2));
+        const cobertura = Math.max(0, Number((montoOriginal - finalAmount).toFixed(2)));
+        return {
+            cobertura,
+            montoOriginal,
+        };
+    }
+
+    return { cobertura: 0, montoOriginal: finalAmount };
+}
+
+function parseNotasJson(rawNotas) {
+    if (!rawNotas || typeof rawNotas !== 'string') {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(rawNotas);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_error) {
+        return null;
+    }
+}
+
 // GET /api/finanzas/resumen-mensual?anio=2025
 // Devuelve por cada mes del año: deberes, haberes y cobros de meses anteriores.
 const getResumenMensual = async (req, res) => {
@@ -15,11 +117,36 @@ const getResumenMensual = async (req, res) => {
         // Cargamos todos los pagos del año (por fecha de registro) junto a su turno.
         const { data: pagos, error: pagosError } = await supabaseAdmin
             .from('pagos')
-            .select('id, monto, estado, registrado_en, turno_id, turno:turnos ( id, inicio, estado )')
+            .select('id, monto, estado, registrado_en, turno_id, nino_id, notas, turno:turnos ( id, inicio, estado )')
             .gte('registrado_en', desdeIso)
             .lt('registrado_en', hastaIso);
 
         if (pagosError) throw pagosError;
+
+        const ninoIds = Array.from(
+            new Set(
+                (pagos || [])
+                    .map((pago) => Number(pago.nino_id))
+                    .filter((id) => Number.isInteger(id) && id > 0)
+            )
+        );
+
+        let descuentosPorNino = new Map();
+        if (ninoIds.length > 0) {
+            const { data: ninosData, error: ninosError } = await supabaseAdmin
+                .from('ninos')
+                .select('id_nino, obra_social:obras_sociales!ninos_id_obra_social_fkey ( descuento )')
+                .in('id_nino', ninoIds);
+
+            if (ninosError) throw ninosError;
+
+            descuentosPorNino = new Map(
+                (ninosData || []).map((nino) => [
+                    nino.id_nino,
+                    parseObraSocialDescuento(nino?.obra_social?.descuento),
+                ])
+            );
+        }
 
         // También necesitamos los turnos del año para calcular deberes (pendientes) del mes.
         const { data: turnos, error: turnosError } = await supabaseAdmin
@@ -83,19 +210,60 @@ const getResumenMensual = async (req, res) => {
                 })
                 .reduce((sum, p) => sum + Number(p.monto || 0), 0);
 
-            const haberes = pagosMes
-                .filter((p) => p.estado === 'completado')
-                .reduce((sum, p) => sum + Number(p.monto || 0), 0);
+            const pagosCompletadosMes = pagosMes.filter((p) => p.estado === 'completado');
 
-            const cobrosMesesAnteriores = pagosMes
+            const haberes = pagosCompletadosMes.reduce(
+                (sum, p) => sum + Number(p.monto || 0),
+                0
+            );
+
+            const cobrosMesesAnteriores = pagosCompletadosMes
                 .filter((p) => {
-                    if (p.estado !== 'completado') return false;
                     const turno = p.turno || null;
                     const f = turno && turno.inicio ? new Date(turno.inicio) : null;
                     if (!f) return false;
                     return f.toISOString() < inicioMesIso;
                 })
                 .reduce((sum, p) => sum + Number(p.monto || 0), 0);
+
+            const coberturaObraSocial = pagosMes.reduce((sum, pago) => {
+                const notasData = parseNotasJson(pago.notas);
+                if (notasData && typeof notasData === 'object') {
+                    const montoOriginalNota = Number(
+                        notasData.monto_original ??
+                            notasData.montoOriginal ??
+                            notasData.precio_original ??
+                            notasData.precioOriginal ??
+                            0
+                    );
+                    const descuentoNota = Number(
+                        notasData.descuento_monto ??
+                            notasData.descuentoMonto ??
+                            notasData.descuento_aplicado_monto ??
+                            0
+                    );
+                    const montoActual = Number(pago.monto || 0);
+                    if (Number.isFinite(montoOriginalNota) && montoOriginalNota > 0) {
+                        const coberturaDesdeNotas = Math.max(
+                            0,
+                            Number((montoOriginalNota - montoActual).toFixed(2))
+                        );
+                        if (coberturaDesdeNotas > 0) {
+                            return sum + coberturaDesdeNotas;
+                        }
+                    }
+                    if (Number.isFinite(descuentoNota) && descuentoNota > 0) {
+                        return sum + Number(descuentoNota.toFixed(2));
+                    }
+                }
+
+                const descriptor = descuentosPorNino.get(Number(pago.nino_id)) || {
+                    tipo: 'ninguno',
+                    valor: 0,
+                };
+                const { cobertura } = computeCoberturaDesdeDescriptor(pago, descriptor);
+                return sum + cobertura;
+            }, 0);
 
             const id = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`;
             const labelMes = `${labelsMes[mesIndex]} ${anio}`;
@@ -106,6 +274,7 @@ const getResumenMensual = async (req, res) => {
                 deberes,
                 haberes,
                 cobrosMesesAnteriores,
+                coberturaObraSocial,
                 // Ganancia neta = (Cobros de meses anteriores + Ganancia bruta) - Deberes
                 gananciaNeta: cobrosMesesAnteriores + haberes - deberes,
             };

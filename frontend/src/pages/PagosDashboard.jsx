@@ -62,6 +62,7 @@ const DEFAULT_RESUMEN = {
   deberes: 0,
   haberes: 0,
   cobrosMesesAnteriores: 0,
+  coberturaObraSocial: 0,
 };
 
 const EMPTY_MODAL_STATE = {
@@ -115,6 +116,120 @@ function getRowKey(row, index) {
     return `nino-${row.nino.id_nino}`;
   }
   return `fila-${index}`;
+}
+
+function clampPercent(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+  if (parsed < 0) return 0;
+  if (parsed > 1) return 1;
+  return parsed;
+}
+
+function parsePagoNotas(rawNotas) {
+  if (!rawNotas || typeof rawNotas !== "string") return null;
+  try {
+    const parsed = JSON.parse(rawNotas);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function computePagoCoverage(pago, nino) {
+  const originalAmount = Number(pago?.monto || 0);
+  const estado = String(pago?.estado || "").toLowerCase();
+  const notasData = parsePagoNotas(pago?.notas);
+
+  if (notasData && typeof notasData === "object") {
+    const notedOriginal = Number(
+      notasData.monto_original ??
+        notasData.montoOriginal ??
+        notasData.precio_original ??
+        notasData.precioOriginal ??
+        NaN
+    );
+    const notedDescuento = Number(
+      notasData.descuento_monto ??
+        notasData.descuentoMonto ??
+        notasData.descuento_aplicado_monto ??
+        NaN
+    );
+
+    if (Number.isFinite(notedOriginal) && notedOriginal > 0) {
+      const cobertura = Math.max(
+        0,
+        Number((notedOriginal - originalAmount).toFixed(2))
+      );
+      if (cobertura > 0) {
+        return {
+          cobertura,
+          saldoPaciente: Math.max(originalAmount, 0),
+          montoOriginal: notedOriginal,
+        };
+      }
+    }
+
+    if (Number.isFinite(notedDescuento) && notedDescuento > 0) {
+      const cobertura = Math.min(notedDescuento, originalAmount);
+      return {
+        cobertura,
+        saldoPaciente: Math.max(originalAmount - cobertura, 0),
+        montoOriginal: Math.max(originalAmount, cobertura),
+      };
+    }
+  }
+
+  const rawDescriptor = Number(nino?.obra_social_descuento ?? NaN);
+  if (!Number.isFinite(rawDescriptor) || rawDescriptor <= 0) {
+    return {
+      cobertura: 0,
+      saldoPaciente: Math.max(originalAmount, 0),
+      montoOriginal: Math.max(originalAmount, 0),
+    };
+  }
+
+  if (rawDescriptor > 1) {
+    const cobertura = Math.min(Number(rawDescriptor.toFixed(2)), originalAmount);
+    if (estado === "completado") {
+      return {
+        cobertura,
+        saldoPaciente: Math.max(originalAmount, 0),
+        montoOriginal: Math.max(originalAmount + cobertura, 0),
+      };
+    }
+    return {
+      cobertura,
+      saldoPaciente: Math.max(originalAmount - cobertura, 0),
+      montoOriginal: Math.max(originalAmount, 0),
+    };
+  }
+
+  const ratio = clampPercent(rawDescriptor);
+  if (ratio <= 0) {
+    return {
+      cobertura: 0,
+      saldoPaciente: Math.max(originalAmount, 0),
+      montoOriginal: Math.max(originalAmount, 0),
+    };
+  }
+
+  if (estado === "completado") {
+    const montoOriginal = Number((originalAmount / (1 - ratio)).toFixed(2));
+    const cobertura = Math.max(0, Number((montoOriginal - originalAmount).toFixed(2)));
+    return {
+      cobertura,
+      saldoPaciente: Math.max(originalAmount, 0),
+      montoOriginal,
+    };
+  }
+
+  const cobertura = Number((originalAmount * ratio).toFixed(2));
+  return {
+    cobertura,
+    saldoPaciente: Math.max(originalAmount - cobertura, 0),
+    montoOriginal: Math.max(originalAmount, 0),
+  };
 }
 
 export default function PagosDashboard() {
@@ -207,6 +322,9 @@ export default function PagosDashboard() {
                   cobrosMesesAnteriores: Number(
                     currentSummary.cobrosMesesAnteriores || 0
                   ),
+                  coberturaObraSocial: Number(
+                    currentSummary.coberturaObraSocial || 0
+                  ),
                 }
               : DEFAULT_RESUMEN
           );
@@ -216,7 +334,7 @@ export default function PagosDashboard() {
             resumenResult.reason
           );
           setResumen(DEFAULT_RESUMEN);
-        }
+    }
       } catch (err) {
         console.error("Error general cargando el panel de pagos", err);
         setError("No se pudo cargar el panel de pagos.");
@@ -369,6 +487,16 @@ export default function PagosDashboard() {
         detalle: "Pagos completados del mes en curso",
       },
       {
+        id: "cobertura",
+        className: "cobertura",
+        label: "Cubierto por obra social",
+        valor: formatCurrency(resumen.coberturaObraSocial, "ARS", false),
+        detalle:
+          resumen.coberturaObraSocial > 0
+            ? "Descuentos aplicados por obras sociales este mes"
+            : "Sin bonificaciones registradas en el mes",
+      },
+      {
         id: "anteriores",
         className: "neta",
         label: "Cobros de meses anteriores",
@@ -378,6 +506,7 @@ export default function PagosDashboard() {
     ],
     [
       resumen.cobrosMesesAnteriores,
+      resumen.coberturaObraSocial,
       resumen.haberes,
       totals.cantidad_turnos,
       totals.total_pendiente,
@@ -780,32 +909,74 @@ export default function PagosDashboard() {
                                       </div>
 
                                       <ul className="pagos-cuotas">
-                                        {turno.pagos.map((pago) => (
-                                          <li key={pago.id}>
-                                            <div>
-                                              <span className="cuota-label">
-                                                Cuota #{pago.id}
-                                              </span>
-                                              <small>
-                                                Registrada el {formatDate(
-                                                  pago.registrado_en
+                                        {turno.pagos.map((pago) => {
+                                          const pagoKey = pago.id || pago.id_pago;
+                                          const coverageInfo = computePagoCoverage(
+                                            pago,
+                                            row.nino
+                                          );
+                                          const tieneCobertura =
+                                            coverageInfo.cobertura > 0.01;
+                                          const montoPaciente = coverageInfo.saldoPaciente;
+                                          const montoOriginal = coverageInfo.montoOriginal;
+                                          return (
+                                            <li key={pagoKey}>
+                                              <div>
+                                                <span className="cuota-label">
+                                                  Cuota #{pagoKey}
+                                                </span>
+                                                <small>
+                                                  Registrada el {formatDate(
+                                                    pago.registrado_en
+                                                  )}
+                                                </small>
+                                              </div>
+                                              <div className="cuota-meta">
+                                                {tieneCobertura ? (
+                                                  <div className="cuota-amount-group">
+                                                    <span className="cuota-monto-original">
+                                                      Precio original: {formatCurrency(
+                                                        montoOriginal,
+                                                        pago.moneda || turnoMoneda,
+                                                        true
+                                                      )}
+                                                    </span>
+                                                    <span className="cuota-monto-final">
+                                                      Paciente paga: {formatCurrency(
+                                                        montoPaciente,
+                                                        pago.moneda || turnoMoneda,
+                                                        true
+                                                      )}
+                                                    </span>
+                                                  </div>
+                                                ) : (
+                                                  <span className="cuota-amount">
+                                                    {formatCurrency(
+                                                      pago.monto,
+                                                      pago.moneda || turnoMoneda,
+                                                      true
+                                                    )}
+                                                  </span>
                                                 )}
-                                              </small>
-                                            </div>
-                                            <div className="cuota-meta">
-                                              <span>
-                                                {formatCurrency(
-                                                  pago.monto,
-                                                  pago.moneda || turnoMoneda,
-                                                  true
-                                                )}
-                                              </span>
-                                              <small>
-                                                Método: {getPaymentMethodLabel(pago.metodo)}
-                                              </small>
-                                            </div>
-                                          </li>
-                                        ))}
+                                                <small>
+                                                  Método: {getPaymentMethodLabel(pago.metodo)}
+                                                </small>
+                                              </div>
+                                              {tieneCobertura && (
+                                                <div className="cuota-coverage">
+                                                  <span>Obra social cubre</span>
+                                                  <strong>
+                                                    {formatCurrency(
+                                                      coverageInfo.cobertura,
+                                                      pago.moneda || turnoMoneda,
+                                                      true
+                                                    )}
+                                                  </strong>
+                                                </div>
+                                              )}
+                                            </li>
+                                          );
+                                        })}
                                       </ul>
                                     </article>
                                   );

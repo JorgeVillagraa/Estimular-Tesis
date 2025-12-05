@@ -333,6 +333,41 @@
   color: var(--neutral-500);
 }
 
+.cuota-amount-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cuota-monto-original {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--neutral-500);
+  text-decoration: line-through;
+}
+
+.cuota-monto-final {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--neutral-800);
+}
+
+.cuota-coverage {
+  margin-top: 6px;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--neutral-600);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cuota-coverage strong {
+  font-size: 0.95rem;
+  color: var(--color-rosa1);
+}
+
 @media (max-width: 768px) {
   .pagos-dashboard-page {
     padding: 1.1rem;
