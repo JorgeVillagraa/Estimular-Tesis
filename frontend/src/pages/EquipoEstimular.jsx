@@ -1182,22 +1182,7 @@ export default function EquipoEstimular() {
                                 <button
                                   className="icon-btn edit"
                                   title="Editar"
-                                  onClick={() => {
-                                    setEditId(c.id_usuario);
-                                    setEditData({
-                                      nombre: c.nombre ?? "",
-                                      apellido: c.apellido ?? "",
-                                      fecha_nacimiento: fechaValue,
-                                      profesionId:
-                                        c.profesion_id ??
-                                        c.id_departamento ??
-                                        null,
-                                      email: c.email ?? "",
-                                      telefono: c.telefono ?? "",
-                                      usuario: { dni: c.dni },
-                                      tipo: c.tipo,
-                                    });
-                                  }}
+                                  onClick={() => startEdit(p)}
                                 >
                                   <MdEdit size={20} />
                                 </button>
