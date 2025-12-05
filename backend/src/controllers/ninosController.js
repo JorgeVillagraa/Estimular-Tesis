@@ -23,10 +23,26 @@ const mapNinoRow = (row) => {
 
 // GET /api/ninos?search=&page=1&pageSize=10&tipo=&dni=&departamentoId=
 const getNinos = async (req, res) => {
-    const { search = '', page = 1, pageSize = 10, tipo } = req.query;
+    const {
+        search = '',
+        page: pageRaw = 1,
+        pageSize: pageSizeRaw,
+        page_size: pageSizeSnake,
+        limit: limitRaw,
+        tipo,
+    } = req.query;
     const dniRaw = req.query.dni;
     const departamentoParam = req.query.departamentoId || req.query.departamento_id || req.query.departamentos;
-    const offset = (parseInt(page, 10) - 1) * parseInt(pageSize, 10);
+
+    const normalizedPageSizeInput = pageSizeRaw ?? pageSizeSnake ?? limitRaw ?? 10;
+    let pageSizeValue = parseInt(normalizedPageSizeInput, 10);
+    if (Number.isNaN(pageSizeValue) || pageSizeValue <= 0) pageSizeValue = 10;
+    pageSizeValue = Math.min(Math.max(pageSizeValue, 1), 100);
+
+    let pageValue = parseInt(pageRaw, 10);
+    if (Number.isNaN(pageValue) || pageValue <= 0) pageValue = 1;
+
+    const offset = (pageValue - 1) * pageSizeValue;
 
     try {
         const searchSafe = String(search || '').replace(/[%']/g, '').trim();
@@ -80,7 +96,7 @@ const getNinos = async (req, res) => {
             q = q.eq('tipo', tipo);
         }
 
-        q = q.range(offset, offset + parseInt(pageSize, 10) - 1);
+        q = q.range(offset, offset + pageSizeValue - 1);
 
         const { data, error, count } = await q;
         if (error) throw error;

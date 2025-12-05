@@ -76,13 +76,13 @@ app.use('/api/contact', contactosRoutes);
 app.use('/api/entrevista', entrevistaRoutes);
 app.use('/api/obras-sociales', obrasSocRoutes);
 app.use('/api/candidatos', candidatosRoutes);
+// Rutas del dashboard
+app.use('/api/ninos', ninosRoutes);
+
 app.use('/api', ninoRoutes);
 app.use('/api', turnoRoutes);
 app.use('/api', pagoRoutes);
 app.use('/api', notificacionRoutes);
-
-// Rutas del dashboard
-app.use('/api/ninos', ninosRoutes);
 app.use('/api/responsables', responsablesRoutes);
 app.use('/api/turnos', turnosRoutes);
 app.use('/api/equipo', equipoRoutes);
