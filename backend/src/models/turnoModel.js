@@ -513,7 +513,7 @@ async function getTurnoFormData() {
   const [departamentosResult, consultoriosResult, rolesCatalogResult, profesionalDepartamentosResult] = await Promise.all([
     supabase
       .from('profesiones')
-      .select('id_departamento, nombre, duracion_default_min, descripcion, responsable_id')
+      .select('id_departamento, nombre, duracion_default_min, descripcion, responsable_id, precio_default, precio_actualizado_en')
       .order('nombre', { ascending: true }),
     supabase
       .from('consultorios')
@@ -683,7 +683,31 @@ async function createTurno({
       if (profesionalesError) throw profesionalesError;
     }
 
-    const montoNumerico = precio === null || precio === undefined ? null : Number(precio);
+    let precioBase = precio;
+
+    if (
+      precioBase === undefined ||
+      precioBase === null ||
+      (typeof precioBase === 'string' && precioBase.trim() === '') ||
+      (Number.isFinite(Number(precioBase)) && Number(precioBase) <= 0)
+    ) {
+      try {
+        const { data: departamentoData, error: departamentoError } = await supabase
+          .from('profesiones')
+          .select('precio_default')
+          .eq('id_departamento', departamento_id)
+          .maybeSingle();
+
+        if (!departamentoError && departamentoData && departamentoData.precio_default) {
+          precioBase = departamentoData.precio_default;
+        }
+      } catch (precioDefaultError) {
+        console.warn('No se pudo obtener el precio default del departamento', precioDefaultError);
+      }
+    }
+
+    const montoNumerico =
+      precioBase === null || precioBase === undefined ? null : Number(precioBase);
 
     if (montoNumerico !== null && !Number.isNaN(montoNumerico) && montoNumerico > 0) {
       const montoOriginal = Number(montoNumerico.toFixed(2));

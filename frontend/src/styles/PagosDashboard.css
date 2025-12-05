@@ -380,3 +380,197 @@
     width: 100%;
   }
 }
+
+  .pagos-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 20, 35, 0.55);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 1000;
+  }
+
+  .pagos-modal {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+    max-width: 960px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pagos-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 1.5rem 1.75rem 1rem;
+    border-bottom: 1px solid var(--neutral-200);
+  }
+
+  .pagos-modal-header h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.35rem;
+    color: var(--color-rosa1);
+  }
+
+  .pagos-modal-header p {
+    margin: 0;
+    color: var(--neutral-600);
+    max-width: 560px;
+    font-size: 0.95rem;
+  }
+
+  .pagos-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--neutral-500);
+    transition: color 0.12s ease;
+  }
+
+  .pagos-modal-close:hover:not(:disabled) {
+    color: var(--color-rosa1);
+  }
+
+  .pagos-modal-body {
+    padding: 1.25rem 1.75rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .pagos-modal-alert {
+    background: rgba(198, 40, 40, 0.1);
+    color: var(--accent-red, #c62828);
+    border: 1px solid rgba(198, 40, 40, 0.22);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-size: 0.92rem;
+  }
+
+  .pagos-modal-date {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .pagos-modal-date label {
+    font-weight: 600;
+    color: var(--neutral-700);
+  }
+
+  .pagos-modal-date input[type="date"] {
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--neutral-300);
+    font-size: 0.95rem;
+  }
+
+  .pagos-modal-loading,
+  .pagos-modal-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--neutral-600);
+    border: 1px dashed var(--neutral-200);
+    border-radius: var(--radius);
+  }
+
+  .pagos-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.1rem;
+  }
+
+  .pagos-modal-card {
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius);
+    padding: 1rem;
+    background: var(--card-bg);
+    box-shadow: 0 4px 18px rgba(9, 30, 66, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .pagos-modal-card-header h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.05rem;
+    color: var(--neutral-800);
+  }
+
+  .pagos-modal-card-header small {
+    color: var(--neutral-500);
+    font-size: 0.78rem;
+  }
+
+  .pagos-modal-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .precio-actual {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: var(--neutral-600);
+    font-size: 0.9rem;
+  }
+
+  .precio-actual strong {
+    font-size: 1.1rem;
+    color: var(--color-rosa1);
+  }
+
+  .precio-nuevo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .precio-nuevo label {
+    font-weight: 600;
+    color: var(--neutral-700);
+  }
+
+  .precio-nuevo input {
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid var(--neutral-300);
+    font-size: 0.95rem;
+  }
+
+  .pagos-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.75rem 1.5rem;
+    border-top: 1px solid var(--neutral-200);
+  }
+
+  @media (max-width: 720px) {
+    .pagos-modal {
+      max-height: 95vh;
+    }
+
+    .pagos-modal-header,
+    .pagos-modal-body,
+    .pagos-modal-footer {
+      padding-left: 1.25rem;
+      padding-right: 1.25rem;
+    }
+
+    .pagos-modal-grid {
+      grid-template-columns: 1fr;
+    }
+  }

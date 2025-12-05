@@ -116,6 +116,7 @@ export default function NuevoTurnoPanel({
   const [successMessage, setSuccessMessage] = useState('');
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const modalRef = useRef(null);
+  const previousDepartamentoIdRef = useRef(null);
 
   const departamentoBloqueado = Boolean(prefillData?.departamento_bloqueado);
 
@@ -357,13 +358,53 @@ export default function NuevoTurnoPanel({
     const departamento = formOptions.departamentos.find(
       (dep) => String(dep.id_departamento) === String(formData.departamento_id)
     );
-    if (departamento?.duracion_default_min) {
-      setFormData((prev) => ({
-        ...prev,
-        duracion_min: departamento.duracion_default_min,
-      }));
-    }
-  }, [formData.departamento_id, formOptions.departamentos]);
+    if (!departamento) return;
+
+    const prefillPrecioDefined =
+      prefillData &&
+      prefillData.precio !== undefined &&
+      prefillData.precio !== null &&
+      String(prefillData.precio).trim() !== '';
+
+    const departamentoCambio =
+      previousDepartamentoIdRef.current !== String(formData.departamento_id);
+
+    setFormData((prev) => {
+      const next = { ...prev };
+
+      if (Number.isFinite(Number(departamento.duracion_default_min))) {
+        next.duracion_min = Number(departamento.duracion_default_min);
+      }
+
+      const precioDefaultRaw =
+        departamento.precio_default === undefined || departamento.precio_default === null
+          ? null
+          : departamento.precio_default;
+      const precioDefaultNumber =
+        precioDefaultRaw === null ? null : Number(precioDefaultRaw);
+
+      if (
+        precioDefaultNumber !== null &&
+        Number.isFinite(precioDefaultNumber) &&
+        ((departamentoCambio && !prefillPrecioDefined) ||
+          prev.precio === '' ||
+          prev.precio === null ||
+          prev.precio === undefined)
+      ) {
+        next.precio = String(precioDefaultNumber);
+      } else if (
+        departamentoCambio &&
+        (precioDefaultNumber === null || !Number.isFinite(precioDefaultNumber)) &&
+        !prefillPrecioDefined
+      ) {
+        next.precio = '';
+      }
+
+      return next;
+    });
+
+    previousDepartamentoIdRef.current = String(formData.departamento_id);
+  }, [formData.departamento_id, formOptions.departamentos, prefillData]);
 
   const profesionalesFiltrados = useMemo(() => {
     const listaProfesionales = Array.isArray(formOptions.profesionales)

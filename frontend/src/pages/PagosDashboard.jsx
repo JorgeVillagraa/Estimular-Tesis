@@ -101,6 +101,15 @@ function formatDateTime(value) {
   return dateTimeFormatter.format(date);
 }
 
+function toDateInputValue(date = new Date()) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - tzOffset);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function getRowKey(row, index) {
   if (row?.nino?.id_nino) {
     return `nino-${row.nino.id_nino}`;
@@ -128,6 +137,12 @@ export default function PagosDashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [paymentModalState, setPaymentModalState] = useState(EMPTY_MODAL_STATE);
   const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [priceModalLoading, setPriceModalLoading] = useState(false);
+  const [priceModalError, setPriceModalError] = useState("");
+  const [priceModalDepartamentos, setPriceModalDepartamentos] = useState([]);
+  const [priceEffectiveDate, setPriceEffectiveDate] = useState(() => toDateInputValue());
+  const [priceSaving, setPriceSaving] = useState(false);
 
   const toggleProcessingKey = useCallback((key, isActive) => {
     setProcessingKeys((prev) => {
@@ -217,6 +232,108 @@ export default function PagosDashboard() {
   useEffect(() => {
     fetchData(true);
   }, [fetchData]);
+
+  const handleOpenPriceModal = useCallback(async () => {
+    setPriceModalOpen(true);
+    setPriceModalError("");
+    setPriceModalLoading(true);
+    setPriceSaving(false);
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/profesiones`);
+      const items = Array.isArray(response?.data?.data) ? response.data.data : [];
+      const mapped = items.map((item) => ({
+        id_departamento: item.id_departamento,
+        nombre: item.nombre || "Sin nombre",
+        precio_actual: Number(item.precio_default || 0),
+        precio_nuevo:
+          item.precio_default === null || item.precio_default === undefined
+            ? ""
+            : String(Number(item.precio_default)),
+        precio_actualizado_en: item.precio_actualizado_en || null,
+      }));
+      setPriceModalDepartamentos(mapped);
+      setPriceEffectiveDate((prev) => prev || toDateInputValue());
+    } catch (error) {
+      console.error("Error al cargar precios de profesiones", error);
+      setPriceModalError("No se pudieron cargar los precios actuales.");
+      setPriceModalDepartamentos([]);
+    } finally {
+      setPriceModalLoading(false);
+    }
+  }, []);
+
+  const handleClosePriceModal = useCallback(() => {
+    if (priceSaving) return;
+    setPriceModalOpen(false);
+    setPriceModalError("");
+  }, [priceSaving]);
+
+  const handleChangeDepartamentoPrecio = useCallback((departamentoId, value) => {
+    const sanitized = value.replace(/[^0-9.,]/g, "").replace(",", ".");
+    setPriceModalDepartamentos((prev) =>
+      prev.map((dep) =>
+        dep.id_departamento === departamentoId
+          ? {
+              ...dep,
+              precio_nuevo: sanitized,
+            }
+          : dep
+      )
+    );
+    setPriceModalError("");
+  }, []);
+
+  const handleApplyPriceChanges = useCallback(async () => {
+    setPriceModalError("");
+
+    if (!priceEffectiveDate) {
+      setPriceModalError("Seleccioná la fecha desde la que se aplicará el nuevo precio.");
+      return;
+    }
+
+    const updates = priceModalDepartamentos
+      .map((dep) => {
+        const parsed = Number(dep.precio_nuevo);
+        if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+          return null;
+        }
+        return {
+          departamento_id: dep.id_departamento,
+          nuevo_precio: Number(parsed.toFixed(2)),
+        };
+      })
+      .filter(Boolean);
+
+    if (updates.length === 0) {
+      setPriceModalError("Ingresá al menos un precio válido mayor a 0.");
+      return;
+    }
+
+    setPriceSaving(true);
+    try {
+      const payload = {
+        aplicar_desde: priceEffectiveDate,
+        actualizaciones: updates,
+      };
+      await axios.post(`${API_BASE_URL}/api/profesiones/ajustar-precios`, payload);
+      setPriceModalOpen(false);
+      Swal.fire({
+        icon: "success",
+        title: "Precios actualizados",
+        text: "Se aplicaron los nuevos precios a los turnos futuros.",
+        confirmButtonColor: "#e91e63",
+      });
+      fetchData(true);
+    } catch (error) {
+      console.error("Error al ajustar precios", error);
+      const message =
+        error?.response?.data?.message || "No se pudieron actualizar los precios.";
+      setPriceModalError(message);
+    } finally {
+      setPriceSaving(false);
+    }
+  }, [fetchData, priceEffectiveDate, priceModalDepartamentos]);
 
   const toggleRow = useCallback((key) => {
     setExpandedRows((prev) => {
@@ -456,6 +573,14 @@ export default function PagosDashboard() {
                 Actualizado: {formatDateTime(lastUpdated)}
               </span>
             )}
+            <button
+              type="button"
+              className="pagos-btn primary"
+              onClick={handleOpenPriceModal}
+              disabled={loading}
+            >
+              Ajustar precios
+            </button>
             <button
               type="button"
               className="pagos-btn refresh"
@@ -699,6 +824,127 @@ export default function PagosDashboard() {
           </div>
         </div>
       </section>
+      {priceModalOpen && (
+        <div
+          className="pagos-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={handleClosePriceModal}
+        >
+          <div
+            className="pagos-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="pagos-modal-header">
+              <div>
+                <h2>Actualizar precios de los turnos</h2>
+                <p>
+                  Configurá el valor base que se aplicará a los turnos programados
+                  desde la fecha seleccionada en adelante.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="pagos-modal-close"
+                onClick={handleClosePriceModal}
+                disabled={priceSaving}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="pagos-modal-body">
+              {priceModalError && (
+                <div className="pagos-modal-alert">{priceModalError}</div>
+              )}
+
+              <div className="pagos-modal-date">
+                <label htmlFor="price-effective-date">Aplicar precios desde</label>
+                <input
+                  id="price-effective-date"
+                  type="date"
+                  value={priceEffectiveDate}
+                  onChange={(event) => {
+                    setPriceEffectiveDate(event.target.value);
+                    setPriceModalError("");
+                  }}
+                  disabled={priceSaving}
+                />
+              </div>
+
+              {priceModalLoading ? (
+                <div className="pagos-modal-loading">Cargando profesiones…</div>
+              ) : priceModalDepartamentos.length === 0 ? (
+                <div className="pagos-modal-empty">
+                  No se encontraron profesiones para ajustar.
+                </div>
+              ) : (
+                <div className="pagos-modal-grid">
+                  {priceModalDepartamentos.map((departamento) => (
+                    <div key={departamento.id_departamento} className="pagos-modal-card">
+                      <div className="pagos-modal-card-header">
+                        <h3>{departamento.nombre}</h3>
+                        {departamento.precio_actualizado_en && (
+                          <small>
+                            Último ajuste: {formatDateTime(departamento.precio_actualizado_en)}
+                          </small>
+                        )}
+                      </div>
+                      <div className="pagos-modal-card-body">
+                        <div className="precio-actual">
+                          <span>Precio actual</span>
+                          <strong>
+                            {formatCurrency(departamento.precio_actual, "ARS", true)}
+                          </strong>
+                        </div>
+                        <div className="precio-nuevo">
+                          <label htmlFor={`precio-nuevo-${departamento.id_departamento}`}>
+                            Nuevo precio
+                          </label>
+                          <input
+                            id={`precio-nuevo-${departamento.id_departamento}`}
+                            type="text"
+                            inputMode="decimal"
+                            value={departamento.precio_nuevo}
+                            onChange={(event) =>
+                              handleChangeDepartamentoPrecio(
+                                departamento.id_departamento,
+                                event.target.value
+                              )
+                            }
+                            disabled={priceSaving}
+                            placeholder="Ej: 5000"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pagos-modal-footer">
+              <button
+                type="button"
+                className="pagos-btn secondary"
+                onClick={handleClosePriceModal}
+                disabled={priceSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="pagos-btn primary"
+                onClick={handleApplyPriceChanges}
+                disabled={priceSaving || priceModalLoading}
+              >
+                {priceSaving ? "Guardando…" : "Aplicar cambios"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <SelectPaymentMethodModal
         open={paymentModalState.open}
         title={paymentModalState.title}

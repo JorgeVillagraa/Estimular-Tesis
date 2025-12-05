@@ -135,6 +135,8 @@ create table public.profesiones (
   nombre character varying not null,
   duracion_default_min integer not null default 30,
   descripcion text null,
+  precio_default numeric(12, 2) not null default 0,
+  precio_actualizado_en timestamp with time zone not null default now(),
   responsable_id bigint null,
   constraint profesiones_pkey primary key (id_departamento),
   constraint profesiones_nombre_key unique (nombre)
