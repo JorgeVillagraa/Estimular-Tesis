@@ -78,6 +78,114 @@ const formatCurrency = (amount, currency = 'ARS') => {
   }
 };
 
+const toPositiveAmount = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return null;
+  if (parsed <= 0) return null;
+  return Number(parsed.toFixed(2));
+};
+
+const normalizeObraSocialDiscount = (nino) => {
+  if (!nino || typeof nino !== 'object') {
+    return { tipo: 'ninguno', valor: 0, amount: null, percent: null, hasDiscount: false };
+  }
+
+  const tipoRaw = typeof nino.paciente_obra_social_descuento_tipo === 'string'
+    ? nino.paciente_obra_social_descuento_tipo.toLowerCase()
+    : null;
+
+  const valorCampo = nino.paciente_obra_social_descuento_valor ?? nino.paciente_obra_social_descuento;
+
+  const candidateValores = [
+    valorCampo,
+    nino.obra_social_descuento,
+    nino.obra_social?.descuento,
+    nino.descuento,
+  ].filter((value) => value !== undefined && value !== null);
+
+  const pickFirstNumber = () => {
+    for (const value of candidateValores) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed) && !Number.isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+    return null;
+  };
+
+  const fallbackValue = pickFirstNumber();
+
+  let tipo = 'ninguno';
+  let amount = null;
+  let percent = null;
+  let valor = 0;
+
+  if (tipoRaw === 'monto') {
+    const monto = toPositiveAmount(valorCampo ?? fallbackValue);
+    if (monto) {
+      tipo = 'monto';
+      amount = monto;
+      valor = monto;
+    }
+  } else if (tipoRaw === 'porcentaje') {
+    const porcentaje = clampDiscount(valorCampo ?? fallbackValue ?? 0);
+    if (porcentaje > 0) {
+      tipo = 'porcentaje';
+      percent = porcentaje;
+      valor = porcentaje;
+    }
+  } else if (fallbackValue) {
+    if (fallbackValue > 1) {
+      const monto = toPositiveAmount(fallbackValue);
+      if (monto) {
+        tipo = 'monto';
+        amount = monto;
+        valor = monto;
+      }
+    } else {
+      const porcentaje = clampDiscount(fallbackValue);
+      if (porcentaje > 0) {
+        tipo = 'porcentaje';
+        percent = porcentaje;
+        valor = porcentaje;
+      }
+    }
+  }
+
+  const hasDiscount = (tipo === 'monto' && amount) || (tipo === 'porcentaje' && percent);
+
+  return {
+    tipo,
+    valor,
+    amount: amount ?? null,
+    percent: percent ?? null,
+    hasDiscount: Boolean(hasDiscount),
+  };
+};
+
+const computeDiscountedPrice = (basePrice, discountInfo) => {
+  if (basePrice === null || basePrice === undefined) return null;
+  const base = Number(basePrice);
+  if (!Number.isFinite(base) || Number.isNaN(base)) return null;
+  if (!discountInfo || !discountInfo.hasDiscount) {
+    return Number(base.toFixed(2));
+  }
+
+  let final = base;
+
+  if (discountInfo.tipo === 'monto' && discountInfo.amount) {
+    final = base - discountInfo.amount;
+  } else if (discountInfo.tipo === 'porcentaje' && discountInfo.percent) {
+    final = base * (1 - discountInfo.percent);
+  }
+
+  if (!Number.isFinite(final) || Number.isNaN(final)) {
+    return Number(base.toFixed(2));
+  }
+
+  return Math.max(0, Number(final.toFixed(2)));
+};
+
 export default function NuevoTurnoPanel({
   isOpen,
   onClose,
@@ -136,15 +244,26 @@ export default function NuevoTurnoPanel({
     return departamentosResumen.join(', ');
   }, [departamentosResumen, prefillData]);
 
-  const obraSocialDescuento = useMemo(() => {
-    if (!selectedNino) return 0;
-    return clampDiscount(selectedNino.paciente_obra_social_descuento);
-  }, [selectedNino]);
+  const obraSocialDescuentoInfo = useMemo(
+    () => normalizeObraSocialDiscount(selectedNino),
+    [selectedNino]
+  );
 
   const porcentajeDescuento = useMemo(() => {
-    if (!obraSocialDescuento) return 0;
-    return Math.round(obraSocialDescuento * 100);
-  }, [obraSocialDescuento]);
+    if (!obraSocialDescuentoInfo || obraSocialDescuentoInfo.tipo !== 'porcentaje') {
+      return null;
+    }
+    const percent = obraSocialDescuentoInfo.percent ?? obraSocialDescuentoInfo.valor;
+    if (!percent) return null;
+    return Math.round(percent * 100);
+  }, [obraSocialDescuentoInfo]);
+
+  const obraSocialDescuentoMonto = useMemo(() => {
+    if (!obraSocialDescuentoInfo || obraSocialDescuentoInfo.tipo !== 'monto') {
+      return null;
+    }
+    return obraSocialDescuentoInfo.amount ?? obraSocialDescuentoInfo.valor ?? null;
+  }, [obraSocialDescuentoInfo]);
 
   const precioOriginalNumber = useMemo(() => {
     if (formData.precio === '' || formData.precio === null || formData.precio === undefined) {
@@ -157,12 +276,10 @@ export default function NuevoTurnoPanel({
     return Number(parsed.toFixed(2));
   }, [formData.precio]);
 
-  const precioConDescuento = useMemo(() => {
-    if (precioOriginalNumber === null) return null;
-    if (!obraSocialDescuento) return precioOriginalNumber;
-    const final = Number((precioOriginalNumber * (1 - obraSocialDescuento)).toFixed(2));
-    return final < 0 ? 0 : final;
-  }, [precioOriginalNumber, obraSocialDescuento]);
+  const precioConDescuento = useMemo(
+    () => computeDiscountedPrice(precioOriginalNumber, obraSocialDescuentoInfo),
+    [precioOriginalNumber, obraSocialDescuentoInfo]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -645,7 +762,7 @@ export default function NuevoTurnoPanel({
         nino_id: selectedNino.paciente_id || selectedNino.id_nino,
         notas: formData.notas?.trim() || null,
         profesional_ids: profesionalIdsSeleccionados,
-        precio: precioOriginalNumber === null ? null : precioConDescuento,
+        precio: precioOriginalNumber === null ? null : precioOriginalNumber,
         estado: formData.estado,
       };
 
@@ -761,8 +878,7 @@ export default function NuevoTurnoPanel({
                         Servicios incluidos: <strong>{serviciosResumen}</strong>
                       </p>
                     )}
-                    <div className="multi-turno-title">Profesionales confirmados</div>
-                    <ul className="multi-turno-list">
+                    <ul className="multi-turno-profesionales">
                       {(() => {
                         const multipleServicios =
                           Array.isArray(prefillData?.departamentos_resumen) &&
@@ -770,10 +886,13 @@ export default function NuevoTurnoPanel({
 
                         return prefillData.profesionales_resumen.map((prof) => {
                           const departamentos = Array.isArray(prof.departamentos)
-                            ? prof.departamentos.filter((nombre) => typeof nombre === 'string' && nombre.trim() !== '')
+                            ? prof.departamentos.filter(
+                                (nombre) => typeof nombre === 'string' && nombre.trim() !== ''
+                              )
                             : [];
                           const shouldMostrarDepartamentos =
-                            departamentos.length > 1 || (multipleServicios && departamentos.length > 0);
+                            departamentos.length > 1 ||
+                            (multipleServicios && departamentos.length > 0);
 
                           return (
                             <li key={prof.id_profesional}>
@@ -827,17 +946,18 @@ export default function NuevoTurnoPanel({
                   {!isSearchingNinos && ninoResultados.length > 0 && (
                     <ul className="autocomplete-list">
                       {ninoResultados.map((nino) => {
-                        const descuentoValor = clampDiscount(
-                          nino.paciente_obra_social_descuento ?? nino.obra_social?.descuento
-                        );
+                        const descuentoInfo = normalizeObraSocialDiscount(nino);
                         const obraSocialNombre =
                           nino.paciente_obra_social ||
                           nino.obra_social?.nombre_obra_social ||
                           'Sin obra social';
-                        const descuentoLabel =
-                          descuentoValor > 0
-                            ? `${Math.round(descuentoValor * 100)}% cubierto`
-                            : null;
+                        let descuentoLabel = null;
+                        if (descuentoInfo.tipo === 'porcentaje' && descuentoInfo.percent) {
+                          descuentoLabel = `${Math.round(descuentoInfo.percent * 100)}% cubierto`;
+                        } else if (descuentoInfo.tipo === 'monto' && descuentoInfo.amount) {
+                          descuentoLabel = `Cubre ${formatCurrency(descuentoInfo.amount)}`;
+                        }
+
                         const nombreCompleto = getNinoNombreCompleto(nino) || 'Sin nombre';
 
                         return (
@@ -865,10 +985,14 @@ export default function NuevoTurnoPanel({
                     <p>
                       <strong>Obra social:</strong>{' '}
                       {selectedNino.paciente_obra_social || 'Sin obra social'}
-                      {obraSocialDescuento > 0 && (
+                      {obraSocialDescuentoInfo.hasDiscount && (
                         <span className="selected-nino-discount">
                           {' '}
-                          ({porcentajeDescuento}% de descuento)
+                          {obraSocialDescuentoInfo.tipo === 'porcentaje' && porcentajeDescuento !== null
+                            ? `(${porcentajeDescuento}% cubierto)`
+                            : obraSocialDescuentoInfo.tipo === 'monto' && obraSocialDescuentoMonto
+                            ? `(Cubre ${formatCurrency(obraSocialDescuentoMonto)})`
+                            : ''}
                         </span>
                       )}
                     </p>
@@ -1072,20 +1196,35 @@ export default function NuevoTurnoPanel({
                     }}
                     placeholder="Ej: 4500"
                   />
-                  {selectedNino && obraSocialDescuento > 0 && precioOriginalNumber !== null && (
-                    <div className="price-discount-preview">
-                      <span className="price-original">
-                        {formatCurrency(precioOriginalNumber)}
-                      </span>
-                      <span className="price-arrow" aria-hidden="true">→</span>
-                      <span className="price-discounted">
-                        {formatCurrency(precioConDescuento)}
-                      </span>
-                      <span className="price-discount-note">
-                        {porcentajeDescuento}% cubierto por obra social
-                      </span>
-                    </div>
-                  )}
+                  {selectedNino &&
+                    obraSocialDescuentoInfo.hasDiscount &&
+                    precioOriginalNumber !== null &&
+                    precioConDescuento !== null &&
+                    (() => {
+                      let discountNote = null;
+                      if (obraSocialDescuentoInfo.tipo === 'porcentaje' && porcentajeDescuento !== null) {
+                        discountNote = `${porcentajeDescuento}% cubierto por obra social`;
+                      } else if (obraSocialDescuentoInfo.tipo === 'monto' && obraSocialDescuentoMonto) {
+                        discountNote = `Obra social cubre ${formatCurrency(
+                          Math.min(obraSocialDescuentoMonto, precioOriginalNumber)
+                        )}`;
+                      }
+
+                      return (
+                        <div className="price-discount-preview">
+                          <span className="price-original">
+                            {formatCurrency(precioOriginalNumber)}
+                          </span>
+                          <span className="price-arrow" aria-hidden="true">→</span>
+                          <span className="price-discounted">
+                            {formatCurrency(precioConDescuento)}
+                          </span>
+                          {discountNote && (
+                            <span className="price-discount-note">{discountNote}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                 </div>
               </div>
 

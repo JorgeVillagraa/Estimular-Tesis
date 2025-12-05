@@ -24,6 +24,23 @@ function formatResponsables(responsables = []) {
     .filter((item) => item.id_responsable || item.nombre || item.apellido);
 }
 
+function parseDiscountDescriptor(rawValue) {
+  if (rawValue === null || rawValue === undefined) {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  if (parsed > 1) {
+    return { tipo: 'monto', valor: Number(parsed.toFixed(2)) };
+  }
+
+  return { tipo: 'porcentaje', valor: Math.min(Math.max(parsed, 0), 1) };
+}
+
 function formatNinoDetails(nino) {
   if (!nino) {
     return {
@@ -51,6 +68,9 @@ function formatNinoDetails(nino) {
       titular_nombre: null,
       obra_social: null,
       paciente_obra_social_descuento: null,
+      paciente_obra_social_descuento_tipo: 'ninguno',
+      paciente_obra_social_descuento_valor: 0,
+      paciente_obra_social_descuento_porcentaje: null,
       cud: null,
     };
   }
@@ -62,22 +82,19 @@ function formatNinoDetails(nino) {
 
   let obraSocialDescuento = nino.obra_social?.descuento;
   if (obraSocialDescuento === undefined || obraSocialDescuento === null) {
-    obraSocialDescuento = nino.paciente_obra_social_descuento ?? nino.descuento ?? null;
+    obraSocialDescuento =
+      nino.paciente_obra_social_descuento ?? nino.descuento ?? nino.obra_social_descuento ?? null;
   }
 
-  let obraSocialDescuentoValue = null;
-  if (obraSocialDescuento !== null && obraSocialDescuento !== undefined) {
-    const parsed = Number(obraSocialDescuento);
-    if (Number.isFinite(parsed) && !Number.isNaN(parsed)) {
-      if (parsed < 0) {
-        obraSocialDescuentoValue = 0;
-      } else if (parsed > 1) {
-        obraSocialDescuentoValue = 1;
-      } else {
-        obraSocialDescuentoValue = parsed;
-      }
-    }
-  }
+  const obraSocialDescuentoDescriptor = parseDiscountDescriptor(obraSocialDescuento);
+  const obraSocialDescuentoMonto =
+    obraSocialDescuentoDescriptor.tipo === 'monto'
+      ? obraSocialDescuentoDescriptor.valor
+      : null;
+  const obraSocialDescuentoPorcentaje =
+    obraSocialDescuentoDescriptor.tipo === 'porcentaje'
+      ? obraSocialDescuentoDescriptor.valor
+      : null;
 
   const responsables = formatResponsables(nino.responsables);
   const principal =
@@ -117,7 +134,10 @@ function formatNinoDetails(nino) {
     email: principal?.email ?? null,
     titular_nombre: titularNombre,
     obra_social: obraSocialNombre,
-    paciente_obra_social_descuento: obraSocialDescuentoValue,
+    paciente_obra_social_descuento: obraSocialDescuentoMonto,
+    paciente_obra_social_descuento_tipo: obraSocialDescuentoDescriptor.tipo,
+    paciente_obra_social_descuento_valor: obraSocialDescuentoDescriptor.valor,
+    paciente_obra_social_descuento_porcentaje: obraSocialDescuentoPorcentaje,
     cud: cudLabel,
   };
 }

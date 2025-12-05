@@ -16,12 +16,60 @@ function normalizeProfessionalId(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function clampDiscount(value) {
+function clampPercent(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
   if (parsed < 0) return 0;
   if (parsed > 1) return 1;
   return parsed;
+}
+
+function parseDiscountDescriptor(rawValue) {
+  if (rawValue === null || rawValue === undefined) {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  if (parsed > 1) {
+    return { tipo: 'monto', valor: Number(parsed.toFixed(2)) };
+  }
+
+  return { tipo: 'porcentaje', valor: clampPercent(parsed) };
+}
+
+function computeDiscountAmount(baseAmount, descriptor) {
+  const base = Number(baseAmount);
+  if (!Number.isFinite(base) || Number.isNaN(base) || base <= 0) {
+    return 0;
+  }
+
+  if (!descriptor || descriptor.tipo === 'ninguno') {
+    return 0;
+  }
+
+  if (descriptor.tipo === 'monto') {
+    const parsed = Number(descriptor.valor);
+    if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+      return 0;
+    }
+    return Math.min(Number(parsed.toFixed(2)), base);
+  }
+
+  if (descriptor.tipo === 'porcentaje') {
+    const ratio = clampPercent(descriptor.valor);
+    if (ratio <= 0) return 0;
+    const amount = Number((base * ratio).toFixed(2));
+    if (!Number.isFinite(amount) || Number.isNaN(amount) || amount <= 0) {
+      return 0;
+    }
+    return Math.min(amount, base);
+  }
+
+  return 0;
 }
 
 function extractFirstNumber(value) {
@@ -48,7 +96,7 @@ function compareConsultoriosNatural(a, b) {
 }
 
 async function fetchObraSocialDescuentoByNinoId(ninoId) {
-  if (!ninoId) return 0;
+  if (!ninoId) return { tipo: 'ninguno', valor: 0 };
   try {
     const { data, error } = await supabase
       .from('ninos')
@@ -61,14 +109,14 @@ async function fetchObraSocialDescuentoByNinoId(ninoId) {
 
     if (error) {
       console.error('fetchObraSocialDescuentoByNinoId error:', error);
-      return 0;
+      return { tipo: 'ninguno', valor: 0 };
     }
 
     const raw = data?.obra_social?.descuento;
-    return clampDiscount(raw);
+    return parseDiscountDescriptor(raw);
   } catch (err) {
     console.error('fetchObraSocialDescuentoByNinoId exception:', err);
-    return 0;
+    return { tipo: 'ninguno', valor: 0 };
   }
 }
 
@@ -711,32 +759,15 @@ async function createTurno({
 
     if (montoNumerico !== null && !Number.isNaN(montoNumerico) && montoNumerico > 0) {
       const montoOriginal = Number(montoNumerico.toFixed(2));
-      let montoFinal = montoOriginal;
-      let notas = null;
-
-      if (nino_id) {
-        const descuento = await fetchObraSocialDescuentoByNinoId(nino_id);
-        if (descuento > 0) {
-          montoFinal = Math.max(Number((montoOriginal * (1 - descuento)).toFixed(2)), 0);
-          notas = JSON.stringify({
-            monto_original: montoOriginal,
-            descuento_aplicado: descuento,
-          });
-        }
-      }
 
       const pagoPayload = {
         turno_id: turnoId,
-        monto: montoFinal,
+        monto: montoOriginal,
         moneda: 'ARS',
         metodo: 'por_definir',
         estado: 'pendiente',
         nino_id,
       };
-
-      if (notas) {
-        pagoPayload.notas = notas;
-      }
 
       const { error: pagoError } = await supabase.from('pagos').insert(pagoPayload);
 

@@ -1,8 +1,6 @@
 const { supabaseAdmin } = require('../config/db');
 
 const PAGO_ESTADO_COMPLETADO = new Set(['completado']);
-const MONTO_DIFF_MINIMO_PARA_DESCUENTO = 5;
-const DESCUENTO_MINIMO_RELATIVO = 0.01;
 
 function normalizeDepartamentoId(value) {
     const parsed = Number(value);
@@ -24,21 +22,6 @@ function clampDiscount(value) {
     if (parsed < 0) return 0;
     if (parsed > 1) return 1;
     return parsed;
-}
-
-function parseNotas(notas) {
-    if (!notas || typeof notas !== 'string') {
-        return null;
-    }
-    try {
-        const parsed = JSON.parse(notas);
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            return parsed;
-        }
-        return null;
-    } catch (_err) {
-        return null;
-    }
 }
 
 const listProfesiones = async (_req, res) => {
@@ -175,6 +158,7 @@ const adjustProfesionesPrecios = async (req, res) => {
             const turnoId = turno.id;
             const nuevoPrecio = precioPorDepartamento.get(turno.departamento_id);
             if (!nuevoPrecio) continue;
+            const montoFinal = Number(nuevoPrecio.toFixed(2));
 
             const pagosTurno = pagosPorTurno.get(turnoId) || [];
             for (const pago of pagosTurno) {
@@ -182,69 +166,10 @@ const adjustProfesionesPrecios = async (req, res) => {
                     continue;
                 }
 
-                const notasParsed = parseNotas(pago.notas);
-                let descuentoAplicado = notasParsed?.descuento_aplicado;
-                let descuentoNormalizado = clampDiscount(descuentoAplicado);
-
-                if (!notasParsed || descuentoAplicado === undefined) {
-                    const montoActual = Number(pago.monto);
-                    const montoOriginalPrevio = notasParsed?.monto_original
-                        ? Number(notasParsed.monto_original)
-                        : null;
-
-                    if (montoOriginalPrevio && montoOriginalPrevio > 0) {
-                        const diferenciaPrevio = Math.abs(montoOriginalPrevio - montoActual);
-                        const ratio = 1 - montoActual / montoOriginalPrevio;
-                        if (
-                            diferenciaPrevio >= MONTO_DIFF_MINIMO_PARA_DESCUENTO ||
-                            Math.abs(ratio) >= DESCUENTO_MINIMO_RELATIVO
-                        ) {
-                            descuentoNormalizado = clampDiscount(ratio);
-                        } else {
-                            descuentoNormalizado = 0;
-                        }
-                    } else if (montoActual > 0 && nuevoPrecio > 0) {
-                        const diferenciaNueva = Math.abs(nuevoPrecio - montoActual);
-                        const ratio = 1 - montoActual / nuevoPrecio;
-                        if (
-                            diferenciaNueva >= MONTO_DIFF_MINIMO_PARA_DESCUENTO ||
-                            Math.abs(ratio) >= DESCUENTO_MINIMO_RELATIVO
-                        ) {
-                            descuentoNormalizado = clampDiscount(ratio);
-                        } else {
-                            descuentoNormalizado = 0;
-                        }
-                    } else {
-                        descuentoNormalizado = 0;
-                    }
-                }
-
-                if (descuentoNormalizado > 0) {
-                    const montoEsperadoConDescuento = nuevoPrecio * (1 - descuentoNormalizado);
-                    const diferenciaRespectoPrecio = Math.abs(nuevoPrecio - montoEsperadoConDescuento);
-                    if (
-                        diferenciaRespectoPrecio < MONTO_DIFF_MINIMO_PARA_DESCUENTO &&
-                        descuentoNormalizado < DESCUENTO_MINIMO_RELATIVO
-                    ) {
-                        descuentoNormalizado = 0;
-                    }
-                }
-
-                const montoFinal = Math.max(
-                    0,
-                    Number((nuevoPrecio * (1 - descuentoNormalizado)).toFixed(2))
-                );
-
-                const notasActualizadas = {
-                    ...(notasParsed && typeof notasParsed === 'object' ? notasParsed : {}),
-                    monto_original: nuevoPrecio,
-                    descuento_aplicado: descuentoNormalizado,
-                };
-
                 const payloadUpdate = {
                     monto: montoFinal,
                     actualizado_en: ahoraIso,
-                    notas: JSON.stringify(notasActualizadas),
+                    notas: null,
                 };
 
                 const { error: pagoUpdateError } = await supabaseAdmin

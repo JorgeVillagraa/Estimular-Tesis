@@ -1,3 +1,70 @@
+const clampPercent = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+  if (parsed < 0) return 0;
+  if (parsed > 1) return 1;
+  return parsed;
+};
+
+const toPositiveAmount = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return null;
+  if (parsed <= 0) return null;
+  return Number(parsed.toFixed(2));
+};
+
+const parseDiscountDescriptor = (rawValue) => {
+  if (rawValue === null || rawValue === undefined) {
+    return { tipo: "ninguno", valor: 0 };
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+    return { tipo: "ninguno", valor: 0 };
+  }
+
+  if (parsed > 1) {
+    return { tipo: "monto", valor: Number(parsed.toFixed(2)) };
+  }
+
+  return { tipo: "porcentaje", valor: clampPercent(parsed) };
+};
+
+const buildDescriptorFromRow = (raw) => {
+  const tipoRaw = typeof raw.paciente_obra_social_descuento_tipo === "string"
+    ? raw.paciente_obra_social_descuento_tipo.toLowerCase()
+    : null;
+
+  if (tipoRaw === "monto" || tipoRaw === "porcentaje") {
+    const valor = Number(raw.paciente_obra_social_descuento_valor ?? raw.paciente_obra_social_descuento);
+    if (tipoRaw === "monto") {
+      const monto = toPositiveAmount(valor);
+      if (monto) {
+        return { tipo: "monto", valor: monto };
+      }
+    }
+
+    if (tipoRaw === "porcentaje") {
+      const porcentaje = clampPercent(valor);
+      if (porcentaje > 0) {
+        return { tipo: "porcentaje", valor: porcentaje };
+      }
+    }
+  }
+
+  const rawValor = raw.paciente_obra_social_descuento ?? raw.obra_social_descuento ?? raw.descuento;
+  if (rawValor !== undefined && rawValor !== null) {
+    return parseDiscountDescriptor(rawValor);
+  }
+
+  const nestedValor = raw.obra_social?.descuento;
+  if (nestedValor !== undefined && nestedValor !== null) {
+    return parseDiscountDescriptor(nestedValor);
+  }
+
+  return { tipo: "ninguno", valor: 0 };
+};
+
 export function normalizeNinoRow(raw = {}) {
   const obraSocialSource =
     raw && typeof raw === "object" && raw.obra_social && typeof raw.obra_social === "object"
@@ -19,24 +86,9 @@ export function normalizeNinoRow(raw = {}) {
   const certifiedValue =
     raw.certificado_discapacidad ?? raw.paciente_certificado_discapacidad;
 
-  let obraSocialDescuento = obraSocialSource?.descuento;
-  if (obraSocialDescuento === undefined || obraSocialDescuento === null) {
-    obraSocialDescuento = raw.obra_social_descuento ?? raw.paciente_obra_social_descuento ?? raw.descuento ?? null;
-  }
-
-  let obraSocialDescuentoValue = null;
-  if (obraSocialDescuento !== undefined && obraSocialDescuento !== null) {
-    const parsed = Number(obraSocialDescuento);
-    if (Number.isFinite(parsed) && !Number.isNaN(parsed)) {
-      if (parsed < 0) {
-        obraSocialDescuentoValue = 0;
-      } else if (parsed > 1) {
-        obraSocialDescuentoValue = 1;
-      } else {
-        obraSocialDescuentoValue = parsed;
-      }
-    }
-  }
+  const descriptor = buildDescriptorFromRow(raw);
+  const descuentoMonto = descriptor.tipo === "monto" ? descriptor.valor : null;
+  const descuentoPorcentaje = descriptor.tipo === "porcentaje" ? descriptor.valor : null;
 
   const obraSocialFinal = obraSocialSource
     ? { ...obraSocialSource }
@@ -47,8 +99,12 @@ export function normalizeNinoRow(raw = {}) {
         }
       : null;
 
-  if (obraSocialFinal && obraSocialDescuentoValue !== null) {
-    obraSocialFinal.descuento = obraSocialDescuentoValue;
+  if (obraSocialFinal) {
+    if (descriptor.tipo === "porcentaje") {
+      obraSocialFinal.descuento = descuentoPorcentaje;
+    } else if (descriptor.tipo === "monto") {
+      obraSocialFinal.descuento_monto = descuentoMonto;
+    }
   }
 
   return {
@@ -63,8 +119,13 @@ export function normalizeNinoRow(raw = {}) {
     tipo: raw.tipo ?? raw.paciente_tipo ?? null,
     id_obra_social: idObraSocial,
     obra_social: obraSocialFinal,
-    obra_social_descuento: obraSocialDescuentoValue,
-    paciente_obra_social_descuento: obraSocialDescuentoValue,
+    obra_social_descuento: descuentoPorcentaje ?? null,
+    obra_social_descuento_monto: descuentoMonto,
+    obra_social_descuento_tipo: descriptor.tipo,
+    paciente_obra_social_descuento: descuentoMonto,
+    paciente_obra_social_descuento_tipo: descriptor.tipo,
+    paciente_obra_social_descuento_valor: descriptor.valor,
+    paciente_obra_social_descuento_porcentaje: descuentoPorcentaje,
   };
 }
 

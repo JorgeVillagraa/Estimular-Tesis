@@ -9,12 +9,122 @@ import {
 } from '../constants/paymentMethods';
 import './../styles/PagoModal.css';
 
-const clampDiscount = (value) => {
+const clampPercent = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
   if (parsed < 0) return 0;
   if (parsed > 1) return 1;
   return parsed;
+};
+
+const toCurrencyNumber = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return 0;
+  return Number(parsed.toFixed(2));
+};
+
+const toPositiveAmount = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return null;
+  if (parsed <= 0) return null;
+  return Number(parsed.toFixed(2));
+};
+
+const normalizeDescriptor = (tipo, valor) => {
+  const tipoLower = typeof tipo === 'string' ? tipo.toLowerCase() : null;
+  const parsed = Number(valor);
+
+  if (tipoLower === 'monto') {
+    const monto = toPositiveAmount(parsed);
+    if (monto) {
+      return { tipo: 'monto', valor: monto };
+    }
+  }
+
+  if (tipoLower === 'porcentaje') {
+    const porcentaje = clampPercent(parsed);
+    if (porcentaje > 0) {
+      return { tipo: 'porcentaje', valor: porcentaje };
+    }
+  }
+
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  if (parsed > 1) {
+    const monto = toPositiveAmount(parsed);
+    if (monto) {
+      return { tipo: 'monto', valor: monto };
+    }
+  }
+
+  const porcentaje = clampPercent(parsed);
+  if (porcentaje > 0) {
+    return { tipo: 'porcentaje', valor: porcentaje };
+  }
+
+  return { tipo: 'ninguno', valor: 0 };
+};
+
+const deriveDescriptorFromNotas = (notasData) => {
+  if (!notasData || typeof notasData !== 'object') {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  if (typeof notasData.descuento_tipo === 'string') {
+    const valorPreferido =
+      notasData.descuento_valor_original ?? notasData.descuento_aplicado ?? notasData.descuento_monto;
+    return normalizeDescriptor(notasData.descuento_tipo, valorPreferido);
+  }
+
+  if (notasData.descuento_monto !== undefined) {
+    return normalizeDescriptor('monto', notasData.descuento_monto);
+  }
+
+  if (typeof notasData.descuento_aplicado === 'number') {
+    return normalizeDescriptor(null, notasData.descuento_aplicado);
+  }
+
+  return { tipo: 'ninguno', valor: 0 };
+};
+
+const deriveDescriptorFromTurno = (turno) => {
+  if (!turno || typeof turno !== 'object') {
+    return { tipo: 'ninguno', valor: 0 };
+  }
+
+  if (typeof turno.paciente_obra_social_descuento_tipo === 'string') {
+    const valor =
+      turno.paciente_obra_social_descuento_valor ?? turno.paciente_obra_social_descuento ?? 0;
+    return normalizeDescriptor(turno.paciente_obra_social_descuento_tipo, valor);
+  }
+
+  if (
+    turno.paciente_obra_social_descuento !== undefined &&
+    turno.paciente_obra_social_descuento !== null
+  ) {
+    return normalizeDescriptor(null, turno.paciente_obra_social_descuento);
+  }
+
+  if (
+    turno.paciente_obra_social_descuento_valor !== undefined &&
+    turno.paciente_obra_social_descuento_valor !== null
+  ) {
+    return normalizeDescriptor(null, turno.paciente_obra_social_descuento_valor);
+  }
+
+  return { tipo: 'ninguno', valor: 0 };
+};
+
+const pickDescriptor = (primary, secondary) => {
+  if (primary && primary.tipo !== 'ninguno') {
+    return primary;
+  }
+  if (secondary && secondary.tipo !== 'ninguno') {
+    return secondary;
+  }
+  return { tipo: 'ninguno', valor: 0 };
 };
 
 const formatCurrency = (amount, currency = 'ARS') => {
@@ -152,6 +262,97 @@ export default function PagoModal({ turno, onClose }) {
     setSelectedMetodos((prev) => ({ ...prev, [pagoId]: metodo }));
   }, []);
 
+  const computePagoBreakdown = useCallback(
+    (pago) => {
+      if (!pago) {
+        return {
+          originalAmount: 0,
+          finalAmount: 0,
+          discountAmount: 0,
+          discountPercent: null,
+          notasData: null,
+        };
+      }
+
+      const notasData = parseNotas(pago.notas);
+      const descriptorFromTurno = deriveDescriptorFromTurno(turno);
+      const descriptorFromNotas = deriveDescriptorFromNotas(notasData);
+      const descriptor = pickDescriptor(descriptorFromTurno, descriptorFromNotas);
+
+      const rawMonto = toCurrencyNumber(pago.monto);
+      const notaOriginal = toPositiveAmount(
+        notasData?.monto_original ??
+          notasData?.montoOriginal ??
+          notasData?.precio_original ??
+          notasData?.precioOriginal
+      );
+      const notaDescuentoMonto = toPositiveAmount(
+        notasData?.descuento_monto ?? notasData?.descuentoMonto
+      );
+
+      let originalAmount = notaOriginal ?? rawMonto;
+      let discountAmount = notaDescuentoMonto ?? null;
+      let discountPercent = null;
+
+      if (descriptor.tipo === 'monto') {
+        const montoDescriptor = toPositiveAmount(descriptor.valor);
+        if (montoDescriptor) {
+          discountAmount = discountAmount ?? montoDescriptor;
+        }
+      } else if (descriptor.tipo === 'porcentaje') {
+        const ratio = clampPercent(descriptor.valor);
+        if (ratio > 0 && originalAmount > 0) {
+          discountPercent = ratio;
+          const descriptorDiscount = Number((originalAmount * ratio).toFixed(2));
+          if (!discountAmount || descriptorDiscount > discountAmount) {
+            discountAmount = descriptorDiscount;
+          }
+        }
+      }
+
+      if (!discountAmount && discountPercent && originalAmount > 0) {
+        discountAmount = Number((originalAmount * discountPercent).toFixed(2));
+      }
+
+      if (!discountAmount && notaDescuentoMonto && originalAmount > 0) {
+        discountAmount = notaDescuentoMonto;
+      }
+
+      if (
+        (!discountAmount || discountAmount <= 0) &&
+        notaOriginal !== null &&
+        notaOriginal > rawMonto
+      ) {
+        discountAmount = Number((notaOriginal - rawMonto).toFixed(2));
+      }
+
+      if (discountAmount && originalAmount > 0 && discountAmount > originalAmount) {
+        discountAmount = Number(originalAmount.toFixed(2));
+      }
+
+      const finalAmount = discountAmount
+        ? Math.max(0, Number((originalAmount - discountAmount).toFixed(2)))
+        : Number(rawMonto.toFixed(2));
+
+      if (discountAmount && originalAmount > 0 && !discountPercent) {
+        const ratio = discountAmount / originalAmount;
+        if (ratio > 0 && Number.isFinite(ratio)) {
+          discountPercent = clampPercent(ratio);
+        }
+      }
+
+      return {
+        originalAmount: Number(originalAmount.toFixed(2)),
+        finalAmount,
+        discountAmount: discountAmount ? Number(discountAmount.toFixed(2)) : 0,
+        discountPercent,
+        notasData,
+        descriptor,
+      };
+    },
+    [turno]
+  );
+
   const handlePay = async (pagoId) => {
     console.log('handlePay called with pagoId:', pagoId);
     console.log('selectedMetodos:', selectedMetodos);
@@ -177,13 +378,27 @@ export default function PagoModal({ turno, onClose }) {
       return;
     }
 
+    const pago = pagos.find((item) => item.id === pagoId);
+    if (!pago) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Pago no encontrado',
+        text: 'No se pudo recuperar la información del pago seleccionado.',
+      });
+      return;
+    }
+
+    const breakdown = computePagoBreakdown(pago);
+    const montoFinal = breakdown?.finalAmount ?? toCurrencyNumber(pago.monto);
+
     try {
       console.log('Making PUT request to update pago');
-      
-      const response = await axios.put(`${API_BASE_URL}/api/pagos/${pagoId}`, {
+
+      await axios.put(`${API_BASE_URL}/api/pagos/${pagoId}`, {
         estado: 'completado',
         turno_id: turno.id,
         metodo: metodoSeleccionado,
+        monto: montoFinal,
       });
       
       console.log('Pago updated successfully');
@@ -287,42 +502,34 @@ export default function PagoModal({ turno, onClose }) {
             <ul className="pago-list">
               {pagos.length > 0 ? (
                 pagos.map((pago) => {
-                  const notasData = parseNotas(pago.notas);
-                  const metaOriginal =
-                    notasData && typeof notasData.monto_original === 'number'
-                      ? notasData.monto_original
-                      : null;
-                  const metaDescuento =
-                    notasData && typeof notasData.descuento_aplicado === 'number'
-                      ? notasData.descuento_aplicado
-                      : null;
+                  const breakdown = computePagoBreakdown(pago);
+                  const {
+                    originalAmount,
+                    finalAmount,
+                    discountAmount,
+                    discountPercent,
+                  } = breakdown;
 
-                  const descuento = clampDiscount(
-                    metaDescuento !== null ? metaDescuento : turno?.paciente_obra_social_descuento
+                  const mostrarDescuento =
+                    discountAmount > 0 &&
+                    originalAmount > finalAmount + 0.009;
+
+                  const formattedOriginal = formatCurrency(
+                    mostrarDescuento ? originalAmount : finalAmount
                   );
-
-                  let montoOriginal = metaOriginal ?? pago.monto;
-                  let montoFinal = metaOriginal !== null ? pago.monto : montoOriginal;
-
-                  if (metaOriginal === null && descuento > 0) {
-                    montoFinal = Number((montoOriginal * (1 - descuento)).toFixed(2));
-                  }
-
-                  if (!Number.isFinite(montoOriginal) || Number.isNaN(montoOriginal)) {
-                    montoOriginal = 0;
-                  }
-                  if (!Number.isFinite(montoFinal) || Number.isNaN(montoFinal)) {
-                    montoFinal = 0;
-                  }
-                  if (montoOriginal < 0) montoOriginal = 0;
-                  if (montoFinal < 0) montoFinal = 0;
-
-                  const diferencia = montoOriginal - montoFinal;
-                  const ahorro = diferencia > 0.009 ? Number(diferencia.toFixed(2)) : null;
-                  const mostrarDescuento = ahorro !== null && ahorro > 0;
-
-                  const formattedOriginal = formatCurrency(montoOriginal);
-                  const formattedFinal = formatCurrency(montoFinal);
+                  const formattedFinal = formatCurrency(finalAmount);
+                  const porcentajeAproximado = mostrarDescuento
+                    ? discountPercent
+                      ? Math.round(discountPercent * 100)
+                      : originalAmount
+                      ? Math.round((discountAmount / originalAmount) * 100)
+                      : null
+                    : null;
+                  const discountNote = mostrarDescuento
+                    ? `Cubierto por obra social${
+                        discountAmount ? ` ${formatCurrency(discountAmount)}` : ''
+                      }`
+                    : null;
                   return (
                     <li
                       key={pago.id}
@@ -365,6 +572,11 @@ export default function PagoModal({ turno, onClose }) {
                             </label>
                           )}
                         </div>
+                        {discountNote && (
+                          <div className="pago-discount-note">
+                            <small>{discountNote}</small>
+                          </div>
+                        )}
                       </div>
                       {pago.estado !== 'completado' && (
                         <button className="btn-pay" onClick={() => handlePay(pago.id)}>
