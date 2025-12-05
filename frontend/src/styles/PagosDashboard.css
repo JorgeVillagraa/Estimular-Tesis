@@ -235,6 +235,13 @@
   color: var(--color-rosa1);
 }
 
+.pagos-detail-coverage {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+  color: var(--neutral-500);
+}
+
 .pagos-turnos {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -286,6 +293,11 @@
   font-weight: 700;
   font-size: 1.05rem;
   color: var(--color-rosa1);
+}
+
+.pagos-turno-actions .monto-cobertura {
+  font-size: 0.78rem;
+  color: var(--neutral-500);
 }
 
 .pagos-cuotas {

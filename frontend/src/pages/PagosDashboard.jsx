@@ -43,7 +43,6 @@ const dateFormatter = new Intl.DateTimeFormat("es-AR", {
   month: "short",
   year: "numeric",
 });
-
 const dateTimeFormatter = new Intl.DateTimeFormat("es-AR", {
   weekday: "short",
   day: "2-digit",
@@ -74,6 +73,7 @@ const EMPTY_MODAL_STATE = {
   title: "",
   description: "",
   collapseRow: false,
+  amountSummary: null,
 };
 
 function formatCurrency(amount, currency = "ARS", detailed = true) {
@@ -131,7 +131,7 @@ function parsePagoNotas(rawNotas) {
   try {
     const parsed = JSON.parse(rawNotas);
     return parsed && typeof parsed === "object" ? parsed : null;
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -229,6 +229,101 @@ function computePagoCoverage(pago, nino) {
     cobertura,
     saldoPaciente: Math.max(originalAmount - cobertura, 0),
     montoOriginal: Math.max(originalAmount, 0),
+  };
+}
+
+function toCurrencyAmount(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Number(numeric.toFixed(2));
+}
+
+function buildAmountSummary({ original, paciente, cobertura, moneda, count }) {
+  const numericCount = Number(count);
+  return {
+    totalOriginal: toCurrencyAmount(original),
+    totalPaciente: toCurrencyAmount(paciente),
+    totalCobertura: toCurrencyAmount(cobertura),
+    moneda: moneda || "ARS",
+    count: Number.isFinite(numericCount) && numericCount > 0 ? Math.round(numericCount) : null,
+  };
+}
+
+function prepareDeudaRow(row) {
+  if (!row || !Array.isArray(row.turnos)) {
+    return {
+      ...row,
+      turnos: [],
+      totalPaciente: 0,
+      totalCobertura: 0,
+      totalOriginal: 0,
+    };
+  }
+
+  let totalPaciente = 0;
+  let totalCobertura = 0;
+  let totalOriginal = 0;
+
+  const turnos = row.turnos.map((turno) => {
+    if (!turno || !Array.isArray(turno.pagos)) {
+      return {
+        ...turno,
+        pagos: [],
+        totalPaciente: 0,
+        totalCobertura: 0,
+        totalOriginal: 0,
+      };
+    }
+
+    let turnoPaciente = 0;
+    let turnoCobertura = 0;
+    let turnoOriginal = 0;
+
+    const pagos = turno.pagos.map((pago) => {
+      const coverageInfo = computePagoCoverage(pago, row.nino);
+      const cobertura = Number.isFinite(coverageInfo.cobertura)
+        ? coverageInfo.cobertura
+        : 0;
+      const pacientePaga = Number.isFinite(coverageInfo.saldoPaciente)
+        ? coverageInfo.saldoPaciente
+        : Number(pago?.monto || 0);
+      const montoOriginal = Number.isFinite(coverageInfo.montoOriginal)
+        ? coverageInfo.montoOriginal
+        : Number(pago?.monto || 0);
+
+      turnoPaciente += pacientePaga;
+      turnoCobertura += cobertura;
+      turnoOriginal += montoOriginal;
+
+      return {
+        ...pago,
+        coverageInfo: {
+          cobertura: Number(cobertura.toFixed(2)),
+          pacientePaga: Number(pacientePaga.toFixed(2)),
+          montoOriginal: Number(montoOriginal.toFixed(2)),
+        },
+      };
+    });
+
+    totalPaciente += turnoPaciente;
+    totalCobertura += turnoCobertura;
+    totalOriginal += turnoOriginal;
+
+    return {
+      ...turno,
+      pagos,
+      totalPaciente: Number(turnoPaciente.toFixed(2)),
+      totalCobertura: Number(turnoCobertura.toFixed(2)),
+      totalOriginal: Number(turnoOriginal.toFixed(2)),
+    };
+  });
+
+  return {
+    ...row,
+    turnos,
+    totalPaciente: Number(totalPaciente.toFixed(2)),
+    totalCobertura: Number(totalCobertura.toFixed(2)),
+    totalOriginal: Number(totalOriginal.toFixed(2)),
   };
 }
 
@@ -467,16 +562,47 @@ export default function PagosDashboard() {
 
   const processingSet = processingKeys;
 
-  const resumenCards = useMemo(
-    () => [
+  const processedDeudas = useMemo(
+    () => deudas.map((row) => prepareDeudaRow(row)),
+    [deudas]
+  );
+
+  const deudaConCobertura = useMemo(() => {
+    return processedDeudas.reduce(
+      (acc, row) => {
+        const paciente = Number.isFinite(row?.totalPaciente)
+          ? row.totalPaciente
+          : 0;
+        const cobertura = Number.isFinite(row?.totalCobertura)
+          ? row.totalCobertura
+          : 0;
+        acc.paciente += paciente;
+        acc.cobertura += cobertura;
+        return acc;
+      },
+      { paciente: 0, cobertura: 0 }
+    );
+  }, [processedDeudas]);
+
+  const resumenCards = useMemo(() => {
+    const coberturaDetalle =
+      totals.cantidad_turnos > 0 && deudaConCobertura.cobertura > 0
+        ? ` · Obra social cubre ${formatCurrency(
+            deudaConCobertura.cobertura,
+            "ARS",
+            false
+          )}`
+        : "";
+
+    return [
       {
         id: "deberes",
         className: "debe",
         label: "Deberes (turnos pendientes)",
-        valor: formatCurrency(totals.total_pendiente, "ARS", false),
+        valor: formatCurrency(deudaConCobertura.paciente, "ARS", false),
         detalle:
           totals.cantidad_turnos > 0
-            ? `${totals.cantidad_turnos} turnos con saldo pendiente`
+            ? `${totals.cantidad_turnos} turnos con saldo pendiente${coberturaDetalle}`
             : "Sin turnos impagos registrados",
       },
       {
@@ -503,15 +629,15 @@ export default function PagosDashboard() {
         valor: formatCurrency(resumen.cobrosMesesAnteriores, "ARS", false),
         detalle: "Montos cobrados este mes por turnos previos",
       },
-    ],
-    [
-      resumen.cobrosMesesAnteriores,
-      resumen.coberturaObraSocial,
-      resumen.haberes,
-      totals.cantidad_turnos,
-      totals.total_pendiente,
-    ]
-  );
+    ];
+  }, [
+    resumen.cobrosMesesAnteriores,
+    resumen.coberturaObraSocial,
+    resumen.haberes,
+    totals.cantidad_turnos,
+    deudaConCobertura.cobertura,
+    deudaConCobertura.paciente,
+  ]);
 
   const handlePayTurno = useCallback((rowKey, turno) => {
     if (!turno || !Array.isArray(turno.pagos) || turno.pagos.length === 0) {
@@ -537,6 +663,48 @@ export default function PagosDashboard() {
       return;
     }
 
+    const sumFromPagos = (selector) =>
+      pendientes.reduce((acc, pago) => {
+        const value = Number(selector(pago));
+        return Number.isFinite(value) ? acc + value : acc;
+      }, 0);
+
+    const turnoOriginal = Number(turno?.totalOriginal);
+    const totalOriginal = Number.isFinite(turnoOriginal)
+      ? turnoOriginal
+      : sumFromPagos(
+          (pago) =>
+            pago?.coverageInfo?.montoOriginal ?? pago?.monto ?? 0
+        );
+
+    const turnoPaciente = Number(turno?.totalPaciente);
+    const totalPaciente = Number.isFinite(turnoPaciente)
+      ? turnoPaciente
+      : sumFromPagos(
+          (pago) =>
+            pago?.coverageInfo?.pacientePaga ??
+            pago?.coverageInfo?.saldoPaciente ??
+            pago?.monto ??
+            0
+        );
+
+    const turnoCobertura = Number(turno?.totalCobertura);
+    const totalCobertura = Number.isFinite(turnoCobertura)
+      ? turnoCobertura
+      : sumFromPagos((pago) => pago?.coverageInfo?.cobertura ?? 0);
+
+    const amountSummary = buildAmountSummary({
+      original: totalOriginal,
+      paciente: totalPaciente,
+      cobertura: totalCobertura,
+      moneda:
+        turno?.moneda ||
+        pendientes[0]?.moneda ||
+        (Array.isArray(turno.pagos) && turno.pagos[0]?.moneda) ||
+        "ARS",
+      count: pendientes.length,
+    });
+
     const defaultMethod = pendientes.find(
       (pago) =>
         typeof pago?.metodo === "string" &&
@@ -559,6 +727,7 @@ export default function PagosDashboard() {
       title: "Registrar cobro del turno",
       description,
       collapseRow: true,
+      amountSummary,
     });
   }, [setModalSubmitting, setPaymentModalState]);
 
@@ -588,6 +757,37 @@ export default function PagosDashboard() {
         return;
       }
 
+      const sumTurnos = (selector) =>
+        row.turnos.reduce((acc, turnoItem) => {
+          const value = Number(selector(turnoItem));
+          return Number.isFinite(value) ? acc + value : acc;
+        }, 0);
+
+      const rowOriginal = Number(row?.totalOriginal);
+      const totalOriginal = Number.isFinite(rowOriginal)
+        ? rowOriginal
+        : sumTurnos((turnoItem) => turnoItem.totalOriginal ?? 0);
+
+      const rowPaciente = Number(row?.totalPaciente);
+      const totalPaciente = Number.isFinite(rowPaciente)
+        ? rowPaciente
+        : sumTurnos((turnoItem) => turnoItem.totalPaciente ?? 0);
+
+      const rowCobertura = Number(row?.totalCobertura);
+      const totalCobertura = Number.isFinite(rowCobertura)
+        ? rowCobertura
+        : sumTurnos((turnoItem) => turnoItem.totalCobertura ?? 0);
+
+      const amountSummary = buildAmountSummary({
+        original: totalOriginal,
+        paciente: totalPaciente,
+        cobertura: totalCobertura,
+        moneda:
+          row?.moneda ||
+          (row.turnos[0]?.moneda || (pendientes[0]?.moneda ?? "ARS")),
+        count: pendientes.length,
+      });
+
       const defaultMethod = pendientes.find(
         (pago) =>
           typeof pago?.metodo === "string" &&
@@ -613,6 +813,7 @@ export default function PagosDashboard() {
         title: "Registrar todos los cobros pendientes",
         description,
         collapseRow: true,
+        amountSummary,
       });
     },
     [setModalSubmitting, setPaymentModalState]
@@ -765,14 +966,14 @@ export default function PagosDashboard() {
                     Cargando deudas...
                   </td>
                 </tr>
-              ) : deudas.length === 0 ? (
+              ) : processedDeudas.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="loading-cell">
                     ¡Al día! No hay cuotas impagas registradas.
                   </td>
                 </tr>
               ) : (
-                deudas.map((row, index) => {
+                processedDeudas.map((row, index) => {
                   const rowKey = getRowKey(row, index);
                   const isExpanded = expandedRows.has(rowKey);
                   const responsableNombre = row.responsable
@@ -814,7 +1015,7 @@ export default function PagosDashboard() {
                         </td>
                         <td>{formatDate(row.fecha_ultima_cuota_impaga)}</td>
                         <td className="align-right">
-                          {formatCurrency(row.monto_total_pendiente, moneda)}
+                          {formatCurrency(row.totalPaciente, moneda)}
                         </td>
                       </tr>
                       <tr className="pagos-detail-row">
@@ -831,10 +1032,19 @@ export default function PagosDashboard() {
                                   </span>
                                   <strong>
                                     {formatCurrency(
-                                      row.monto_total_pendiente,
+                                      row.totalPaciente,
                                       moneda
                                     )}
                                   </strong>
+                                  {row.totalCobertura > 0 && (
+                                    <small className="pagos-detail-coverage">
+                                      Obra social cubre {" "}
+                                      {formatCurrency(
+                                        row.totalCobertura,
+                                        moneda
+                                      )}
+                                    </small>
+                                  )}
                                 </div>
                                 <button
                                   type="button"
@@ -848,7 +1058,7 @@ export default function PagosDashboard() {
                                   {payAllProcessing
                                     ? "Procesando..."
                                     : `Pagar todo · ${formatCurrency(
-                                        row.monto_total_pendiente,
+                                        row.totalPaciente,
                                         moneda
                                       )}`}
                                 </button>
@@ -888,10 +1098,19 @@ export default function PagosDashboard() {
                                         <div className="pagos-turno-actions">
                                           <span className="monto">
                                             {formatCurrency(
-                                              turno.total_pendiente,
+                                              turno.totalPaciente,
                                               turnoMoneda
                                             )}
                                           </span>
+                                          {turno.totalCobertura > 0 && (
+                                            <span className="monto-cobertura">
+                                              Obra social cubre {" "}
+                                              {formatCurrency(
+                                                turno.totalCobertura,
+                                                turnoMoneda
+                                              )}
+                                            </span>
+                                          )}
                                           <button
                                             type="button"
                                             className="pagos-btn secondary"
@@ -911,14 +1130,28 @@ export default function PagosDashboard() {
                                       <ul className="pagos-cuotas">
                                         {turno.pagos.map((pago) => {
                                           const pagoKey = pago.id || pago.id_pago;
-                                          const coverageInfo = computePagoCoverage(
-                                            pago,
-                                            row.nino
+                                          const coverageInfo =
+                                            pago.coverageInfo ||
+                                            computePagoCoverage(pago, row.nino);
+                                          const cobertura = Number(
+                                            Number(
+                                              coverageInfo?.cobertura || 0
+                                            ).toFixed(2)
                                           );
-                                          const tieneCobertura =
-                                            coverageInfo.cobertura > 0.01;
-                                          const montoPaciente = coverageInfo.saldoPaciente;
-                                          const montoOriginal = coverageInfo.montoOriginal;
+                                          const montoPaciente = Number(
+                                            Number(
+                                              coverageInfo?.pacientePaga ??
+                                                coverageInfo?.saldoPaciente ??
+                                                pago.monto
+                                            ).toFixed(2)
+                                          );
+                                          const montoOriginal = Number(
+                                            Number(
+                                              coverageInfo?.montoOriginal ??
+                                                pago.monto
+                                            ).toFixed(2)
+                                          );
+                                          const tieneCobertura = cobertura > 0.01;
                                           return (
                                             <li key={pagoKey}>
                                               <div>
@@ -942,7 +1175,7 @@ export default function PagosDashboard() {
                                                       )}
                                                     </span>
                                                     <span className="cuota-monto-final">
-                                                      Paciente paga: {formatCurrency(
+                                                      Total a pagar: {formatCurrency(
                                                         montoPaciente,
                                                         pago.moneda || turnoMoneda,
                                                         true
@@ -967,7 +1200,7 @@ export default function PagosDashboard() {
                                                   <span>Obra social cubre</span>
                                                   <strong>
                                                     {formatCurrency(
-                                                      coverageInfo.cobertura,
+                                                      cobertura,
                                                       pago.moneda || turnoMoneda,
                                                       true
                                                     )}
@@ -1121,6 +1354,7 @@ export default function PagosDashboard() {
         title={paymentModalState.title}
         description={paymentModalState.description}
         defaultValue={paymentModalState.defaultValue}
+        amountSummary={paymentModalState.amountSummary}
         submitting={modalSubmitting}
         onConfirm={handleConfirmPaymentMethod}
         onCancel={handleCancelPaymentMethod}

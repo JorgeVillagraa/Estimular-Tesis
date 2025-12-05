@@ -33,6 +33,46 @@
   line-height: 1.4;
 }
 
+.select-payment-modal-summary {
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  background: rgba(236, 72, 153, 0.08);
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.select-payment-modal-summary .summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.select-payment-modal-summary .summary-row strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.select-payment-modal-summary .summary-row.cobertura span:last-child {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.select-payment-modal-summary .summary-row.final strong {
+  color: #e11d48;
+  font-size: 1.05rem;
+}
+
+.select-payment-modal-summary .summary-note {
+  margin-top: 0.2rem;
+  text-align: right;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
 .select-payment-modal-label {
   font-size: 0.85rem;
   font-weight: 600;

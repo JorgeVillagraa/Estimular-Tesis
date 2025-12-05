@@ -10,11 +10,30 @@ export default function SelectPaymentMethodModal({
   title,
   description,
   defaultValue = "",
+  amountSummary = null,
   submitting = false,
   onConfirm,
   onCancel,
 }) {
   const [selectedMethod, setSelectedMethod] = useState(defaultValue || "");
+
+  const formatAmount = (value, currency = "ARS") => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return "—";
+    }
+    const safeCurrency = currency || "ARS";
+    try {
+      return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: safeCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(numeric);
+    } catch {
+      return `${safeCurrency} ${numeric.toFixed(2)}`;
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -38,6 +57,45 @@ export default function SelectPaymentMethodModal({
           <h3>{title || "Seleccionar método de pago"}</h3>
         </div>
         {description && <p className="select-payment-modal-description">{description}</p>}
+        {amountSummary && (
+          <div className="select-payment-modal-summary">
+            <div className="summary-row">
+              <span>Precio original</span>
+              <strong>
+                {formatAmount(
+                  amountSummary.totalOriginal,
+                  amountSummary.moneda
+                )}
+              </strong>
+            </div>
+            {amountSummary.totalCobertura > 0 && (
+              <div className="summary-row cobertura">
+                <span>Obra social cubre</span>
+                <span>
+                  -
+                  {formatAmount(
+                    amountSummary.totalCobertura,
+                    amountSummary.moneda
+                  )}
+                </span>
+              </div>
+            )}
+            <div className="summary-row final">
+              <span>Total a pagar</span>
+              <strong>
+                {formatAmount(
+                  amountSummary.totalPaciente,
+                  amountSummary.moneda
+                )}
+              </strong>
+            </div>
+            {amountSummary.count && amountSummary.count > 1 && (
+              <small className="summary-note">
+                Incluye {amountSummary.count} cuotas pendientes.
+              </small>
+            )}
+          </div>
+        )}
         <label className="select-payment-modal-label" htmlFor="select-payment-method">
           Método de pago
         </label>
