@@ -252,31 +252,31 @@ const getResumenMensual = async (req, res) => {
             const inicioMesIso = inicioMes.toISOString();
             const finMesIso = finMes.toISOString();
 
-            const turnosMes = (turnos || []).filter((t) => {
-                const f = t.inicio ? new Date(t.inicio) : null;
-                return f && f.toISOString() >= inicioMesIso && f.toISOString() < finMesIso;
-            });
-
             const pagosMes = pagosConCobertura.filter((p) => {
                 const f = p.registrado_en ? new Date(p.registrado_en) : null;
                 return f && f.toISOString() >= inicioMesIso && f.toISOString() < finMesIso;
             });
 
-            const deberes = pagosConCobertura
+            const pagosCompletadosMes = pagosMes.filter((p) => p.estado === 'completado');
+
+            const pagosTurnosMes = pagosConCobertura.filter((pago) => {
+                const turno = pago.turno || null;
+                if (!turno) return false;
+                const inicioTurno = turno.inicio ? new Date(turno.inicio) : null;
+                if (!inicioTurno) return false;
+                const iso = inicioTurno.toISOString();
+                if (iso > now.toISOString()) return false;
+                return iso >= inicioMesIso && iso < finMesIso;
+            });
+
+            const deberes = pagosTurnosMes
                 .filter((p) => {
                     if (p.estado !== 'pendiente') return false;
-                    const turno = p.turno || null;
-                    if (!turno) return false;
-                    const estadoTurno = String(turno.estado || '')
+                    const estadoTurno = String(p?.turno?.estado || '')
                         .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^\p{L}\p{N}\s]/gu, '')
                         .toLowerCase();
-                    if (estadoTurno !== 'completado') return false;
-                    const f = turno.inicio ? new Date(turno.inicio) : null;
-                    if (!f) return false;
-                    const iso = f.toISOString();
-                    if (iso > now.toISOString()) return false;
-                    return iso >= inicioMesIso && iso < finMesIso;
+                    return estadoTurno === 'completado';
                 })
                 .reduce((sum, p) => {
                     const saldoPaciente = p?.coverageInfo?.saldoPaciente;
@@ -284,12 +284,16 @@ const getResumenMensual = async (req, res) => {
                     return sum + toAmount(base);
                 }, 0);
 
-            const pagosCompletadosMes = pagosMes.filter((p) => p.estado === 'completado');
-
-            const haberes = pagosCompletadosMes.reduce(
-                (sum, p) => sum + Number(p.monto || 0),
-                0
-            );
+            const haberes = pagosTurnosMes
+                .filter((p) => {
+                    if (p.estado !== 'completado') return false;
+                    const estadoTurno = String(p?.turno?.estado || '')
+                        .normalize('NFD')
+                        .replace(/[^\p{L}\p{N}\s]/gu, '')
+                        .toLowerCase();
+                    return estadoTurno === 'completado';
+                })
+                .reduce((sum, p) => sum + Number(p.monto || 0), 0);
 
             const cobrosMesesAnteriores = pagosCompletadosMes
                 .filter((p) => {
@@ -300,17 +304,10 @@ const getResumenMensual = async (req, res) => {
                 })
                 .reduce((sum, p) => sum + Number(p.monto || 0), 0);
 
-            const coberturaObraSocial = pagosConCobertura
-                .filter((pago) => {
-                    const turno = pago.turno || null;
-                    if (!turno) return false;
-                    const inicioTurno = turno.inicio ? new Date(turno.inicio) : null;
-                    if (!inicioTurno) return false;
-                    const iso = inicioTurno.toISOString();
-                    if (iso > now.toISOString()) return false;
-                    return iso >= inicioMesIso && iso < finMesIso;
-                })
-                .reduce((sum, pago) => sum + toAmount(pago?.coverageInfo?.cobertura || 0), 0);
+            const coberturaObraSocial = pagosTurnosMes.reduce(
+                (sum, pago) => sum + toAmount(pago?.coverageInfo?.cobertura || 0),
+                0
+            );
 
             const id = `${anio}-${String(mesIndex + 1).padStart(2, '0')}`;
             const labelMes = `${labelsMes[mesIndex]} ${anio}`;
@@ -462,7 +459,7 @@ const getResumenMensualDetalle = async (req, res) => {
                 item.coberturaObraSocial += cobertura;
             }
 
-            if (pago.estado === 'completado') {
+            if (pago.estado === 'completado' && esDelMesActual) {
                 item.haberes += monto;
             }
         });
