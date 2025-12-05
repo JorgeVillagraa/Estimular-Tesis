@@ -15,7 +15,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 36px 24px;
   overflow: hidden;
   background: linear-gradient(180deg, #ff7dbd 0%, #ff5aa3 45%, #ff8fc9 100%);
   color: #fff;
@@ -129,6 +129,31 @@
   opacity: 0.85;
 }
 
+.entrevista__aside-back {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.entrevista__aside-back:hover,
+.entrevista__aside-back:focus {
+  background: rgba(255, 255, 255, 0.32);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.2);
+}
+
 .entrevista__aside-figure {
   position: absolute;
   right: -60px;
@@ -187,7 +212,7 @@
 
 @media (max-width: 640px) {
   .entrevista__aside {
-    padding: 32px 20px 44px;
+    padding: 28px 20px 44px;
   }
 
   .entrevista__aside-figure {

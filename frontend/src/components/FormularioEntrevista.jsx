@@ -1,9 +1,11 @@
 import "../styles/FormularioEntrevista.css";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import API_BASE_URL from "../constants/api";
+import { MdArrowBack } from "react-icons/md";
 import {
   normalizePhone,
   isPhoneValid,
@@ -817,6 +819,10 @@ export default function FormularioEntrevista() {
       <aside className="entrevista__aside" aria-label="Información de Estimular">
         <div className="entrevista__aside-overlay" aria-hidden="true" />
         <div className="entrevista__aside-content">
+          <Link to="/" className="entrevista__aside-back" aria-label="Volver al inicio">
+            <MdArrowBack size={18} aria-hidden="true" />
+            <span>Volver al inicio</span>
+          </Link>
           <img
             src={fallbackObraLogo}
             alt="Centro Estimular"

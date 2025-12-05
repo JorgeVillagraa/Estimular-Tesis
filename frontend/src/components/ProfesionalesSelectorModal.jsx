@@ -122,9 +122,28 @@ export default function ProfesionalesSelectorModal({
     const actualizadas = propuestasOrdenadas.map((propuesta) => {
       const deptKey = String(propuesta?.departamento_id);
       const seleccionActual = selecciones[deptKey] || [];
+      const disponibles = Array.isArray(propuesta?.profesionales_disponibles)
+        ? propuesta.profesionales_disponibles
+        : [];
+      const nombresSeleccionados = seleccionActual
+        .map((idSeleccionado) => {
+          const match = disponibles.find(
+            (prof) => normalizeId(prof?.id_profesional) === idSeleccionado
+          );
+          if (!match) return null;
+          const nombre = match?.nombre_completo || [match?.nombre, match?.apellido]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+          if (nombre) return nombre;
+          const fallbackId = normalizeId(match?.id_profesional);
+          return fallbackId !== null ? `Profesional ${fallbackId}` : null;
+        })
+        .filter((nombre) => typeof nombre === "string" && nombre.trim() !== "");
       return {
         ...propuesta,
         profesional_ids: Array.from(new Set(seleccionActual)),
+        profesional_nombres: nombresSeleccionados,
       };
     });
     onConfirm(actualizadas);

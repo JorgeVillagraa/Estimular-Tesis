@@ -722,14 +722,31 @@ export default function NuevoTurnoPanel({
                     )}
                     <div className="multi-turno-title">Profesionales confirmados</div>
                     <ul className="multi-turno-list">
-                      {prefillData.profesionales_resumen.map((prof) => (
-                        <li key={prof.id_profesional}>
-                          <strong>{prof.nombre_completo}</strong>
-                          {Array.isArray(prof.departamentos) && prof.departamentos.length > 0 && (
-                            <span className="multi-turno-departamentos"> · {prof.departamentos.join(', ')}</span>
-                          )}
-                        </li>
-                      ))}
+                      {(() => {
+                        const multipleServicios =
+                          Array.isArray(prefillData?.departamentos_resumen) &&
+                          prefillData.departamentos_resumen.length > 1;
+
+                        return prefillData.profesionales_resumen.map((prof) => {
+                          const departamentos = Array.isArray(prof.departamentos)
+                            ? prof.departamentos.filter((nombre) => typeof nombre === 'string' && nombre.trim() !== '')
+                            : [];
+                          const shouldMostrarDepartamentos =
+                            departamentos.length > 1 || (multipleServicios && departamentos.length > 0);
+
+                          return (
+                            <li key={prof.id_profesional}>
+                              <strong>{prof.nombre_completo}</strong>
+                              {shouldMostrarDepartamentos && (
+                                <span className="multi-turno-departamentos">
+                                  {' '}
+                                  · {departamentos.join(', ')}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        });
+                      })()}
                     </ul>
                     {Array.isArray(prefillData.departamentos_resumen) &&
                       prefillData.departamentos_resumen.length > 1 && (
