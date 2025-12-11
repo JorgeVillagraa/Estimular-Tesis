@@ -2,12 +2,11 @@
 const express = require('express');
 
 const { enviarEmail } = require('../controllers/contactoController');
-const { authenticate, authorize } = require('../middlewares/auth');
 
 const router = express.Router();
 
-
-// Ruta para recibir el formulario del footer
-router.post('/enviar-mail', authenticate, authorize(['admin', 'recepcion', 'profesional']), enviarEmail);
+// Ruta pública para recibir el formulario de contacto de la landing
+// No requiere autenticación porque la usan potenciales pacientes/consultas externas.
+router.post('/enviar-mail', enviarEmail);
 
 module.exports = router;
