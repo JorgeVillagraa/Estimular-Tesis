@@ -93,7 +93,7 @@ async function applyLogoMutation(obra, logoValue) {
 // Params: search, page=1, pageSize=10, estado (opcional, 'todos' para ignorar)
 async function listarObrasSociales(req, res) {
   try {
-    const { search = '', page = 1, pageSize = 10, estado } = req.query;
+    const { search = '', page = 1, pageSize = 100, estado } = req.query;
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const size = Math.max(parseInt(pageSize, 10) || 10, 1);
     const from = (pageNum - 1) * size;
