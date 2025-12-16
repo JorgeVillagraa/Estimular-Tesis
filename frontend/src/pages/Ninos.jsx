@@ -1374,10 +1374,13 @@ export default function Ninos() {
                         </tr>
                       </thead>
                       <tbody>
-                        {responsablesVinculados.map((rel) => (
+                        {responsablesVinculados.map((rel) => {
+                          const isSingleResponsable = responsablesVinculados.length === 1;
+                          const showPrincipalTag = rel.es_principal || isSingleResponsable;
+                          return (
                           <tr
                             key={rel.id_nino_responsable}
-                            className={rel.es_principal ? "row-principal" : ""}
+                            className={showPrincipalTag ? "row-principal" : ""}
                           >
                             <td data-label="Nombre">
                               <div className="cell-stack">
@@ -1385,7 +1388,7 @@ export default function Ninos() {
                                   {rel.responsable?.nombre || "—"}{" "}
                                   {rel.responsable?.apellido || ""}
                                 </span>
-                                {rel.es_principal && (
+                                {showPrincipalTag && (
                                   <span className="tag principal">
                                     <FaStar size={12} /> Principal
                                   </span>
@@ -1445,7 +1448,8 @@ export default function Ninos() {
                               </td>
                             )}
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
