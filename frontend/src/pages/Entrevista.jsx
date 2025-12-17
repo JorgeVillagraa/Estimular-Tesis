@@ -941,7 +941,7 @@ export default function Entrevista() {
                     <tr>
                       <th className="col-dni">DNI</th>
                       <th className="col-name">Nombre</th>
-                      <th className="col-last">Apellido</th>
+                      {/* <th className="col-last">Apellido</th> */}
                       <th className="col-dniNac">Edad</th>
                       <th className="col-os">Obra Social</th>
                       <th className="col-motivo">Motivo consulta</th>
@@ -965,16 +965,21 @@ export default function Entrevista() {
                         return depId === String(deptFilter);
                       })
                       .map((row) => {
-                        const tipoLabel = row.compartida ? 'Entrevista compartida' : 'Entrevista';
+                        const tipoLabel = row.compartida ? 'Compartida' : 'Entrevista';
                         const expanded = expandedDetalleId === row.id;
                         const birth = row.fecha_nacimiento ? formatDateDMY(row.fecha_nacimiento) : null;
                         return (
                           <>
                             <tr key={row.id}>
                               <td className="col-dni">{row.dni || '—'}</td>
-                              <td className="col-name">{row.nombre}</td>
-                              <td className="col-last">{row.apellido}</td>
-                              <td className="col-dniNac">{birth ? `${birth} (${edad(row.fecha_nacimiento)} años)` : '—'}</td>
+                              <td className="col-name">{row.nombre} {row.apellido}</td>
+                              {/* <td className="col-last">{row.apellido}</td> */}
+                              <td className="col-dniNac">
+                                {birth ? `${birth}` : '—'}
+                                <br></br>
+                                 {birth ? `${edad(row.fecha_nacimiento)} años` : '—'}
+
+                                </td>
                               <td className="col-os">{row.obra_social}</td>
                               <td className="col-motivo">
                                 {row.motivo_consulta ? (
@@ -1014,7 +1019,7 @@ export default function Entrevista() {
                                       onClick={() => programarTurnosEntrevista(row.candidatoRef, { replaceExisting: false })}
                                     >
                                       <MdEventAvailable size={18} />
-                                      <span>Asignar turno</span>
+                                      <span>Asignar</span>
                                     </button>
                                   )}
                                 </div>

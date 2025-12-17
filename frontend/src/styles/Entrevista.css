@@ -132,8 +132,8 @@
   background: rgba(229, 0, 125, 0.08);
   color: #e5007d;
   border: 1px solid rgba(229, 0, 125, 0.25);
+  text-align: center;
 }
-
 
 
 .detalle-shared {
@@ -215,15 +215,18 @@
 
 .col-name,
 .col-last {
-  min-width: 120px;
+  /* min-width: 120px; */
+  text-wrap: nowrap;
 }
 
+
 .col-dniNac {
-  min-width: 140px;
+  min-width: 100px;
+  text-align: center !important;
 }
 
 .col-os {
-  min-width: 150px;
+  /*min-width: 150px;*/
 }
 
 .col-motivo {
