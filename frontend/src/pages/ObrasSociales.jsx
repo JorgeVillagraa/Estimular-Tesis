@@ -270,6 +270,9 @@ export default function ObrasSociales() {
                           <div className="mobile-card-name">
                             {sanitizeNombreObra(o.nombre_obra_social) || "Sin nombre"}
                           </div>
+                          <div className="mobile-card-sub">
+                            Cobertura: {formatCurrencyARS(o.descuento)}
+                          </div>
                         </div>
                         <div className={`mobile-card-status ${o.estado ? 'active' : 'inactive'}`}>
                           {o.estado || 'Sin estado'}
@@ -349,6 +352,19 @@ export default function ObrasSociales() {
                                   ) {
                                     payload.estado = editData.estado;
                                   }
+                                  if (editData.descuento !== undefined) {
+                                    const parsed = Number(editData.descuento);
+                                    if (!Number.isFinite(parsed) || parsed < 0) {
+                                      Swal.close();
+                                      Swal.fire({
+                                        icon: "warning",
+                                        title: "Cobertura inválida",
+                                        text: "Ingresá un monto numérico mayor o igual a 0.",
+                                      });
+                                      return;
+                                    }
+                                    payload.descuento = parsed;
+                                  }
                                   await axios.put(
                                     `${API_BASE_URL}/api/obras-sociales/${o.id_obra_social}`,
                                     payload
@@ -396,6 +412,7 @@ export default function ObrasSociales() {
                                 setEditData({
                                   nombre_obra_social: o.nombre_obra_social,
                                   estado: o.estado,
+                                  descuento: o.descuento,
                                 });
                               }}
                             >
@@ -459,6 +476,7 @@ export default function ObrasSociales() {
                   <tr>
                     <th className="col-logo">Logo</th>
                     <th>Nombre</th>
+                    <th>Cobertura</th>
                     <th>Estado</th>
                     <th className="col-actions">Acciones</th>
                   </tr>
@@ -502,6 +520,30 @@ export default function ObrasSociales() {
                             />
                           ) : (
                             sanitizeNombreObra(o.nombre_obra_social) || "—"
+                          )}
+                        </td>
+                        <td>
+                          {isEditing ? (
+                            <input
+                              className="edit-input"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={
+                                editData.descuento !== undefined
+                                  ? editData.descuento
+                                  : o.descuento ?? ""
+                              }
+                              onChange={(e) =>
+                                setEditData((ed) => ({
+                                  ...ed,
+                                  descuento: e.target.value,
+                                }))
+                              }
+                              placeholder="0"
+                            />
+                          ) : (
+                            formatCurrencyARS(o.descuento)
                           )}
                         </td>
                         <td>
@@ -602,6 +644,19 @@ export default function ObrasSociales() {
                                       ) {
                                         payload.estado = editData.estado;
                                       }
+                                      if (editData.descuento !== undefined) {
+                                        const parsed = Number(editData.descuento);
+                                        if (!Number.isFinite(parsed) || parsed < 0) {
+                                          Swal.close();
+                                          Swal.fire({
+                                            icon: "warning",
+                                            title: "Cobertura inválida",
+                                            text: "Ingresá un monto numérico mayor o igual a 0.",
+                                          });
+                                          return;
+                                        }
+                                        payload.descuento = parsed;
+                                      }
                                       await axios.put(
                                         `${API_BASE_URL}/api/obras-sociales/${o.id_obra_social}`,
                                         payload
@@ -655,6 +710,7 @@ export default function ObrasSociales() {
                                             o.nombre_obra_social
                                           ),
                                           estado: o.estado,
+                                          descuento: o.descuento,
                                         });
                                       }}
                                     >

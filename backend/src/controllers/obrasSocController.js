@@ -139,7 +139,7 @@ async function listarEstadosObraSocial(req, res) {
 // POST /api/obras-sociales
 async function crearObraSocial(req, res) {
   try {
-    const { nombre_obra_social, estado, logo } = req.body || {};
+    const { nombre_obra_social, estado, logo, descuento } = req.body || {};
     if (!nombre_obra_social || !String(nombre_obra_social).trim()) {
       return res.status(400).json({ success: false, message: 'El nombre de la obra social es obligatorio' });
     }
@@ -147,6 +147,17 @@ async function crearObraSocial(req, res) {
       nombre_obra_social: String(nombre_obra_social).trim(),
     };
     if (estado) insertPayload.estado = estado;
+    if (descuento !== undefined) {
+      if (descuento === null || descuento === '') {
+        insertPayload.descuento = null;
+      } else {
+        const parsed = Number(descuento);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return res.status(400).json({ success: false, message: 'Cobertura inválida, debe ser un número mayor o igual a 0' });
+        }
+        insertPayload.descuento = parsed;
+      }
+    }
 
     const { data, error } = await supabaseAdmin
       .from('obras_sociales')
@@ -168,10 +179,21 @@ async function crearObraSocial(req, res) {
 async function editarObraSocial(req, res) {
   try {
     const { id } = req.params;
-    const { nombre_obra_social, estado, logo } = req.body || {};
+    const { nombre_obra_social, estado, logo, descuento } = req.body || {};
     const payload = {};
     if (nombre_obra_social !== undefined) payload.nombre_obra_social = String(nombre_obra_social).trim();
     if (estado !== undefined) payload.estado = estado;
+    if (descuento !== undefined) {
+      if (descuento === null || descuento === '') {
+        payload.descuento = null;
+      } else {
+        const parsed = Number(descuento);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          return res.status(400).json({ success: false, message: 'Cobertura inválida, debe ser un número mayor o igual a 0' });
+        }
+        payload.descuento = parsed;
+      }
+    }
     let obra;
     if (Object.keys(payload).length > 0) {
       const { data, error } = await supabaseAdmin
