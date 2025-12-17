@@ -148,6 +148,7 @@ export default function MainDashboard() {
     setError(null);
 
     try {
+      const nowIso = new Date().toISOString();
       const promises = [
         axios.get(`${API_BASE_URL}/api/equipo`, {
           params: { page: 1, pageSize: 4, activo: true },
@@ -159,11 +160,11 @@ export default function MainDashboard() {
           params: { page: 1, pageSize: 4 },
         }),
         axios.get(`${API_BASE_URL}/api/turnos`, {
-          params: { estado: "pendiente", limit: 8 },
+          params: { estado: "pendiente", limit: 8, desde: nowIso },
         }),
         axios.get(`${API_BASE_URL}/api/profesiones`),
         ...((isAdmin || isProfesional) ? [axios.get(`${API_BASE_URL}/api/turnos`, {
-          params: { estado: "pendiente", citacion: "Entrevista", ...(profile?.profesion_id ? { departamentoId: profile.profesion_id } : {}), limit: 8 },
+          params: { estado: "pendiente", citacion: "Entrevista", ...(profile?.profesion_id ? { departamentoId: profile.profesion_id } : {}), limit: 8, desde: nowIso },
         })] : []),
       ];
 
@@ -253,16 +254,25 @@ export default function MainDashboard() {
         {}
       );
 
-      const upcoming = turnosListado
-        .filter((turno) => {
-          if (!turno?.inicio) return false;
-          const start = new Date(turno.inicio);
-          if (Number.isNaN(start.getTime())) return false;
-          return start.getTime() >= Date.now();
-        })
+      const now = Date.now();
+      const filteredUpcoming = turnosListado.filter((turno) => {
+        if (!turno?.inicio) return false;
+        const start = new Date(turno.inicio);
+        if (Number.isNaN(start.getTime())) return false;
+        return start.getTime() >= now;
+      });
+
+      const upcoming = (filteredUpcoming.length ? filteredUpcoming : turnosListado)
         .slice(0, 5);
 
-      const upcomingEntrevistas = entrevistasListado
+      const filteredUpcomingEntrevistas = entrevistasListado.filter((entrevista) => {
+        if (!entrevista?.inicio) return false;
+        const start = new Date(entrevista.inicio);
+        if (Number.isNaN(start.getTime())) return false;
+        return start.getTime() >= now;
+      });
+
+      const upcomingEntrevistas = (filteredUpcomingEntrevistas.length ? filteredUpcomingEntrevistas : entrevistasListado)
         .slice(0, 5);
 
       if (activeRef.current) {
