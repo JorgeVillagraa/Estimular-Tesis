@@ -50,6 +50,10 @@ Este proyecto incluye un backend desarrollado en Node.js con Express y un fronte
 - Accede al frontend en `http://localhost:5173` (puerto por defecto de Vite).
 - El backend corre en `http://localhost:3000` (ajusta según configuración).
 
+## Documentación
+
+- [Manual de Usuario](docs/MANUAL_DE_USUARIO.pdf)
+
 ## Scripts Disponibles
 
 En la raíz del proyecto, hay scripts SQL en `scripts/` para inicializar la base de datos.
