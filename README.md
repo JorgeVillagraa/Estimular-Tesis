@@ -6,6 +6,17 @@ Proyecto de tesis para el sistema de gestión de Estimular, una organización de
 
 Este proyecto incluye un backend desarrollado en Node.js con Express y un frontend en React utilizando Vite. Permite gestionar niños, turnos, entrevistas, pagos y más funcionalidades relacionadas con la administración de la organización.
 
+## Capturas de Pantalla
+
+### Página de Inicio
+![Página de Inicio](docs/landing_page.png)
+
+### Login
+![Login](docs/login.jpeg)
+
+### Dashboard
+![Dashboard](docs/dashboard.jpeg)
+
 ## Tecnologías Utilizadas
 
 - **Backend**: Node.js, Express, PostgreSQL
